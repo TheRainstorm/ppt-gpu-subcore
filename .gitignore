@@ -1,3 +1,8 @@
+*.log
+*.json
+*.bak
+tmp/
+
 # GPU #
 ############
 *.i
@@ -41,4 +46,8 @@
 .Trashes
 ehthumbs.db
 Thumbs.db
+
+*.pyc
+*.mem
+*.sass
 

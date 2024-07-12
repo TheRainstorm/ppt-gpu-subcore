@@ -89,7 +89,7 @@ def get_current_kernel_info(kernel_id, app_name, app_path, app_config, instructi
     ##################
     # mem_trace_file = kernel_id+".mem"
     mem_trace_file = "memory_traces"
-    mem_trace_file_path = app_path + mem_trace_file
+    mem_trace_file_path = os.path.join(app_path, mem_trace_file)
 
     if not os.path.exists(mem_trace_file_path):
         print(str("\n[Error]\n")+str("<<memory_traces>> directory doesn't exists in ")+app_name+str(" application directory"))
@@ -104,9 +104,9 @@ def get_current_kernel_info(kernel_id, app_name, app_path, app_config, instructi
 
     if instructions_type == "PTX":
         ptx_file = "ptx_traces/"+kernel_id+".ptx"
-        if "/" in app_name:
-            sass_file = app_name.split("/")[-1]+"ptx_traces/"+kernel_id+".ptx"
-        ptx_file_path = app_path + ptx_file
+        # if "/" in app_name:
+        #     sass_file = app_name.split("/")[-1]+"ptx_traces/"+kernel_id+".ptx"
+        ptx_file_path = os.path.join(app_path, ptx_file)
 
         if not os.path.isfile(ptx_file_path):
             print(str("\n[Error]\n")+str("ptx instructions trace file: <<")+str(sass_file)+str(">> doesn't exists in ")+app_name +\
@@ -118,9 +118,9 @@ def get_current_kernel_info(kernel_id, app_name, app_path, app_config, instructi
 
     elif instructions_type == "SASS": 
         sass_file = "sass_traces/"+kernel_id+".sass"
-        if "/" in app_name:
-            sass_file = app_name.split("/")[-1]+"sass_traces/"+kernel_id+".sass"
-        sass_file_path = app_path + sass_file
+        # if "/" in app_name:
+        #     sass_file = app_name.split("/")[-1]+"sass_traces/"+kernel_id+".sass"
+        sass_file_path = os.path.join(app_path, sass_file)
 
         if not os.path.isfile(sass_file_path):
             print(str("\n[Error]\n")+str("sass instructions trace file: <<")+str(sass_file)+str(">> doesn't exists in ")+app_name +\
