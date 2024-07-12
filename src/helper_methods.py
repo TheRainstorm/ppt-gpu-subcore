@@ -45,6 +45,8 @@ def dump_output(pred_out):
     print("\t* achieved occupancy:", round(pred_out["achieved_occupancy"], 2),"%", file=outF)
 
     print("\n- Memory Performance:", file=outF)
+    print("\t* AMAT:", pred_out["AMAT"], file=outF)
+    print("\t* ACPAO:", pred_out["ACPAO"], file=outF)
     print("\t* unified L1 cache hit rate:", round((pred_out["memory_stats"]["umem_hit_rate"]*100),2),"%", file=outF)
     print("\t* unified L1 cache hit rate for read transactions (global memory accesses):", round((pred_out["memory_stats"]["gmem_hit_rate_lds"]*100),2),"%", file=outF)
     if pred_out["memory_stats"]["lmem_used"]:
@@ -81,10 +83,22 @@ def dump_output(pred_out):
     print("\t* Global memory atomic and reduction transactions:", pred_out["memory_stats"]["atom_red_tot_trans"], file=outF)
 
     print("\n- Kernel cycles:", file=outF)
+    print("\t* debug: active_cycles:", pred_out["active_cycles"], file=outF)
+    print("\t* debug: my_block_act_cycles_min:", pred_out["others"]["my_block_act_cycles_min"], file=outF)
+    print("\t* debug: my_block_act_cycles_max:", pred_out["others"]["my_block_act_cycles_max"], file=outF)
+    print("\t* debug: comp_cycles:", pred_out["comp_cycles"], file=outF)
+    print("\t* debug: last_inst_delay_act_min:", pred_out["others"]["last_inst_delay_act_min"], file=outF)
+    print("\t* debug: last_inst_delay_act_max:", pred_out["others"]["last_inst_delay_act_max"], file=outF)
+    print("\t* debug: active_SMs:", pred_out["active_SMs"], file=outF)
+    
     print("\t* GPU active cycles (min):", place_value(int(pred_out["gpu_act_cycles_min"])), file=outF)
     print("\t* GPU active cycles (max):", place_value(int(pred_out["gpu_act_cycles_max"])), file=outF)
     print("\t* SM active cycles (sum):", place_value(int(pred_out["sm_act_cycles.sum"])), file=outF)
     print("\t* SM elapsed cycles (sum):", place_value(int(pred_out["sm_elp_cycles.sum"])), file=outF)
+    print("\t* My GPU active cycles (min):", place_value(int(pred_out["my_gpu_act_cycles_min"])), file=outF)
+    print("\t* My GPU active cycles (max):", place_value(int(pred_out["my_gpu_act_cycles_max"])), file=outF)
+    print("\t* My SM active cycles (sum):", place_value(int(pred_out["my_sm_act_cycles.sum"])), file=outF)
+    print("\t* My SM elapsed cycles (sum):", place_value(int(pred_out["my_sm_elp_cycles.sum"])), file=outF)
     
     print("\n- Warp instructions executed:", place_value(int(pred_out["tot_warps_instructions_executed"])), file=outF)
     print("- Thread instructions executed:", place_value(int(pred_out["tot_threads_instructions_executed"])), file=outF)

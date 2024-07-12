@@ -299,6 +299,7 @@ class Kernel(Entity):
 		pred_out["achieved_active_warps"] = pred_out["achieved_active_warps"] / pred_out["active_cycles"]
 		pred_out["achieved_occupancy"]= (float(pred_out["achieved_active_warps"]) / float(self.acc.max_active_warps_per_SM)) * 100
 
+		pred_out["others"] = {}
 		#TODO: has to be done in a more logical way per TB
 		last_inst_delay = 0
 		for block in block_list:
@@ -307,6 +308,13 @@ class Kernel(Entity):
 
 		act_cycles_min = pred_out["active_cycles"] + pred_out["comp_cycles"] + last_inst_delay_act_min
 		act_cycles_max = pred_out["active_cycles"] + pred_out["comp_cycles"] + last_inst_delay_act_max
+
+		pred_out["others"]["last_inst_delay_act_min"] = last_inst_delay_act_min
+		pred_out["others"]["last_inst_delay_act_max"] = last_inst_delay_act_max
+  
+		actual_end_list = [block.actual_end for block in block_list]
+		pred_out["others"]["my_block_act_cycles_min"] = min(actual_end_list) + pred_out["comp_cycles"]
+		pred_out["others"]["my_block_act_cycles_max"] = max(actual_end_list) + pred_out["comp_cycles"]
 
 		avg_instructions_executed_per_block = pred_out["warps_instructions_executed"] / len(block_list)
 
@@ -320,8 +328,14 @@ class Kernel(Entity):
 			pred_out["gpu_act_cycles_min"] = act_cycles_min
 			pred_out["gpu_act_cycles_max"] = act_cycles_max
 
+		scale = pred_out["gpu_act_cycles_max"]//act_cycles_max
+		pred_out["my_gpu_act_cycles_min"] = pred_out["others"]["my_block_act_cycles_min"] * scale
+		pred_out["my_gpu_act_cycles_max"] = pred_out["others"]["my_block_act_cycles_max"] * scale
+
 		pred_out["sm_act_cycles.sum"] = pred_out["gpu_act_cycles_max"] * pred_out["active_SMs"]
 		pred_out["sm_elp_cycles.sum"] = pred_out["gpu_act_cycles_max"] * self.acc.num_SMs
+		pred_out["my_sm_act_cycles.sum"] = pred_out["my_gpu_act_cycles_max"] * pred_out["active_SMs"]
+		pred_out["my_sm_elp_cycles.sum"] = pred_out["my_gpu_act_cycles_max"] * self.acc.num_SMs
 		pred_out["tot_warps_instructions_executed"] = avg_instructions_executed_per_block * pred_out["total_num_workloads"]
 		pred_out["tot_threads_instructions_executed"] = (pred_out["tot_warps_instructions_executed"] * self.kernel_block_size) / pred_out["allocated_active_warps_per_block"]
 		pred_out["tot_ipc"] = pred_out["tot_warps_instructions_executed"] * (1.0/pred_out["sm_act_cycles.sum"])
