@@ -2,6 +2,7 @@
 *.json
 *.bak
 tmp/
+reuse_distance_tool/parda.x
 
 # GPU #
 ############
