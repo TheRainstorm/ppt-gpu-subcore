@@ -339,6 +339,7 @@ class Kernel(Entity):
 		pred_out["tot_warps_instructions_executed"] = avg_instructions_executed_per_block * pred_out["total_num_workloads"]
 		pred_out["tot_threads_instructions_executed"] = (pred_out["tot_warps_instructions_executed"] * self.kernel_block_size) / pred_out["allocated_active_warps_per_block"]
 		pred_out["tot_ipc"] = pred_out["tot_warps_instructions_executed"] * (1.0/pred_out["sm_act_cycles.sum"])
+		pred_out["my_tot_ipc"] = pred_out["tot_warps_instructions_executed"] * (1.0/pred_out["my_sm_act_cycles.sum"])
 		pred_out["tot_cpi"] = 1 * (1.0/pred_out["tot_ipc"])
 		pred_out["tot_throughput_ips"] = pred_out["tot_ipc"] * self.acc.GPU_clockspeed
 		pred_out["execution_time_sec"] = pred_out["sm_elp_cycles.sum"] * (1.0/self.acc.GPU_clockspeed)

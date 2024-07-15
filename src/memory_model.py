@@ -345,7 +345,7 @@ def get_memory_perf(kernel_id, mem_trace_dir_path, grid_size, num_SMs, l1_cache_
     if grid_size < num_SMs:
         parallel_comp = grid_size
     else:
-         parallel_comp = num_SMs
+        parallel_comp = num_SMs
 
     num_jobs = min(parallel_comp, num_cores)
     SMs_output_list = Parallel(n_jobs=num_jobs, prefer="processes")(delayed(private_SM_computation)(i, kernel_id, grid_size,\

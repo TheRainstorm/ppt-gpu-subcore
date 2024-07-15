@@ -103,6 +103,7 @@ def dump_output(pred_out):
     print("\n- Warp instructions executed:", place_value(int(pred_out["tot_warps_instructions_executed"])), file=outF)
     print("- Thread instructions executed:", place_value(int(pred_out["tot_threads_instructions_executed"])), file=outF)
     print("- Instructions executed per clock cycle (IPC):", round(pred_out["tot_ipc"], 3), file=outF)
+    print("- My Instructions executed per clock cycle (IPC):", round(pred_out["my_tot_ipc"], 3), file=outF)
     print("- Clock cycles per instruction (CPI): ", round(pred_out["tot_cpi"], 3), file=outF)
     print("- Total instructions executed per seconds (MIPS):", int(round((pred_out["tot_throughput_ips"]/1000000), 3)), file=outF)
     print("- Kernel execution time:", round((pred_out["execution_time_sec"]*1000000),4), "us", file=outF)

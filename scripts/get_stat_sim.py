@@ -57,7 +57,8 @@ def parse_kernel_log(file_path):
         "my_sm_elapsed_cycles_sum": re.search(r'My SM elapsed cycles \(sum\): ([\d,]+)', data).group(1),
         
         "warp_inst_executed": re.search(r'Warp instructions executed: ([\d,]+)', data).group(1),
-        "ipc": re.search(r'Instructions executed per clock cycle \(IPC\): (\d+(\.\d*)?)', data).group(1),
+        "ipc": re.search(r'- Instructions executed per clock cycle \(IPC\): (\d+(\.\d*)?)', data).group(1),
+        "my_ipc": re.search(r'My Instructions executed per clock cycle \(IPC\): (\d+(\.\d*)?)', data).group(1),
         "kernel_exec_time_us": re.search(r'Kernel execution time: (\d+((\.\d*)?)?) us', data).group(1),
         
         # memory
