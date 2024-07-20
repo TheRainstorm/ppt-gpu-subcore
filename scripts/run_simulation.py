@@ -4,6 +4,7 @@ import subprocess
 import shlex
 import re
 import os
+import sys
 import yaml
 import hashlib
 from datetime import datetime
@@ -29,6 +30,8 @@ parser.add_argument("-H", "--hw_config",
 parser.add_argument("-g", "--granularity",
                     default="2",
                     help="1=One Thread Block per SM or 2=Active Thread Blocks per SM or 3=All Thread Blocks per SM")
+parser.add_argument("--hw-res",
+                    help="hw res json file. use to fix l2 cache miss rate")
 parser.add_argument("--no-overwrite", dest="overwrite",
                  action="store_false",
                  help="if overwrite=False, then don't simulate already have .out file app")
@@ -55,6 +58,8 @@ def run_cmd(cmd):
     res = subprocess.run(cmd, shell=True)
     return res.returncode
 
+logging(f"Start")
+logging(f"{' '.join(sys.argv)}")
 for app_and_arg in app_and_arg_list:
     app = app_and_arg.split('/')[0]
     app_trace_dir = os.path.join(args.trace_dir, app_and_arg)
@@ -69,12 +74,14 @@ for app_and_arg in app_and_arg_list:
         continue
 
     logging(f"{datetime.now().strftime('%Y-%m-%d %H:%M:%S')}: {app_and_arg}")
-    cmd = f"python ppt.py --app {app_trace_dir} --sass --config {args.hw_config} --granularity {args.granularity}"
+    hw_res_option_str = f"--hw-res {args.hw_res}" if args.hw_res else ""
+    cmd = f"python ppt.py --app {app_trace_dir} --sass --config {args.hw_config} --granularity {args.granularity} {hw_res_option_str}"
     # logging(cmd)
     try:
         exit_status = run_cmd(cmd)
         if exit_status!=0:
             logging(f"{app} failed")
+            print(f"{app} failed")
         else:
             logging(f"{app} success")
     except KeyboardInterrupt:

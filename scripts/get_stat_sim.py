@@ -73,7 +73,7 @@ def parse_kernel_log(file_path):
         "gmem_write_trans": re.search(r'GMEM write transactions: (\d+)', data).group(1),
         "l2_read_trans": re.search(r'L2 read transactions: (\d+)', data).group(1),
         "l2_write_trans": re.search(r'L2 write transactions: (\d+)', data).group(1),
-        "dram_total_trans": re.search(r'DRAM total transactions: (\d+)', data).group(1),
+        "dram_total_trans": re.search(r'DRAM total transactions: (-?\d+)', data).group(1),
         
         # other
         "sim_time_mem": re.search(r'Memory model: (\d+(\.\d*)?) sec', data).group(1),
@@ -102,12 +102,15 @@ for app_and_arg in app_and_arg_list:
             file_list.append( (int(m.group('kernel_id')), os.path.join(app_trace_dir, file)) ) 
 
     app_res = [ {} for i in range(len(file_list)) ]
-    try:
-        for kernel_id, file_path in file_list:
-            app_res[kernel_id-1] = parse_kernel_log(file_path)
-    except:
-        print(f"Error in {app_and_arg}")
-        continue
+    # try:
+    #     for kernel_id, file_path in file_list:
+    #         app_res[kernel_id-1] = parse_kernel_log(file_path)
+    # except:
+    #     print(f"Error in {app_and_arg}")
+    #     print(f"{kernel_id} {file_path}")
+    #     continue
+    for kernel_id, file_path in file_list:
+        app_res[kernel_id-1] = parse_kernel_log(file_path)
     
     print(f"{app_and_arg}: {len(app_res)}")
     collect_data[app_and_arg] = app_res

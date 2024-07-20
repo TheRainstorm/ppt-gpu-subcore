@@ -283,7 +283,7 @@ def private_SM_computation(SM_id, kernel_id, grid_size, num_SMs, mem_trace_dir_p
 
 
 def get_memory_perf(kernel_id, mem_trace_dir_path, grid_size, num_SMs, l1_cache_size, l1_cache_line_size, l1_cache_associativity,\
-                    l2_cache_size, l2_cache_line_size, l2_cache_associativity, gmem_reqs, max_blocks_per_SM_orig, max_blocks_per_SM_new):
+                    l2_cache_size, l2_cache_line_size, l2_cache_associativity, gmem_reqs, max_blocks_per_SM_orig, max_blocks_per_SM_new, cache_ref_data=None):
 
     blck_id = -1
     shared_trace = []
@@ -306,7 +306,7 @@ def get_memory_perf(kernel_id, mem_trace_dir_path, grid_size, num_SMs, l1_cache_
     shared_trace_max_block_len = 0
     
     memory_stats = {}
-    memory_stats["hit_rate_l2"] = 0
+    memory_stats["hit_rate_l2"] = 0  # nvprof set 100%
     memory_stats["umem_hit_rate"] = 0
     memory_stats["gmem_hit_rate_lds"] = 0
     memory_stats["gmem_hit_rate"] = 0
@@ -377,21 +377,24 @@ def get_memory_perf(kernel_id, mem_trace_dir_path, grid_size, num_SMs, l1_cache_
             shared_trace_max_block_len = max(shared_trace_max_block_len, len(SMi_stats["shared_trace"]))
         
 
-    shared_interleaved_trace = interleave_trace(shared_trace, shared_trace_max_block_len)
-    shared_num_lines, shared_trace_file = preprocess_shared_trace(shared_interleaved_trace, kernel_id, mem_trace_dir_path)
+    if cache_ref_data:
+        memory_stats["hit_rate_l2"] = cache_ref_data['l2_hit_rate']
+    else:
+        shared_interleaved_trace = interleave_trace(shared_trace, shared_trace_max_block_len)
+        shared_num_lines, shared_trace_file = preprocess_shared_trace(shared_interleaved_trace, kernel_id, mem_trace_dir_path)
 
-    ## call reuse_distance_tool to compute the RD & RP
-    cmd = "reuse_distance_tool/parda.x --input="+shared_trace_file+" --lines="+str(shared_num_lines)+\
-          " --assoc="+str(l2_cache_associativity)+" --output_dir="+mem_trace_dir_path+" --kernel="+str(kernel_id)+" --l2"
-    os.system(cmd)
+        ## call reuse_distance_tool to compute the RD & RP
+        cmd = "reuse_distance_tool/parda.x --input="+shared_trace_file+" --lines="+str(shared_num_lines)+\
+            " --assoc="+str(l2_cache_associativity)+" --output_dir="+mem_trace_dir_path+" --kernel="+str(kernel_id)+" --l2"
+        os.system(cmd)
 
-    ## calculate the hit rates from the RP
-    shared_rp = mem_trace_dir_path+"/K"+str(kernel_id)+"_shared.rp"
-    rp_l2 = open(shared_rp,'r').read().strip().split('\n')
-    memory_stats["hit_rate_l2"] = get_hit_rate_analytical(rp_l2, l2_cache_size, l2_cache_line_size, l2_cache_associativity)
+        ## calculate the hit rates from the RP
+        shared_rp = mem_trace_dir_path+"/K"+str(kernel_id)+"_shared.rp"
+        rp_l2 = open(shared_rp,'r').read().strip().split('\n')
+        memory_stats["hit_rate_l2"] = get_hit_rate_analytical(rp_l2, l2_cache_size, l2_cache_line_size, l2_cache_associativity)
 
-    cmd = "rm "+ shared_trace_file+ " "+shared_rp
-    os.system(cmd)
+        cmd = "rm "+ shared_trace_file+ " "+shared_rp
+        os.system(cmd)
 
     ## ---- unified (l1/tex/local) memory ---- ##
     memory_stats["umem_hit_rate"] = sum(umem_hit_rates_list) / len(umem_hit_rates_list)

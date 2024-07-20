@@ -17,6 +17,7 @@
 
 ##########################################################
 
+import json
 import sys, os, getopt, importlib
 from simian import Simian, Entity
 from src.kernels import Kernel
@@ -30,7 +31,7 @@ def usage():
    [MPI] For scalabilty, add mpirun call before program command:\nmpirun -np <number of processes>" )
 
 
-def get_current_kernel_info(kernel_id, app_name, app_path, app_config, instructions_type, granularity):
+def get_current_kernel_info(kernel_id, app_name, app_path, app_config, instructions_type, granularity, app_res_ref=None):
 
     current_kernel_info = {}
 
@@ -41,6 +42,7 @@ def get_current_kernel_info(kernel_id, app_name, app_path, app_config, instructi
     ###########################
     ## kernel configurations ##
     ###########################
+    kernel_id_ = int(kernel_id)-1  # 0-index
     kernel_id = "kernel_"+kernel_id
 
     try:
@@ -129,7 +131,15 @@ def get_current_kernel_info(kernel_id, app_name, app_path, app_config, instructi
 
         current_kernel_info["ISA"] = 2
         current_kernel_info["sass_file_path"] = sass_file_path
-
+    
+    current_kernel_info['cache_ref_data'] = None
+    if app_res_ref:
+        kernel_res_ref = app_res_ref[kernel_id_]
+        cache_ref_data = {}
+        cache_ref_data["l1_hit_rate"] = min(1, kernel_res_ref["global_hit_rate"]/100)  # tex_cache_hit_rate
+        cache_ref_data["l2_hit_rate"] = min(1, kernel_res_ref["l2_tex_hit_rate"]/100)
+        current_kernel_info['cache_ref_data'] = cache_ref_data
+    
     return current_kernel_info
 
 
@@ -143,11 +153,12 @@ def main():
     sim_granularities = ["1", "2", "3"]
     granularity = -1
     instructions_type = "SASS"
+    hw_res = None
 
     full_cmd_arguments = sys.argv
     argument_list = full_cmd_arguments[1:]
     short_options = "h:a:c:p:s:k:g"
-    long_options = ["help", "app=", "config=", "ptx", "sass", "kernel=", "granularity="]
+    long_options = ["help", "app=", "config=", "ptx", "sass", "kernel=", "granularity=", "hw-res="]
 
     try:
         arguments, values = getopt.getopt(argument_list, short_options, long_options)
@@ -182,6 +193,8 @@ def main():
             kernel_id = current_value
         elif current_argument in ("-g", "--granularity"):
             granularity = current_value
+        elif current_argument in ('--hw-res'):
+            hw_res = current_value
     
     ######################
     ## specific kernel? ##
@@ -266,6 +279,13 @@ def main():
         usage()
         sys.exit(1)
 
+    # read cache reference data
+    app_res_ref = None
+    if hw_res:
+        with open(hw_res) as fp:
+            res_ref = json.load(fp)
+        app_and_arg = '/'.join(app_path.split('/')[-2:])
+        app_res_ref = res_ref[app_and_arg]
 
     ##############################
     ## app configiguration file ##
@@ -280,7 +300,7 @@ def main():
 
     if all_kernels == True:
         for kernel_id in app_kernels_id:
-            kernels_info.append(get_current_kernel_info(str(kernel_id), app_name, app_path, app_config, instructions_type, granularity))
+            kernels_info.append(get_current_kernel_info(str(kernel_id), app_name, app_path, app_config, instructions_type, granularity, app_res_ref=app_res_ref))
     else:
         try:
             kernel_id
@@ -288,7 +308,7 @@ def main():
             print("\n[Error]\nmissing target kernel id")
             usage()
             sys.exit(1)
-        kernels_info.append(get_current_kernel_info(kernel_id, app_name, app_path, app_config, instructions_type, granularity))
+        kernels_info.append(get_current_kernel_info(kernel_id, app_name, app_path, app_config, instructions_type, granularity, app_res_ref=app_res_ref))
     
 
     ############################

@@ -46,6 +46,7 @@ class Kernel(Entity):
 		self.ISA = "PTX" if kernel_info['ISA'] == 1 else "SASS"
 		self.ptx_file_path = kernel_info["ptx_file_path"]
 		self.sass_file_path = kernel_info["sass_file_path"]
+		self.cache_ref_data = kernel_info["cache_ref_data"]
 		if kernel_info["granularity"] == "1":
 			self.simulation_granularity = "OTB" #One Thread Block
 		elif kernel_info["granularity"] == "2":
@@ -184,7 +185,7 @@ class Kernel(Entity):
 		pred_out["memory_stats"] = get_memory_perf(pred_out["kernel_id"], self.mem_traces_dir_path, pred_out["total_num_workloads"], self.acc.num_SMs,\
 													self.acc.l1_cache_size, self.acc.l1_cache_line_size, self.acc.l1_cache_associativity,\
 													self.acc.l2_cache_size, self.acc.l2_cache_line_size, self.acc.l2_cache_associativity,\
-													gmem_reqs, int(pred_out["num_workloads_per_SM_orig"]), int(pred_out["num_workloads_per_SM_new"]))
+													gmem_reqs, int(pred_out["num_workloads_per_SM_orig"]), int(pred_out["num_workloads_per_SM_new"]), cache_ref_data=self.cache_ref_data)
 		toc = time.time()
 		pred_out["simulation_time"]["memory"] = (toc - tic)
 
