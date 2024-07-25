@@ -81,7 +81,24 @@ def dump_output(pred_out):
     print("\n\t* Total number of global atomic requests:", pred_out["memory_stats"]["atom_tot_reqs"], file=outF)
     print("\t* Total number of global reduction requests:", pred_out["memory_stats"]["red_tot_reqs"], file=outF)
     print("\t* Global memory atomic and reduction transactions:", pred_out["memory_stats"]["atom_red_tot_trans"], file=outF)
-
+    
+    try:
+        print("\n- Memory Performance(debug):", file=outF)
+        print("\t* diverge_flag:", pred_out["others"]["diverge_flag"], file=outF)
+        print("\t* l2_parallelism:", pred_out["others"]["l2_parallelism"], file=outF)
+        print("\t* dram_parallelism:", pred_out["others"]["dram_parallelism"], file=outF)
+        print("\t* l1_cycles_no_contention:", pred_out["others"]["l1_cycles_no_contention"], file=outF)
+        print("\t* l2_cycles_no_contention:", pred_out["others"]["l2_cycles_no_contention"], file=outF)
+        print("\t* dram_cycles_no_contention:", pred_out["others"]["dram_cycles_no_contention"], file=outF)
+        print("\t* dram_service_latency:", pred_out["others"]["dram_service_latency"], file=outF)
+        print("\t* dram_queuing_delay_cycles:", pred_out["others"]["dram_queuing_delay_cycles"], file=outF)
+        print("\t* noc_service_latency:", pred_out["others"]["noc_service_latency"], file=outF)
+        print("\t* noc_queueing_delay_cycles:", pred_out["others"]["noc_queueing_delay_cycles"], file=outF)
+        print("\t* mem_cycles_no_contention:", pred_out["others"]["mem_cycles_no_contention"], file=outF)
+        print("\t* mem_cycles_ovhds:", pred_out["others"]["mem_cycles_ovhds"], file=outF)
+    except:
+        pass
+    
     print("\n- Kernel cycles:", file=outF)
     print("\t* debug: active_cycles:", pred_out["active_cycles"], file=outF)
     print("\t* debug: my_block_act_cycles_min:", pred_out["others"]["my_block_act_cycles_min"], file=outF)

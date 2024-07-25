@@ -80,6 +80,25 @@ def parse_kernel_log(file_path):
         "sim_time_comp": re.search(r'Compute model: (\d+(\.\d*)?) sec', data).group(1),
     }
     
+    debug_data = {}
+    try:
+        debug_data = {
+            "diverge_flag": re.search(r'diverge_flag: (\d+)', data).group(1),
+            "l2_parallelism": re.search(r'l2_parallelism: (\d+)', data).group(1),
+            "dram_parallelism": re.search(r'dram_parallelism: (\d+)', data).group(1),
+            "l1_cycles_no_contention": re.search(r'l1_cycles_no_contention: (\d+(\.\d*)?)', data).group(1),
+            "l2_cycles_no_contention": re.search(r'l2_cycles_no_contention: (\d+(\.\d*)?)', data).group(1),
+            "dram_cycles_no_contention": re.search(r'dram_cycles_no_contention: (\d+(\.\d*)?)', data).group(1),
+            "dram_queuing_delay_cycles": re.search(r'dram_queuing_delay_cycles: (\d+(\.\d*)?)', data).group(1),
+            "noc_queueing_delay_cycles": re.search(r'noc_queueing_delay_cycles: (\d+(\.\d*)?)', data).group(1),
+            "mem_cycles_no_contention": re.search(r'mem_cycles_no_contention: (\d+)', data).group(1),
+            "mem_cycles_ovhds": re.search(r'mem_cycles_ovhds: (\d+)', data).group(1),
+        }
+    except:
+        pass
+    
+    kernel_res.update(debug_data)
+    
     # convert to float
     for k,v in kernel_res.items():
         if k!="kernel_name":
@@ -102,15 +121,13 @@ for app_and_arg in app_and_arg_list:
             file_list.append( (int(m.group('kernel_id')), os.path.join(app_trace_dir, file)) ) 
 
     app_res = [ {} for i in range(len(file_list)) ]
-    # try:
-    #     for kernel_id, file_path in file_list:
-    #         app_res[kernel_id-1] = parse_kernel_log(file_path)
-    # except:
-    #     print(f"Error in {app_and_arg}")
-    #     print(f"{kernel_id} {file_path}")
-    #     continue
-    for kernel_id, file_path in file_list:
-        app_res[kernel_id-1] = parse_kernel_log(file_path)
+    try:
+        for kernel_id, file_path in file_list:
+            app_res[kernel_id-1] = parse_kernel_log(file_path)
+    except:
+        print(f"Error in {app_and_arg}")
+        print(f"{kernel_id} {file_path}")
+        exit(1)
     
     print(f"{app_and_arg}: {len(app_res)}")
     collect_data[app_and_arg] = app_res

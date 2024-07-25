@@ -189,15 +189,17 @@ class Kernel(Entity):
 		toc = time.time()
 		pred_out["simulation_time"]["memory"] = (toc - tic)
 
+		pred_out["others"] = {}
 		# AMAT: Average Memory Access Time (Cycles)
 		if pred_out["memory_stats"]["gmem_tot_reqs"] != 0:
-
 			highly_divergent_degree = 17
 			l2_parallelism = 1
 			dram_parallelism = 1
+			pred_out["others"]["diverge_flag"] = 0
 			if pred_out["memory_stats"]["gmem_ld_diverg"] >= self.acc.num_dram_channels\
 			or pred_out["memory_stats"]["gmem_st_diverg"] >= self.acc.num_dram_channels\
 			or pred_out["memory_stats"]["gmem_tot_diverg"] >= highly_divergent_degree:
+				pred_out["others"]["diverge_flag"] = 1
 				l2_parallelism = pred_out["memory_stats"]["gmem_tot_diverg"] if pred_out["memory_stats"]["gmem_tot_diverg"] < self.acc.num_dram_channels else self.acc.num_dram_channels
 				dram_parallelism = pred_out["memory_stats"]["gmem_tot_diverg"] if pred_out["memory_stats"]["gmem_tot_diverg"] < self.acc.num_dram_channels else self.acc.num_dram_channels
 				# l2_parallelism = self.num_dram_channels
@@ -205,10 +207,15 @@ class Kernel(Entity):
 				# l2_parallelism = self.num_l2_partitions
 				# l2_parallelism = pred_out["memory_stats"]["gmem_tot_diverg"]
 				# dram_parallelism = pred_out["memory_stats"]["gmem_tot_diverg"]
+			pred_out["others"]["l2_parallelism"] = l2_parallelism
+			pred_out["others"]["dram_parallelism"] = dram_parallelism
 
 			l1_cycles_no_contention = (pred_out["memory_stats"]["l1_sm_trans_gmem"]) * self.acc.l1_cache_access_latency
 			l2_cycles_no_contention = pred_out["memory_stats"]["l2_tot_trans_gmem"] * self.acc.l2_cache_from_l1_access_latency * (1/l2_parallelism)
 			dram_cycles_no_contention = pred_out["memory_stats"]["dram_tot_trans_gmem"] * self.acc.dram_mem_from_l2_access_latency * (1/dram_parallelism)
+			pred_out["others"]["l1_cycles_no_contention"] = l1_cycles_no_contention
+			pred_out["others"]["l2_cycles_no_contention"] = l2_cycles_no_contention
+			pred_out["others"]["dram_cycles_no_contention"] = dram_cycles_no_contention
 			
 			mem_cycles_no_contention = max(l1_cycles_no_contention, l2_cycles_no_contention) 
 			mem_cycles_no_contention = max(mem_cycles_no_contention, dram_cycles_no_contention)
@@ -216,11 +223,15 @@ class Kernel(Entity):
 			
 			dram_service_latency = self.acc.dram_clockspeed * (self.acc.l2_cache_line_size / self.acc.dram_bandwidth)
 			dram_queuing_delay_cycles = pred_out["memory_stats"]["dram_tot_trans_gmem"] * dram_service_latency * (1/dram_parallelism)
+			pred_out["others"]["dram_service_latency"] = dram_service_latency
+			pred_out["others"]["dram_queuing_delay_cycles"] = dram_queuing_delay_cycles
 
 			mem_cycles_ovhds = dram_queuing_delay_cycles
 		
 			noc_service_latency = self.acc.dram_clockspeed * (self.acc.l1_cache_line_size / self.acc.noc_bandwidth)
 			noc_queueing_delay_cycles = pred_out["memory_stats"]["l2_tot_trans_gmem"] * noc_service_latency * (1/l2_parallelism)
+			pred_out["others"]["noc_service_latency"] = noc_service_latency
+			pred_out["others"]["noc_queueing_delay_cycles"] = noc_queueing_delay_cycles
 
 			if noc_queueing_delay_cycles > (self.acc.l2_cache_from_l1_access_latency + self.acc.dram_mem_from_l2_access_latency):
 				mem_cycles_ovhds += noc_queueing_delay_cycles
@@ -228,6 +239,8 @@ class Kernel(Entity):
 			mem_cycles_ovhds = ceil(mem_cycles_ovhds, 1)
 
 			tot_mem_cycles = ceil((mem_cycles_no_contention + mem_cycles_ovhds), 1)
+			pred_out["others"]["mem_cycles_no_contention"] = mem_cycles_no_contention
+			pred_out["others"]["mem_cycles_ovhds"] = mem_cycles_ovhds
 			
 			pred_out["AMAT"] = tot_mem_cycles/pred_out["memory_stats"]["gmem_tot_reqs"]
 			pred_out["AMAT"] = ceil(pred_out["AMAT"], 1)
@@ -300,7 +313,6 @@ class Kernel(Entity):
 		pred_out["achieved_active_warps"] = pred_out["achieved_active_warps"] / pred_out["active_cycles"]
 		pred_out["achieved_occupancy"]= (float(pred_out["achieved_active_warps"]) / float(self.acc.max_active_warps_per_SM)) * 100
 
-		pred_out["others"] = {}
 		#TODO: has to be done in a more logical way per TB
 		last_inst_delay = 0
 		for block in block_list:
