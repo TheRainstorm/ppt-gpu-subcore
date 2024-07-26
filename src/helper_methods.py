@@ -22,7 +22,7 @@ from scipy import special as sp
 def dump_output(pred_out):
 
     kernel_prefix = str(pred_out["kernel_id"])+"_"+pred_out["ISA"] +"_g"+pred_out["granularity"]
-    outF = open(os.path.join(pred_out["app_path"], "kernel_"+kernel_prefix+".out"), "w+")
+    outF = open(os.path.join(pred_out["app_report_dir"], "kernel_"+kernel_prefix+".out"), "w+")
 
     print("kernel name:", pred_out["kernel_name"], file=outF)
     

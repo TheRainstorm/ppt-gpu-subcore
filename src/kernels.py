@@ -61,7 +61,7 @@ class Kernel(Entity):
 		pred_out = self.pred_out
 
 		## init predictions outputs
-		pred_out["app_path"] = kernel_info['app_path']
+		pred_out["app_report_dir"] = kernel_info['app_report_dir']
 		pred_out["kernel_id"] = self.kernel_id 
 		pred_out["kernel_name"] = self.kernel_name
 		pred_out["ISA"] = self.ISA

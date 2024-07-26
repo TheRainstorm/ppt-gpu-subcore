@@ -21,6 +21,7 @@ import json
 import sys, os, getopt, importlib
 from simian import Simian, Entity
 from src.kernels import Kernel
+import argparse
 
 def usage():
     print("\n[USAGE]\n\
@@ -31,11 +32,11 @@ def usage():
    [MPI] For scalabilty, add mpirun call before program command:\nmpirun -np <number of processes>" )
 
 
-def get_current_kernel_info(kernel_id, app_name, app_path, app_config, instructions_type, granularity, app_res_ref=None):
+def get_current_kernel_info(kernel_id, app_name, app_path, app_config, instructions_type, granularity, app_res_ref=None, app_report_dir=None):
 
     current_kernel_info = {}
 
-    current_kernel_info["app_path"] = app_path
+    current_kernel_info["app_report_dir"] = app_report_dir if app_report_dir else app_path
     current_kernel_info["kernel_id"] = kernel_id
     current_kernel_info["granularity"] = granularity
 
@@ -142,60 +143,47 @@ def get_current_kernel_info(kernel_id, app_name, app_path, app_config, instructi
     
     return current_kernel_info
 
-
-
 def main():
-    PTX = False
-    SASS = False
-    all_kernels = False
-    kernel_id = -1
-    kernels_info = []
-    sim_granularities = ["1", "2", "3"]
-    granularity = -1
-    instructions_type = "SASS"
-    hw_res = None
+    parser = argparse.ArgumentParser(
+        description='ppt-gpu. [MPI] For scalabilty, add mpirun call before program command:\nmpirun -np <number of processes>'
+    )
+    parser.add_argument('-a', "--app", dest="app_name",
+                    required=True,
+                    help='your application path')
+    parser.add_argument("--sass",
+                    action="store_true",
+                    help='SASS instruction trace')
+    parser.add_argument("--ptx",
+                    action="store_true",
+                    help='PTX instruction trace')
+    parser.add_argument('-c', "--config",
+                    required=True,
+                    help='target GPU hardware configuration')
+    parser.add_argument("--granularity",
+                    default="2",
+                    choices=["1", "2", "3"],
+                    help='1=One Thread Block per SM or 2=Active Thread Blocks per SM or 3=All Thread Blocks per SM')
+    parser.add_argument("--kernel",
+                    type=int,
+                    default=-1,
+                    help='To choose a specific kernel, add the kernel id')
+    parser.add_argument("--mpi",
+                    action="store_true",
+                    help='use MPI')
+    parser.add_argument("--libmpich-path",
+                    default="/usr/lib/x86_64-linux-gnu/libmpich.so",
+                    help="path to libmpich.so")
+    parser.add_argument("-R", "--report-output-dir",
+                        default="output",
+                        help="output to a seprate dir, not in the trace dir")
+    parser.add_argument("--hw-res",
+                        help="hw res json file. use to fix l2 cache miss rate")
+    args = parser.parse_args()
+    SASS = args.sass
+    PTX = args.ptx
+    kernel_id = args.kernel
+    granularity = args.granularity
 
-    full_cmd_arguments = sys.argv
-    argument_list = full_cmd_arguments[1:]
-    short_options = "h:a:c:p:s:k:g"
-    long_options = ["help", "app=", "config=", "ptx", "sass", "kernel=", "granularity=", "hw-res="]
-
-    try:
-        arguments, values = getopt.getopt(argument_list, short_options, long_options)
-    except getopt.error as err:
-        print("\n[Error]")
-        print(str(err))
-        usage()
-        sys.exit(1)
-
-    if len(argument_list) == 1:
-        for current_argument, current_value in arguments:
-            if current_argument in ("-h", "--help"):
-                usage()
-                sys.exit(2)
-    elif len(argument_list) > 9 or len(argument_list) < 5:
-        print("\n[Error]\nincorrect number arguments")
-        usage()
-        sys.exit(1)
-
-    for current_argument, current_value in arguments:
-        if current_argument in ("-a", "--app"):
-            app_name = current_value
-        elif current_argument in ("-c", "--config"):
-            gpu_config_file = current_value
-        elif current_argument in ("-p", "--ptx"):
-            instructions_type = "PTX"
-            PTX = True
-        elif current_argument in ("-s", "--sass"):
-            instructions_type = "SASS"
-            SASS = True
-        elif current_argument in ("-k", "--kernel"):
-            kernel_id = current_value
-        elif current_argument in ("-g", "--granularity"):
-            granularity = current_value
-        elif current_argument in ('--hw-res'):
-            hw_res = current_value
-    
     ######################
     ## specific kernel? ##
     ######################
@@ -213,12 +201,7 @@ def main():
     ###############
     ## app name ##
     ###############
-    try:
-        app_name
-    except NameError:
-        print("\n[Error]\nmissing application name")
-        usage()
-        sys.exit(1)
+    app_name = args.app_name
     
     # app_path = str('apps/')+app_name+str('/')
     app_path = app_name
@@ -232,12 +215,7 @@ def main():
     #####################################
     ## target hardware configiguration ##
     #####################################
-    try:
-        gpu_config_file
-    except NameError:
-        print("\n[Error]\nmissing target GPU hardware configuration")
-        usage()
-        sys.exit(1)
+    gpu_config_file = args.config
 
     try:
         gpu_configs = importlib.import_module("hardware."+gpu_config_file)
@@ -272,21 +250,24 @@ def main():
     ############################
     ## simulation granularity ##
     ############################
-    if granularity == -1:
-        granularity = sim_granularities[1]
-    if granularity not in sim_granularities:
-        print("\n[Error]\nchoose the right simulation granularity")
-        usage()
-        sys.exit(1)
+    granularity = args.granularity
 
     # read cache reference data
     app_res_ref = None
-    if hw_res:
-        with open(hw_res) as fp:
+    app_name_ = app_path.split("/")[-2]
+    app_arg_ = app_path.split("/")[-1]
+    if args.hw_res:
+        with open(args.hw_res) as fp:
             res_ref = json.load(fp)
-        app_and_arg = '/'.join(app_path.split('/')[-2:])
+        app_and_arg = f"{app_name_}/{app_arg_}"
         app_res_ref = res_ref[app_and_arg]
 
+    app_report_dir = app_path
+    if args.report_output_dir:
+        app_report_dir = os.path.join(args.report_output_dir, app_name_, app_arg_)
+        if not os.path.exists(app_report_dir):
+            os.makedirs(app_report_dir)
+    
     ##############################
     ## app configiguration file ##
     ##############################
@@ -298,9 +279,11 @@ def main():
 
     app_kernels_id = app_config.app_kernels_id
 
+    kernels_info = []
+    instructions_type = "SASS" if SASS else "PTX"
     if all_kernels == True:
         for kernel_id in app_kernels_id:
-            kernels_info.append(get_current_kernel_info(str(kernel_id), app_name, app_path, app_config, instructions_type, granularity, app_res_ref=app_res_ref))
+            kernels_info.append(get_current_kernel_info(str(kernel_id), app_name, app_path, app_config, instructions_type, granularity, app_res_ref=app_res_ref, app_report_dir=app_report_dir))
     else:
         try:
             kernel_id
@@ -308,13 +291,13 @@ def main():
             print("\n[Error]\nmissing target kernel id")
             usage()
             sys.exit(1)
-        kernels_info.append(get_current_kernel_info(kernel_id, app_name, app_path, app_config, instructions_type, granularity, app_res_ref=app_res_ref))
+        kernels_info.append(get_current_kernel_info(kernel_id, app_name, app_path, app_config, instructions_type, granularity, app_res_ref=app_res_ref, app_report_dir=app_report_dir))
     
 
     ############################
     # Simian Engine parameters #
     ############################
-    simianEngine = Simian("PPT-GPU", useMPI=True, opt=False, appPath = app_path, ISA=instructions_type, granularity=granularity)
+    simianEngine = Simian("PPT-GPU", useMPI=True, opt=False, appPath = app_report_dir, ISA=instructions_type, granularity=granularity, mpiLibName=args.libmpich_path)
    
     gpuNode = GPUNode(gpu_configs.uarch, compute_capability.cc_configs, len(kernels_info))
         
