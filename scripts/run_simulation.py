@@ -68,6 +68,7 @@ def run_cmd(cmd):
     return res.returncode
 
 logging(f"Start")
+failed_list = []
 logging(f"{' '.join(sys.argv)}")
 for app_and_arg in app_and_arg_list:
     app = app_and_arg.split('/')[0]
@@ -93,11 +94,14 @@ for app_and_arg in app_and_arg_list:
         exit_status = run_cmd(cmd)
         if exit_status!=0:
             logging(f"{app} failed")
+            failed_list.append(app_and_arg)
             print(f"{app} failed")
         else:
             logging(f"{app} success")
     except KeyboardInterrupt:
         log_file.close()
         exit(0)
+print(f"failed list: {failed_list}")
+logging(f"failed list: {failed_list}")
 logging(f"{datetime.now().strftime('%Y-%m-%d %H:%M:%S')}: End")
 log_file.close()

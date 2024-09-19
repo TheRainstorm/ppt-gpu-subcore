@@ -113,6 +113,9 @@ for app_and_arg in app_and_arg_list:
     app = app_and_arg.split('/')[0]
     app_trace_dir = os.path.join(args.trace_dir, app_and_arg)
     
+    if not os.path.exists(app_trace_dir):
+        print(f"{app_and_arg} not found")
+        continue
     # get all sim log file
     file_list = []
     for file in os.listdir(app_trace_dir):
