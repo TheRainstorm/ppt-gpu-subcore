@@ -15,6 +15,7 @@
 ##############################################################################
 
 
+import random
 import sys, time, importlib
 from simian import Entity, Simian
 from .helper_methods import *
@@ -264,9 +265,27 @@ class Kernel(Entity):
 		## before we do anything we need to activate Blocks up to active blocks
 		for i in range(pred_out["allocated_active_blocks_per_SM"]):
 			block_list[i].active = True
-			block_list[i].waiting_to_execute = False
+			block_list[i].waiting_to_execute = False  # default: active: false, wait: true
 
 		pred_out["comp_cycles"] = self.acc.TB_launch_overhead
+
+		scheduler_stats = {}
+		scheduler_stats['active_blocks'] = {}
+		scheduler_stats['active_warps'] = {}
+		scheduler_stats['eligible_warps'] = {}
+		scheduler_stats['issued_warps'] = {}
+		scheduler_stats['stall_types'] = {}
+		warp_stats = {}
+		warp_stats['stall_types'] = {}
+		def counter_inc(counter, key):
+			if key in counter:
+				counter[key] += 1
+			else:
+				counter[key] = 1
+
+		pred_out['scheduler_stats'] = scheduler_stats
+		pred_out['warp_stats'] = warp_stats
+		
 		## process instructions of the tasklist by the active blocks every cycle
 		while self.blockList_has_active_warps(block_list):
 
@@ -300,8 +319,15 @@ class Kernel(Entity):
 					current_warp_list += block_active_warp_list
 					current_active_blocks += 1
 
+			counter_inc(scheduler_stats['active_blocks'], len(current_active_block_list))
+			counter_inc(scheduler_stats['active_warps'], len(current_warp_list))
 			## pass warps belonging to the active blocks to the warp scheduler to step the computations
-			instructions_executed = self.warp_scheduler.step(current_warp_list, pred_out["active_cycles"]) 
+			instructions_executed, warp_executed, scheduler_stall_type, warp_state_sampled = self.warp_scheduler.step(current_warp_list, pred_out["active_cycles"])
+			
+			counter_inc(warp_stats['stall_types'], warp_state_sampled)
+			
+			counter_inc(scheduler_stats['issued_warps'], warp_executed)
+			counter_inc(scheduler_stats['stall_types'], scheduler_stall_type)
 			pred_out["warps_instructions_executed"] += instructions_executed
 
 			for block in current_active_block_list:
@@ -324,7 +350,7 @@ class Kernel(Entity):
 
 		pred_out["others"]["last_inst_delay_act_min"] = last_inst_delay_act_min
 		pred_out["others"]["last_inst_delay_act_max"] = last_inst_delay_act_max
-  
+		# last block last warp end
 		actual_end_list = [block.actual_end for block in block_list]
 		pred_out["others"]["my_block_act_cycles_min"] = min(actual_end_list) + pred_out["comp_cycles"]
 		pred_out["others"]["my_block_act_cycles_max"] = max(actual_end_list) + pred_out["comp_cycles"]

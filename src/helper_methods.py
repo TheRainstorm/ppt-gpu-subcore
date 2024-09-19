@@ -17,7 +17,7 @@
 
 import os, sys, math, time
 from scipy import special as sp
-
+import json
 
 def dump_output(pred_out):
 
@@ -125,10 +125,31 @@ def dump_output(pred_out):
     print("- Total instructions executed per seconds (MIPS):", int(round((pred_out["tot_throughput_ips"]/1000000), 3)), file=outF)
     print("- Kernel execution time:", round((pred_out["execution_time_sec"]*1000000),4), "us", file=outF)
 
+    print("\n- Scheduler Stat", file=outF)
+    print(f"{json.dumps(pred_out['scheduler_stats'], indent=4)}", file=outF)
+    # print(f"{pred_out['scheduler_stats']}", file=outF)
+    active_block_per_cycle = counter_avg(pred_out["scheduler_stats"]["active_blocks"])
+    active_warp_per_cycle = counter_avg(pred_out["scheduler_stats"]["active_warps"])
+    issued_warp_per_cycle = counter_avg(pred_out["scheduler_stats"]["issued_warps"])
+    print(f"active_cycle: {pred_out['active_cycles']}", file=outF)
+    print(f"active_block_per_cycle: {active_block_per_cycle}", file=outF)
+    print(f"active_warp_per_cycle: {active_warp_per_cycle}", file=outF)
+    print(f"issued_warp_per_cycle: {issued_warp_per_cycle}", file=outF)
+    
     print("\n- Simulation Time:", file=outF)
     print("\t* Memory model:", round(pred_out["simulation_time"]["memory"], 3), "sec,", convert_sec(pred_out["simulation_time"]["memory"]), file=outF)
     print("\t* Compute model:", round(pred_out["simulation_time"]["compute"], 3), "sec,", convert_sec(pred_out["simulation_time"]["compute"]), file=outF)
 
+def counter_avg(counter):
+    total_cycle = 0
+    prod_sum  =0
+    
+    for key in counter:
+        prod = key * counter[key]
+        prod_sum += prod
+        total_cycle += counter[key]
+    
+    return prod_sum/total_cycle
 
 def place_value(number): 
     return ("{:,}".format(number))

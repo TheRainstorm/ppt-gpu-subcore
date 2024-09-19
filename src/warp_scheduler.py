@@ -14,6 +14,7 @@
 
 ##############################################################################
 
+import random
 from .warps import Warp
 
 class Scheduler(object):
@@ -40,25 +41,67 @@ class Scheduler(object):
     def step_LRR(self, warp_list, cycles):
         '''
         loop over every available warp and issue warp if ready, 
-        if warp is not ready, skip and issue next ready warp
+        if warp is not ready, skip and issue next ready warp
         '''
         warps_executed = 0
-        ints_executed = 0
-
-        for warp in warp_list:
+        insts_executed = 0
+        
+        scheduler_stall_type_list = ['NoStall','CompData','CompStruct','MemData','MemStruct','Sync','Idle']
+        warp_stall_type_list = ['NoStall', 'NotSelect', 'CompData','CompStruct','MemData','MemStruct','Sync','Misc']
+        
+        # sample active warp
+        warp_sampled_idx = random.randint(0, len(warp_list)-1)
+        
+        warp_stall_type_list = []
+        warps_executed_idxs = []
+        for i,warp in enumerate(warp_list):
             # executed max warps in current clock cycles
             # selected warps per multiprocessor per cycle is bounded to the range of [0 .. # warp schedulers per SM]
             if warps_executed >= self.num_warp_schedulers:
                 break
             # see if we can execute warp
             if warp.is_active():
-                current_inst_executed = warp.step(cycles)
-                # warp executed current instruction successfully  
+                current_inst_executed, stall_type = warp.step(cycles)
+
+                warp_stall_type_list.append(stall_type)
+                
+                # warp executed current instruction successfully
                 if current_inst_executed:
-                    ints_executed += current_inst_executed
+                    insts_executed += current_inst_executed
                     warps_executed += 1
+                    warps_executed_idxs.append(i)
             else:
                 print("Error")
                 break
-                
-        return ints_executed
+        
+        # scheduler stall type
+        if warps_executed == 0:
+            if len(warp_list)==0:
+                scheduler_stall_type = 'Idle'
+            elif 'MemStruct' in warp_stall_type_list:
+                scheduler_stall_type = 'MemStruct'
+            elif 'MemData' in warp_stall_type_list:
+                scheduler_stall_type = 'MemData'
+            elif 'Sync' in warp_stall_type_list:
+                scheduler_stall_type = 'Sync'
+            elif 'CompStruct' in warp_stall_type_list:
+                scheduler_stall_type = 'CompStruct'
+            elif 'CompData' in warp_stall_type_list:
+                scheduler_stall_type = 'CompData'
+            else:
+                scheduler_stall_type = 'Idle'
+        else:
+            scheduler_stall_type = 'NoStall'
+        
+        # sample warp state
+        if warp_sampled_idx in warps_executed_idxs:
+            warp_state = 'NoStall'
+        else:
+            warp_sampled = warp_list[warp_sampled_idx]
+            if warp_sampled.stall_type_keeped == 'NoStall' or \
+                warp_sampled.stalled_cycles <= cycles:  # 简化考虑了，实际上还需要考虑是否真的能够发射，比如 ALU 单元是否空闲
+                warp_state = 'NotSelect'
+            else:
+                warp_state = warp_sampled.stall_type_keeped
+        
+        return insts_executed, warps_executed, scheduler_stall_type, warp_state
