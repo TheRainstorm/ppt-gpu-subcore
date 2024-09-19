@@ -99,12 +99,18 @@ def parse_kernel_log(file_path):
     
     kernel_res.update(debug_data)
     
+    json_str = re.search(r'CPI\ stack:\ (\{.*\})', data, re.DOTALL).group(1)
+    kernel_res['cpi_stack'] = json.loads(json_str)
+    
     # convert to float
     for k,v in kernel_res.items():
-        if k!="kernel_name":
-            if ',' in v:
-                v = v.replace(',', '')
-            kernel_res[k] = float(v)
+        if k=="kernel_name":
+            continue
+        if type(v) == dict:
+            continue
+        if ',' in v:
+            v = v.replace(',', '')
+        kernel_res[k] = float(v)
     return kernel_res
 
 collect_data = {}
@@ -127,9 +133,10 @@ for app_and_arg in app_and_arg_list:
     try:
         for kernel_id, file_path in file_list:
             app_res[kernel_id-1] = parse_kernel_log(file_path)
-    except:
+    except Exception as e:
         print(f"Error in {app_and_arg}")
         print(f"{kernel_id} {file_path}")
+        print(e)
         exit(1)
     
     print(f"{app_and_arg}: {len(app_res)}")

@@ -23,7 +23,9 @@ run_hw_ncu(){
     python ${GIMT_dir}/utils/run_model/run_hw.py -Y "${accel_sim_dir}/util/job_launching/apps/define-all-apps.yml" -B ${benchmarks} -T "${trace_dir}" --ncu --loop_cnt 1
 
     python ${GIMT_dir}/utils/run_model/get_stat_hw.py -Y "${accel_sim_dir}/util/job_launching/apps/define-all-apps.yml" -B ${benchmarks} -T "${trace_dir}" --ncu -o ${res_hw_ncu_json} --loop 1
-    python ${GIMT_dir}/utils/draw/convert_cpi_stack.py -i ${res_hw_ncu_json} -o ${res_hw_cpi_json}
+
+    # convert to cpi stack
+    python ${GIMT_dir}/utils/draw/convert_cpi_stack.py -i ${res_hw_ncu_json} -I "ncu" -o ${res_hw_cpi_json}
 }
 
 run_sim(){
@@ -33,6 +35,9 @@ run_sim(){
 
     # get stat
     python scripts/get_stat_sim.py -Y "${accel_sim_dir}/util/job_launching/apps/define-all-apps.yml" -B ${benchmarks} -T ${report_dir} -o ${res_sim_json}
+
+    # convert to cpi stack
+    python ${GIMT_dir}/utils/draw/convert_cpi_stack.py -i ${res_sim_json} -I "ppt_gpu" -o ${res_sim_cpi_json}
 }
 
 draw(){
@@ -40,7 +45,11 @@ draw(){
     cd ${GIMT_dir}
     python ${GIMT_dir}/utils/draw/draw_1.py -S ${res_sim_json} -H ${res_hw_json} -o ${draw_output} -D PPT-GPU
 
-    python ${GIMT_dir}/utils/draw/draw_cpi_stack.py -S ${res_hw_cpi_json} -o ${draw_output}
+    # draw hw cpi stack
+    python ${GIMT_dir}/utils/draw/draw_cpi_stack.py -S ${res_hw_cpi_json} -o ${draw_cpi_ncu_output}
+
+    # draw ppt gpu cpi stack
+    python ${GIMT_dir}/utils/draw/draw_cpi_stack.py -S ${res_sim_cpi_json} -o ${draw_cpi_ppt_output}
 }
 
 # run_trace
