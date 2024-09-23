@@ -25,54 +25,62 @@ class Scheduler(object):
        self.num_warp_schedulers = num_warp_schedulers
        self.policy = policy
 
-    def step(self, warp_list, cycles):
+    def step(self, warp_list, cycles, subcore_id):
         '''
         advance computation for the active warps by one cycle,
         choose which step function to execute depending on the scheduling policy
         '''
         if self.policy == "LRR":
-            return self.step_LRR(warp_list, cycles)
+            return self.step_LRR(warp_list, cycles, subcore_id)
         elif self.policy == "GTO":
             return self.step_GTO(warp_list, cycles)
         elif self.policy == "TL":
             return self.step_TL(warp_list, cycles)
         
 
-    def step_LRR(self, warp_list, cycles):
+    def step_LRR(self, warp_list, cycles, subcore_id):
         '''
         loop over every available warp and issue warp if ready, 
         if warp is not ready, skip and issue next ready warp
         '''
         warps_executed = 0
         insts_executed = 0
+        if len(warp_list) == 0:
+            return 0, 0, 'Idle', 'NoStall'
         
         scheduler_stall_type_list = ['NoStall','CompData','CompStruct','MemData','MemStruct','Sync','Idle']
         warp_stall_type_list = ['NoStall', 'NotSelect', 'CompData','CompStruct','MemData','MemStruct','Sync','Misc']
         
         # sample active warp
         warp_sampled_idx = random.randint(0, len(warp_list)-1)
+        warp_sampled = warp_list[warp_sampled_idx]
         
         warp_stall_type_list = []
-        warps_executed_idxs = []
+        warp_executed_idx = -1
+        # head = warp_list.dummy
+        # curr_node = head.next
+        # while curr_node != head:
+        #     warp = curr_node.data
         for i,warp in enumerate(warp_list):
-            # executed max warps in current clock cycles
-            # selected warps per multiprocessor per cycle is bounded to the range of [0 .. # warp schedulers per SM]
-            if warps_executed >= self.num_warp_schedulers:
-                break
             # see if we can execute warp
             if warp.is_active():
-                current_inst_executed, stall_type = warp.step(cycles)
+                current_inst_executed, stall_type = warp.step(cycles, subcore_id)
 
                 warp_stall_type_list.append(stall_type)
-                
                 # warp executed current instruction successfully
                 if current_inst_executed:
                     insts_executed += current_inst_executed
                     warps_executed += 1
-                    warps_executed_idxs.append(i)
+                    warp_executed_idx = i
+                    break  # only one warp can be executed per cycle
             else:
-                print("Error")
-                break
+                print("Error: schedule warp that is not active")
+                print(i, len(warp_list), warp.current_inst, len(warp.tasklist), "subcore_id", subcore_id)
+                exit(-1)
+        if warps_executed == 1:
+            # pop warp not active
+            if not warp_list[warp_executed_idx].is_active():
+                warp_list.pop(warp_executed_idx)   # use linked list to improve performance
         
         # scheduler stall type
         if warps_executed == 0:
@@ -94,10 +102,9 @@ class Scheduler(object):
             scheduler_stall_type = 'NoStall'
         
         # sample warp state
-        if warp_sampled_idx in warps_executed_idxs:
+        if warp_sampled_idx == warp_executed_idx:
             warp_state = 'NoStall'
         else:
-            warp_sampled = warp_list[warp_sampled_idx]
             if warp_sampled.stall_type_keeped == 'NoStall' or \
                 warp_sampled.stalled_cycles <= cycles:  # 简化考虑了，实际上还需要考虑是否真的能够发射，比如 ALU 单元是否空闲
                 warp_state = 'NotSelect'

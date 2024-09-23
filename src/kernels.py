@@ -22,7 +22,8 @@ from .helper_methods import *
 from .memory_model import *
 from .blocks import Block
 from .warp_scheduler import Scheduler
-
+from collections import deque
+from .utils import LinkedList
 
 class Kernel(Entity):
 
@@ -269,29 +270,35 @@ class Kernel(Entity):
 
         pred_out["comp_cycles"] = self.acc.TB_launch_overhead
 
+        num_subcore = self.acc.num_warp_schedulers_per_SM
+        max_warp_per_subcore = self.acc.max_active_threads_per_SM // self.acc.warp_size // num_subcore
         scheduler_stats = {}
-        scheduler_stats['active_blocks'] = {}
-        scheduler_stats['active_warps'] = {}
-        scheduler_stats['eligible_warps'] = {}
-        scheduler_stats['issued_warps'] = {}
-        scheduler_stats['stall_types'] = {}
+        scheduler_stats['active_blocks'] = [{} for i in range(num_subcore)]
+        scheduler_stats['active_warps'] = [{} for i in range(num_subcore)]
+        scheduler_stats['eligible_warps'] = [{} for i in range(num_subcore)]
+        scheduler_stats['issued_warps'] = [{} for i in range(num_subcore)]
+        scheduler_stats['stall_types'] = [{} for i in range(num_subcore)]
         warp_stats = {}
-        warp_stats['stall_types'] = {}
+        warp_stats['stall_types'] = [{} for i in range(num_subcore)]
+        
+        pred_out['scheduler_stats'] = scheduler_stats
+        pred_out['warp_stats'] = warp_stats
+        
         def counter_inc(counter, key):
             if key in counter:
                 counter[key] += 1
             else:
                 counter[key] = 1
-
-        pred_out['scheduler_stats'] = scheduler_stats
-        pred_out['warp_stats'] = warp_stats
+        new_active_warp_list = deque()  # when schedule new block to SM, add its warp to new list
+        block_is_visited = set()
+        subcore_warp_list = [[] for i in range(num_subcore)]  # schedule warps in new list to subcore
+                                                              # each subcore warp scheduler maintains a pool of warps
         
+        # subcore_warp_list = [LinkedList() for i in range(num_subcore)]
         ## process instructions of the tasklist by the active blocks every cycle
         while self.blockList_has_active_warps(block_list):
-
             ## compute the list warps in active blocks
             current_active_block_list = []
-            current_warp_list = []
             current_active_blocks = 0
 
             for block in block_list:
@@ -312,23 +319,52 @@ class Kernel(Entity):
                 ## this block still has warps executing; add its warps to the warp list
                 if block.is_active() and not block.is_waiting_to_execute():
                     current_active_block_list.append(block)
-                    block_active_warp_list = []
-                    for warp in block.warp_list:
-                        if warp.is_active():
-                            block_active_warp_list.append(warp)
-                    current_warp_list += block_active_warp_list
+                    # new block is visited, add to the new warp list
+                    if block not in block_is_visited:
+                        block_is_visited.add(block)
+                        for warp in block.warp_list:
+                            if warp.is_active():
+                                new_active_warp_list.append(warp)
                     current_active_blocks += 1
+            '''
+            warp to sub core schedule
+            '''
+            # allocate chunk (maybe imbalance?)
+            # for i in range(num_subcore):
+            #     while len(new_active_warp_list) and len(subcore_warp_list[i]) < max_warp_per_subcore:
+            #         warp = new_active_warp_list.popleft()
+            #         subcore_warp_list[i].append(warp)
+            # # balance
+            # reamain_slot = [num_subcore - len(subcore_warp_list[i]) for i in range(num_subcore)]
+            # all_remain = sum(reamain_slot)
+            # allocate_weight = [len(reamain_slot[i]) / all_remain for i in range(num_subcore)]
+            # At present, new warp is added only when a block is swap in, so we can simply distribute
+            # new added warp to subcore evenly.
+            for i, warp in enumerate(new_active_warp_list):
+                subcore_warp_list[i % num_subcore].append(warp)
+            # check not exceed max_warp_per_subcore
+            if any([len(subcore_warp_list[i]) > max_warp_per_subcore for i in range(num_subcore)]):
+                print("Error: exceed max warp per subcore")
+                exit(1)
+            # empty new warp list
+            new_active_warp_list = deque()
             
-            counter_inc(scheduler_stats['active_blocks'], len(current_active_block_list))
-            counter_inc(scheduler_stats['active_warps'], len(current_warp_list))
-            ## pass warps belonging to the active blocks to the warp scheduler to step the computations
-            instructions_executed, warp_executed, scheduler_stall_type, warp_state_sampled = self.warp_scheduler.step(current_warp_list, pred_out["active_cycles"])
-            
-            counter_inc(warp_stats['stall_types'], warp_state_sampled)
-            
-            counter_inc(scheduler_stats['issued_warps'], warp_executed)
-            counter_inc(scheduler_stats['stall_types'], scheduler_stall_type)
-            pred_out["warps_instructions_executed"] += instructions_executed
+            '''
+            schedule subcore
+            '''
+            # print(debug_i)
+            for i in range(num_subcore):
+                counter_inc(scheduler_stats['active_blocks'][i], len(current_active_block_list))
+                counter_inc(scheduler_stats['active_warps'][i], len(subcore_warp_list[i]))
+                ## pass warps belonging to the active blocks to the warp scheduler to step the computations
+                instructions_executed, warp_executed, scheduler_stall_type, warp_state_sampled = \
+                    self.warp_scheduler.step(subcore_warp_list[i], pred_out["active_cycles"], i)
+                
+                counter_inc(warp_stats['stall_types'][i], warp_state_sampled)
+                
+                counter_inc(scheduler_stats['issued_warps'][i], warp_executed)
+                counter_inc(scheduler_stats['stall_types'][i], scheduler_stall_type)
+                pred_out["warps_instructions_executed"] += instructions_executed
 
             for block in current_active_block_list:
                 pred_out["achieved_active_warps"] += block.count_active_warps()

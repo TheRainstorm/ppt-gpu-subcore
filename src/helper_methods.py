@@ -126,52 +126,60 @@ def dump_output(pred_out):
     print("- Kernel execution time:", round((pred_out["execution_time_sec"]*1000000),4), "us", file=outF)
 
     print("\n- Scheduler Stat", file=outF)
-    print(f"{json.dumps(pred_out['scheduler_stats'], indent=4)}", file=outF)
-    print(f"{json.dumps(pred_out['warp_stats'], indent=4)}", file=outF)
     # print(f"{pred_out['scheduler_stats']}", file=outF)
-    active_block_per_cycle = counter_avg(pred_out["scheduler_stats"]["active_blocks"])
-    active_warp_per_cycle = counter_avg(pred_out["scheduler_stats"]["active_warps"])
-    issued_warp_per_cycle = counter_avg(pred_out["scheduler_stats"]["issued_warps"])
+    active_block_per_cycle_list = counter_avg_list(pred_out["scheduler_stats"]["active_blocks"])
+    active_warp_per_cycle_list = counter_avg_list(pred_out["scheduler_stats"]["active_warps"])
+    issued_warp_per_cycle_list = counter_avg_list(pred_out["scheduler_stats"]["issued_warps"])
     print(f"active_cycle: {pred_out['active_cycles']}", file=outF)
-    print(f"active_block_per_cycle: {active_block_per_cycle}", file=outF)
-    print(f"active_warp_per_cycle: {active_warp_per_cycle}", file=outF)
-    print(f"issued_warp_per_cycle: {issued_warp_per_cycle}", file=outF)
+    print(f"active_block_per_cycle: {active_block_per_cycle_list}", file=outF)
+    print(f"active_warp_per_cycle: {active_warp_per_cycle_list}", file=outF)
+    print(f"issued_warp_per_cycle: {issued_warp_per_cycle_list}", file=outF)
     
-    cpi_stack = sample_to_cpi(pred_out['warp_stats']['stall_types'])
-    print(f"CPI stack: {json.dumps(cpi_stack, indent=4)}", file=outF)
+    cpi_stack_list = sample_to_cpi_list(pred_out['warp_stats']['stall_types'])
+    # print(f"CPI stack all: {json.dumps(cpi_stack_list, indent=4)}", file=outF)
+    print(f"CPI stack: {json.dumps(cpi_stack_list[0], indent=4)}", file=outF)
     
     print("\n- Simulation Time:", file=outF)
     print("\t* Memory model:", round(pred_out["simulation_time"]["memory"], 3), "sec,", convert_sec(pred_out["simulation_time"]["memory"]), file=outF)
     print("\t* Compute model:", round(pred_out["simulation_time"]["compute"], 3), "sec,", convert_sec(pred_out["simulation_time"]["compute"]), file=outF)
 
-def sample_to_cpi(sample_states):
-    cpi_stack = {}
-    sample_cycle = sum(sample_states.values())
-    sample_inst = sample_states['NoStall']
-    average_warp_cycle_per_inst = sample_cycle/sample_inst
+    print("\nAppendix:", file=outF)
+    print("Raw Scheduler Stat", file=outF)
+    print(f"{json.dumps(pred_out['scheduler_stats'], indent=4)}", file=outF)
+    print(f"{json.dumps(pred_out['warp_stats'], indent=4)}", file=outF)
     
-    warp_state_list = ['MemData','MemStruct', 'CompData','CompStruct', 'NotSelect', 'NoStall', 'Sync','Misc']
-    for state in warp_state_list:
-        if state not in sample_states:
-            cpi_stack[state] = 0
-        else:
-            cpi_stack[state] = sample_states[state]/sample_inst  
-    cpi_stack['debug'] = {}
-    cpi_stack['debug']['sample_cycle'] = sample_cycle
-    cpi_stack['debug']['sample_inst'] = sample_inst
-    cpi_stack['debug']['average_warp_cycle_per_inst'] = average_warp_cycle_per_inst
-    return cpi_stack
+def sample_to_cpi_list(sample_list):
+    def sample_to_cpi(sample_states):
+        cpi_stack = {}
+        sample_cycle = sum(sample_states.values())
+        sample_inst = sample_states['NoStall']
+        average_warp_cycle_per_inst = sample_cycle/sample_inst
+        
+        warp_state_list = ['MemData','MemStruct', 'CompData','CompStruct', 'NotSelect', 'NoStall', 'Sync','Misc']
+        for state in warp_state_list:
+            if state not in sample_states:
+                cpi_stack[state] = 0
+            else:
+                cpi_stack[state] = sample_states[state]/sample_inst  
+        cpi_stack['debug'] = {}
+        cpi_stack['debug']['sample_cycle'] = sample_cycle
+        cpi_stack['debug']['sample_inst'] = sample_inst
+        cpi_stack['debug']['average_warp_cycle_per_inst'] = average_warp_cycle_per_inst
+        return cpi_stack
+    return [sample_to_cpi(sample) for sample in sample_list]
 
-def counter_avg(counter):
-    total_cycle = 0
-    prod_sum  =0
-    
-    for key in counter:
-        prod = key * counter[key]
-        prod_sum += prod
-        total_cycle += counter[key]
-    
-    return prod_sum/total_cycle
+def counter_avg_list(counter_list):
+    def counter_avg(counter):
+        total_cycle = 0
+        prod_sum  =0
+        
+        for key in counter:
+            prod = key * counter[key]
+            prod_sum += prod
+            total_cycle += counter[key]
+        
+        return prod_sum/total_cycle
+    return [counter_avg(counter) for counter in counter_list]
 
 def place_value(number): 
     return ("{:,}".format(number))

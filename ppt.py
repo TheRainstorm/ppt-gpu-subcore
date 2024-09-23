@@ -22,7 +22,6 @@ import sys, os, getopt, importlib
 # from simian import Simian, Entity
 from src.kernels import Kernel
 import argparse
-from mpi4py import MPI
 
 def usage():
     print("\n[USAGE]\n\
@@ -241,11 +240,14 @@ def main():
         sys.exit(1)
     ptx_isa = ISA.ptx_isa
     units_latency = ISA.units_latency
+    initial_interval = ISA.initial_interval
     sass_isa = ISA.sass_isa
 
+    # 将 ISA 下的添加到 gpu_configs 字典中
     gpu_configs.uarch["ptx_isa"] = ptx_isa
     gpu_configs.uarch["sass_isa"] = sass_isa
     gpu_configs.uarch["units_latency"] = units_latency
+    gpu_configs.uarch["initial_interval"] = initial_interval
 
     try:
         compute_capability = importlib.import_module("hardware.compute_capability."+str(gpu_configs.uarch["compute_capabilty"]))

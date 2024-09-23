@@ -40,26 +40,27 @@ class Warp(object):
         return self.active
 
 
-    def step(self, cycles):
+    def step(self, cycles, subcore_id):
         '''
         advance computations on the current warp by one clock cycle
         '''	 
         inst_issued = 0 #insts that can be issued at the same time
         
         for i in range(self.gpu.num_inst_dispatch_units_per_SM):
-            is_issued, stall_type = self.process_inst(cycles)
+            is_issued, stall_type = self.process_inst(cycles, subcore_id)
             if is_issued:
                 inst_issued += 1
 
         stall_type_first = stall_type if inst_issued == 0 else 'NoStall'
         return inst_issued, stall_type_first  # return first inst stall type
 
-    def process_inst(self, cycles):
+    def process_inst(self, cycles, subcore_id):
         '''
         process each instruction in the tasklist
         '''
         is_issued = False
         latency = 0
+        self.subcore_id = subcore_id
         
         inst_stall_type_list = [
             'Sync',   # control / synchronization
@@ -76,7 +77,9 @@ class Warp(object):
             if self.syncing:
                 pass
             elif self.current_inst > len(self.tasklist):  # should not happend?
+                print("[ERROR] current instruction index out of range, which should not happend?")
                 self.active = False
+                exit(-1)
             else:
                 inst = self.tasklist[self.current_inst]
                 max_dep_idx = -1
@@ -100,104 +103,85 @@ class Warp(object):
                 # current instruction is safe to execute
                 else:
                     self.stall_type_keeped = 'NoStall'
-                    if inst[0] == 'GLOB_MEM_ACCESS':
-                        # if inst[1] == 'LD':
-                        #     latency = self.average_memory_latency
-                        # elif inst[1] == 'ST':
-                        #     latency = self.average_memory_latency
-                        
+                    hw_unit = inst[0]
+                    latency = inst[1]
+                    if hw_unit == 'GLOB_MEM_ACCESS':
                         latency = self.average_memory_latency
-                        hw_unit = self.gpu.hw_units[self.kernel_id]['LDS_units'] 
-                        is_issued = self.gpu.request_unit(cycles, 4, hw_unit)
+                        is_issued = self.request_unit(cycles, 'LDST')
                         if not is_issued:
                             self.stall_type_keeped = 'MemStruct'
 
-                    elif inst[0] == 'SHARED_MEM_ACCESS':
+                    elif hw_unit == 'SHARED_MEM_ACCESS':
                         latency = self.gpu.shared_mem_access_latency
                         is_issued = True
 
-                    elif inst[0] == 'LOCAL_MEM_ACCESS':
+                    elif hw_unit == 'LOCAL_MEM_ACCESS':
                         latency = self.gpu.local_mem_access_latency
                         is_issued = True
 
-                    elif inst[0] == 'CONST_MEM_ACCESS':
+                    elif hw_unit == 'CONST_MEM_ACCESS':
                         latency = self.gpu.const_mem_access_latency
                         is_issued = True	
 
-                    elif inst[0] == 'TEX_MEM_ACCESS':
+                    elif hw_unit == 'TEX_MEM_ACCESS':
                         latency = self.gpu.tex_mem_access_latency
                         is_issued = True
                     
-                    elif inst[0] == 'ATOMIC_OP':
+                    elif hw_unit == 'ATOMIC_OP':
                         latency = self.average_atom_latency
                         self.stalled_cycles = cycles + latency
                         self.stall_type_keeped = 'Sync'
                         is_issued = True
 
-                    elif inst[0] == 'iALU':
-                        latency = inst[1]
-                        if self.gpu.new_generation:
-                            hw_unit = self.gpu.hw_units[self.kernel_id]['INT_units']
-                        else:
-                            hw_unit = self.gpu.hw_units[self.kernel_id]['SP_units']
-                        is_issued =  self.gpu.request_unit(cycles, latency, hw_unit)
+                    elif hw_unit == 'iALU':
+                        if not self.gpu.new_generation:
+                            hw_unit = 'fALU'
+                        is_issued =  self.request_unit(cycles, hw_unit)
                    
-                    elif inst[0] == 'fALU':
-                        latency = inst[1]
-                        hw_unit = self.gpu.hw_units[self.kernel_id]['SP_units']
-                        is_issued =  self.gpu.request_unit(cycles, latency, hw_unit)
+                    elif hw_unit == 'fALU':
+                        is_issued =  self.request_unit(cycles, hw_unit)
 
-                    elif inst[0] == 'hALU':
-                        latency = inst[1]
-                        hw_unit = self.gpu.hw_units[self.kernel_id]['SP_units']
-                        is_issued =  self.gpu.request_unit(cycles, latency, hw_unit)
+                    elif hw_unit == 'hALU':
+                        is_issued =  self.request_unit(cycles, hw_unit)
 
-                    elif inst[0] == 'dALU':
-                        latency = inst[1]
-                        hw_unit = self.gpu.hw_units[self.kernel_id]['DP_units']
-                        is_issued =  self.gpu.request_unit(cycles, latency, hw_unit)
+                    elif hw_unit == 'dALU':
+                        is_issued =  self.request_unit(cycles, hw_unit)
                     
-                    elif inst[0] == 'SFU':
-                        latency = inst[1]
-                        hw_unit = self.gpu.hw_units[self.kernel_id]['SF_units']
-                        is_issued =  self.gpu.request_unit(cycles, latency, hw_unit)
+                    elif hw_unit == 'SFU':
+                        is_issued =  self.request_unit(cycles, hw_unit)
 
-                    elif inst[0] == 'iTCU' or inst[0] == 'hTCU' or inst[0] == "bTCU":
-                        latency = inst[1]
-                        hw_unit = self.gpu.hw_units[self.kernel_id]['TC_units']
-                        is_issued =  self.gpu.request_unit(cycles, 2, hw_unit)
+                    elif hw_unit == 'iTCU' or hw_unit == 'hTCU' or hw_unit == "bTCU":
+                        is_issued =  self.request_unit(cycles, hw_unit)
 
-                    elif inst[0] == 'BRA':
-                        latency = inst[1]
-                        if self.gpu.new_generation:
-                            hw_unit = self.gpu.hw_units[self.kernel_id]['BRA_units']
-                        else:
-                            hw_unit = self.gpu.hw_units[self.kernel_id]['SP_units']
-                        is_issued =  self.gpu.request_unit(cycles, latency, hw_unit)
+                    elif hw_unit == 'BRA':
+                        if not self.gpu.new_generation:
+                            hw_unit = 'fALU'
+                        is_issued =  self.request_unit(cycles, hw_unit)
                     
-                    elif inst[0] == 'MEMBAR':
-                        latency = 0
+                    elif hw_unit == 'MEMBAR':
                         self.stalled_cycles = cycles + latency 
                         self.stall_type_keeped = 'Sync'
                         is_issued = True
 
                     # Synchronize all warps in the same block
-                    elif inst[0] == 'BarrierSYNC':
+                    elif hw_unit == 'BarrierSYNC':
                         # self.block.sync_warps += 1
                         # self.syncing = True
                         if self.gpu.new_generation:
-                            hw_unit = self.gpu.hw_units[self.kernel_id]['INT_units']
+                            hw_unit = 'iALU'
                         else:
-                            hw_unit = self.gpu.hw_units[self.kernel_id]['SP_units']
-                        is_issued =  self.gpu.request_unit(cycles, 4, hw_unit)
+                            hw_unit = 'fALU'
+                        is_issued =  self.request_unit(cycles, hw_unit)
                         if not is_issued:
                             self.stall_type_keeped = 'Sync'
+                    else:
+                        print("[ERROR] unknown instruction: ", inst)
+                        exit(-1)
 
                     if not is_issued:
                         if self.stall_type_keeped != 'NoStall':
                             self.stall_type_keeped = 'CompStruct'
                     else:
-                        self.divergeStalls += 1
                         self.completions.append(cycles + latency)
                         if self.max_dep < self.completions[-1]:  # No means???
                             self.max_dep = self.completions[-1] 
@@ -206,3 +190,5 @@ class Warp(object):
                             self.active = False
 
         return is_issued, self.stall_type_keeped
+    def request_unit(self, cycle, hw_unit):
+        return self.gpu.request_unit(self.kernel_id, self.subcore_id, cycle, hw_unit)

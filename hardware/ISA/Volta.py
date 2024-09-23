@@ -15,10 +15,13 @@ units_latency = {
     "fALU"              :   4,
     "hALU"              :   4,
     "dALU"              :   8,
+    
     "SFU"               :   4,
     "dSFU"              :   8,
+    
     "iTCU"              :   4,
     "hTCU"              :   4,
+    
     "BRA"               :   4,
     #Memory Units Latencies
     "dram_mem_access"   :   302,
@@ -35,6 +38,26 @@ units_latency = {
 
 }
 
+initial_interval = {
+    # Initiation interval (II) = threadsPerWarp / #FULanes
+    "iALU"              :   32 // 16,
+    "fALU"              :   32 // 16,
+    "hALU"              :   32 // 16,
+    "dALU"              :   32 // 8,
+
+    "SFU"               :   32 // 4,
+    "dSFU"              :   32 // 4,
+
+    "LDST"              :   32 // 8,   # load store unit
+    
+    # "bTCU"              :   64,
+    "iTCU"              :   32 // 1,
+    "hTCU"              :   32 // 1,
+    "fTCU"              :   32 // 1,
+    "dTCU"              :   32 // 1,
+    "BRA"               :   32 // 1,
+    "EXIT"              :   32 // 16,
+}
 
 sass_isa = {
 
