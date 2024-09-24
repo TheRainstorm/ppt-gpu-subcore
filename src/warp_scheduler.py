@@ -46,10 +46,10 @@ class Scheduler(object):
         warps_executed = 0
         insts_executed = 0
         if len(warp_list) == 0:
-            return 0, 0, 'Idle', 'NoStall'
+            return 0, 0, 'Idle', 'Idle'
         
         scheduler_stall_type_list = ['NoStall','CompData','CompStruct','MemData','MemStruct','Sync','Idle']
-        warp_stall_type_list = ['NoStall', 'NotSelect', 'CompData','CompStruct','MemData','MemStruct','Sync','Misc']
+        warp_stall_type_list = ['NoStall', 'NotSelect', 'CompData','CompStruct','MemData','MemStruct','Sync','Misc', 'Idle']
         
         # sample active warp
         warp_sampled_idx = random.randint(0, len(warp_list)-1)
@@ -97,7 +97,7 @@ class Scheduler(object):
             elif 'CompData' in warp_stall_type_list:
                 scheduler_stall_type = 'CompData'
             else:
-                scheduler_stall_type = 'Idle'
+                scheduler_stall_type = 'Idle-Else'
         else:
             scheduler_stall_type = 'NoStall'
         
@@ -105,8 +105,8 @@ class Scheduler(object):
         if warp_sampled_idx == warp_executed_idx:
             warp_state = 'NoStall'
         else:
-            if warp_sampled.stall_type_keeped == 'NoStall' or \
-                warp_sampled.stalled_cycles <= cycles:  # 简化考虑了，实际上还需要考虑是否真的能够发射，比如 ALU 单元是否空闲
+            if warp_sampled.stall_type_keeped == 'NoStall':
+                # or warp_sampled.stalled_cycles <= cycles:  # 简化考虑了，实际上还需要考虑是否真的能够发射，比如 ALU 单元是否空闲
                 warp_state = 'NotSelect'
             else:
                 warp_state = warp_sampled.stall_type_keeped

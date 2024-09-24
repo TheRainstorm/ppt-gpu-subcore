@@ -179,7 +179,7 @@ class Warp(object):
                         exit(-1)
 
                     if not is_issued:
-                        if self.stall_type_keeped != 'NoStall':
+                        if self.stall_type_keeped == 'NoStall':
                             self.stall_type_keeped = 'CompStruct'
                     else:
                         self.completions.append(cycles + latency)

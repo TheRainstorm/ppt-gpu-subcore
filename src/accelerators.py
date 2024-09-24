@@ -14,6 +14,8 @@
 
 ##############################################################################
 
+from copy import deepcopy
+
 
 class Accelerator(object):
 
@@ -244,10 +246,10 @@ class Accelerator(object):
             subcore_hw_units[unit] = {}
             subcore_hw_units[unit]['stall_cycle'] = 0
         
-        sm_hw_units = [subcore_hw_units.copy() for i in range(self.num_warp_schedulers_per_SM)]
+        sm_hw_units = [deepcopy(subcore_hw_units) for i in range(self.num_warp_schedulers_per_SM)]
 
         # copy for each kernel
-        self.hw_units = [sm_hw_units.copy() for i in range(num_kernels)]
+        self.hw_units = [deepcopy(sm_hw_units) for i in range(num_kernels)]
         
     def request_unit(self, kernel_id, subcore_id, cycles, unit):
         '''
