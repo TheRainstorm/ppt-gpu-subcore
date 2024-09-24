@@ -23,7 +23,24 @@ def dump_output(pred_out):
 
     kernel_prefix = str(pred_out["kernel_id"])+"_"+pred_out["ISA"] +"_g"+pred_out["granularity"]
     outF = open(os.path.join(pred_out["app_report_dir"], "kernel_"+kernel_prefix+".out"), "w+")
-
+    outF2 = open(os.path.join(pred_out["app_report_dir"], f"kernel_{pred_out['kernel_id']}_tasklist.txt"), "w")
+    outF3 = open(os.path.join(pred_out["app_report_dir"], f"kernel_{pred_out['kernel_id']}_pred_out.json"), "w")
+    def dump_tasklist(tasklists):
+        # summary
+        insts_cnt = [(warp_id, len(tasklist)) for warp_id, tasklist in tasklists.items()]
+        insts_cnt.sort(key=lambda x: x[0])
+        print(insts_cnt, file=outF2)
+        # inst
+        for warp_id, warp_tasklist in tasklists.items():
+            print(warp_id, file=outF2)
+            for task in warp_tasklist:
+                print(task, file=outF2)
+    dump_tasklist(pred_out["kernel_tasklist"])
+    del pred_out["kernel_tasklist"]
+    json.dump(pred_out, outF3, indent=4)
+    outF2.close()
+    outF3.close()
+    
     print("kernel name:", pred_out["kernel_name"], file=outF)
     
     print("\n- Total GPU computations is divided into " + str(pred_out["total_num_workloads"])+\
@@ -82,36 +99,12 @@ def dump_output(pred_out):
     print("\t* Total number of global reduction requests:", pred_out["memory_stats"]["red_tot_reqs"], file=outF)
     print("\t* Global memory atomic and reduction transactions:", pred_out["memory_stats"]["atom_red_tot_trans"], file=outF)
     
-    try:
-        print("\n- Memory Performance(debug):", file=outF)
-        print("\t* diverge_flag:", pred_out["others"]["diverge_flag"], file=outF)
-        print("\t* l2_parallelism:", pred_out["others"]["l2_parallelism"], file=outF)
-        print("\t* dram_parallelism:", pred_out["others"]["dram_parallelism"], file=outF)
-        print("\t* l1_cycles_no_contention:", pred_out["others"]["l1_cycles_no_contention"], file=outF)
-        print("\t* l2_cycles_no_contention:", pred_out["others"]["l2_cycles_no_contention"], file=outF)
-        print("\t* dram_cycles_no_contention:", pred_out["others"]["dram_cycles_no_contention"], file=outF)
-        print("\t* dram_service_latency:", pred_out["others"]["dram_service_latency"], file=outF)
-        print("\t* dram_queuing_delay_cycles:", pred_out["others"]["dram_queuing_delay_cycles"], file=outF)
-        print("\t* noc_service_latency:", pred_out["others"]["noc_service_latency"], file=outF)
-        print("\t* noc_queueing_delay_cycles:", pred_out["others"]["noc_queueing_delay_cycles"], file=outF)
-        print("\t* mem_cycles_no_contention:", pred_out["others"]["mem_cycles_no_contention"], file=outF)
-        print("\t* mem_cycles_ovhds:", pred_out["others"]["mem_cycles_ovhds"], file=outF)
-    except:
-        pass
-    
     print("\n- Kernel cycles:", file=outF)
     print("\t* debug: active_cycles:", pred_out["active_cycles"], file=outF)
-    print("\t* debug: my_block_act_cycles_min:", pred_out["others"]["my_block_act_cycles_min"], file=outF)
-    print("\t* debug: my_block_act_cycles_max:", pred_out["others"]["my_block_act_cycles_max"], file=outF)
-    print("\t* debug: comp_cycles:", pred_out["comp_cycles"], file=outF)
-    print("\t* debug: last_inst_delay_act_min:", pred_out["others"]["last_inst_delay_act_min"], file=outF)
-    print("\t* debug: last_inst_delay_act_max:", pred_out["others"]["last_inst_delay_act_max"], file=outF)
-    print("\t* debug: active_SMs:", pred_out["active_SMs"], file=outF)
-    
-    print("\t* GPU active cycles (min):", place_value(int(pred_out["gpu_act_cycles_min"])), file=outF)
-    print("\t* GPU active cycles (max):", place_value(int(pred_out["gpu_act_cycles_max"])), file=outF)
-    print("\t* SM active cycles (sum):", place_value(int(pred_out["sm_act_cycles.sum"])), file=outF)
-    print("\t* SM elapsed cycles (sum):", place_value(int(pred_out["sm_elp_cycles.sum"])), file=outF)
+    # print("\t* GPU active cycles (min):", place_value(int(pred_out["gpu_act_cycles_min"])), file=outF)
+    # print("\t* GPU active cycles (max):", place_value(int(pred_out["gpu_act_cycles_max"])), file=outF)
+    # print("\t* SM active cycles (sum):", place_value(int(pred_out["sm_act_cycles.sum"])), file=outF)
+    # print("\t* SM elapsed cycles (sum):", place_value(int(pred_out["sm_elp_cycles.sum"])), file=outF)
     print("\t* My GPU active cycles (min):", place_value(int(pred_out["my_gpu_act_cycles_min"])), file=outF)
     print("\t* My GPU active cycles (max):", place_value(int(pred_out["my_gpu_act_cycles_max"])), file=outF)
     print("\t* My SM active cycles (sum):", place_value(int(pred_out["my_sm_act_cycles.sum"])), file=outF)
@@ -119,67 +112,72 @@ def dump_output(pred_out):
     
     print("\n- Warp instructions executed:", place_value(int(pred_out["tot_warps_instructions_executed"])), file=outF)
     print("- Thread instructions executed:", place_value(int(pred_out["tot_threads_instructions_executed"])), file=outF)
-    print("- Instructions executed per clock cycle (IPC):", round(pred_out["tot_ipc"], 3), file=outF)
+    # print("- Instructions executed per clock cycle (IPC):", round(pred_out["tot_ipc"], 3), file=outF)
     print("- My Instructions executed per clock cycle (IPC):", round(pred_out["my_tot_ipc"], 3), file=outF)
     print("- Clock cycles per instruction (CPI): ", round(pred_out["tot_cpi"], 3), file=outF)
     print("- Total instructions executed per seconds (MIPS):", int(round((pred_out["tot_throughput_ips"]/1000000), 3)), file=outF)
     print("- Kernel execution time:", round((pred_out["execution_time_sec"]*1000000),4), "us", file=outF)
 
-    print("\n- Scheduler Stat", file=outF)
-    # print(f"{pred_out['scheduler_stats']}", file=outF)
-    active_block_per_cycle_list = counter_avg_list(pred_out["scheduler_stats"]["active_blocks"])
-    active_warp_per_cycle_list = counter_avg_list(pred_out["scheduler_stats"]["active_warps"])
-    issued_warp_per_cycle_list = counter_avg_list(pred_out["scheduler_stats"]["issued_warps"])
-    print(f"active_cycle: {pred_out['active_cycles']}", file=outF)
-    print(f"active_block_per_cycle: {active_block_per_cycle_list}", file=outF)
-    print(f"active_warp_per_cycle: {active_warp_per_cycle_list}", file=outF)
-    print(f"issued_warp_per_cycle: {issued_warp_per_cycle_list}", file=outF)
+    print("\n- Scheduler Stat:", file=outF)
+    active_block_per_cycle = counter_avg(pred_out["sm_stats"]["active_blocks"])
+    active_warp_per_cycle_list, avg1 = counter_avg_list(pred_out["scheduler_stats"]["active_warps"])
+    issued_warp_per_cycle_list, avg3 = counter_avg_list(pred_out["scheduler_stats"]["issued_warps"])
+    print(f"debug: active_cycle: {pred_out['active_cycles']}", file=outF)
+    print(f"debug: active_block_per_cycle: {active_block_per_cycle}", file=outF)
+    print(f"Active Warps Per Scheduler: {active_warp_per_cycle_list} {avg1}", file=outF)
+    print(f"Eligible Warps Per Scheduler: TODO", file=outF)
+    print(f"Issued Warp Per Scheduler: {issued_warp_per_cycle_list} {avg3}", file=outF)
+    print(f"No Eligible: ", file=outF)
     
-    cpi_stack_list = sample_to_cpi_list(pred_out['warp_stats']['stall_types'])
-    # print(f"CPI stack all: {json.dumps(cpi_stack_list, indent=4)}", file=outF)
-    print(f"CPI stack: {json.dumps(cpi_stack_list[0], indent=4)}", file=outF)
+    print("\n- Warp Stat:", file=outF)
+    warp_cpi_list = get_warp_cpi(pred_out['warp_stats']['stall_types'])
+    sched_cpi_list = get_scheduler_cpi(pred_out['scheduler_stats']['stall_types'])
+    cpi_list = [cpi['debug']['average_warp_cycle_per_inst'] for cpi in warp_cpi_list]
+    avg_cpi = sum(cpi_list)/len(cpi_list)
+    print(f"Warp Cycle Per Issued Instruction: {cpi_list} {avg_cpi}", file=outF)
+    print(f"CPI stack Warp: {json.dumps(warp_cpi_list, indent=4)}", file=outF)
+    print(f"CPI stack Scheduler: {json.dumps(sched_cpi_list, indent=4)}", file=outF)
     
     print("\n- Simulation Time:", file=outF)
     print("\t* Memory model:", round(pred_out["simulation_time"]["memory"], 3), "sec,", convert_sec(pred_out["simulation_time"]["memory"]), file=outF)
     print("\t* Compute model:", round(pred_out["simulation_time"]["compute"], 3), "sec,", convert_sec(pred_out["simulation_time"]["compute"]), file=outF)
 
-    print("\nAppendix:", file=outF)
-    print("Raw Scheduler Stat", file=outF)
-    print(f"{json.dumps(pred_out['scheduler_stats'], indent=4)}", file=outF)
-    print(f"{json.dumps(pred_out['warp_stats'], indent=4)}", file=outF)
-    
-def sample_to_cpi_list(sample_list):
-    def sample_to_cpi(sample_states):
-        cpi_stack = {}
-        sample_cycle = sum(sample_states.values())
-        sample_inst = sample_states['NoStall']
-        average_warp_cycle_per_inst = sample_cycle/sample_inst
-        
-        warp_state_list = ['MemData','MemStruct', 'CompData','CompStruct', 'NotSelect', 'NoStall', 'Sync','Misc']
-        for state in warp_state_list:
-            if state not in sample_states:
-                cpi_stack[state] = 0
-            else:
-                cpi_stack[state] = sample_states[state]/sample_inst  
-        cpi_stack['debug'] = {}
-        cpi_stack['debug']['sample_cycle'] = sample_cycle
-        cpi_stack['debug']['sample_inst'] = sample_inst
-        cpi_stack['debug']['average_warp_cycle_per_inst'] = average_warp_cycle_per_inst
-        return cpi_stack
-    return [sample_to_cpi(sample) for sample in sample_list]
+    outF.close()
 
+def state_to_cpi(state_dict):
+    cpi_stack = {}
+    total_cycle = sum(state_dict.values())
+    total_inst = state_dict.get('NoStall', 1)  # avoid zero
+    average_warp_cycle_per_inst = total_cycle/total_inst
+    
+    for state in state_dict:
+        cpi_stack[state] = state_dict[state]/total_inst  
+    cpi_stack['debug'] = {}
+    cpi_stack['debug']['total_cycle'] = total_cycle
+    cpi_stack['debug']['total_inst'] = total_inst
+    cpi_stack['debug']['average_warp_cycle_per_inst'] = average_warp_cycle_per_inst
+    return cpi_stack
+
+def get_scheduler_cpi(scheduler_stat_list):
+    return [state_to_cpi(scheduler_stat) for scheduler_stat in scheduler_stat_list]
+    
+def get_warp_cpi(sample_list):
+    return [state_to_cpi(sample) for sample in sample_list]
+
+def counter_avg(counter):
+    total_cycle = 0
+    prod_sum  =0
+    
+    for key in counter:
+        prod = key * counter[key]
+        prod_sum += prod
+        total_cycle += counter[key]
+    return prod_sum/total_cycle
+        
 def counter_avg_list(counter_list):
-    def counter_avg(counter):
-        total_cycle = 0
-        prod_sum  =0
-        
-        for key in counter:
-            prod = key * counter[key]
-            prod_sum += prod
-            total_cycle += counter[key]
-        
-        return prod_sum/total_cycle
-    return [counter_avg(counter) for counter in counter_list]
+    res = [counter_avg(counter) for counter in counter_list]
+    avg = sum(res)/len(res)
+    return res, avg
 
 def place_value(number): 
     return ("{:,}".format(number))

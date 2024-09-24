@@ -272,8 +272,9 @@ class Kernel(Entity):
 
         num_subcore = self.acc.num_warp_schedulers_per_SM
         max_warp_per_subcore = self.acc.max_active_threads_per_SM // self.acc.warp_size // num_subcore
+        sm_stats = {}
+        sm_stats['active_blocks'] = {}
         scheduler_stats = {}
-        scheduler_stats['active_blocks'] = [{} for i in range(num_subcore)]
         scheduler_stats['active_warps'] = [{} for i in range(num_subcore)]
         scheduler_stats['eligible_warps'] = [{} for i in range(num_subcore)]
         scheduler_stats['issued_warps'] = [{} for i in range(num_subcore)]
@@ -283,6 +284,7 @@ class Kernel(Entity):
         
         pred_out['scheduler_stats'] = scheduler_stats
         pred_out['warp_stats'] = warp_stats
+        pred_out['sm_stats'] = sm_stats
         
         def counter_inc(counter, key):
             if key in counter:
@@ -352,9 +354,9 @@ class Kernel(Entity):
             '''
             schedule subcore
             '''
+            counter_inc(sm_stats['active_blocks'], len(current_active_block_list))
             # print(debug_i)
             for i in range(num_subcore):
-                counter_inc(scheduler_stats['active_blocks'][i], len(current_active_block_list))
                 counter_inc(scheduler_stats['active_warps'][i], len(subcore_warp_list[i]))
                 ## pass warps belonging to the active blocks to the warp scheduler to step the computations
                 instructions_executed, warp_executed, scheduler_stall_type, warp_state_sampled = \
@@ -422,6 +424,7 @@ class Kernel(Entity):
         toc = time.time()
         pred_out["simulation_time"]["compute"] = (toc - tic)
 
+        pred_out["kernel_tasklist"] = self.kernel_tasklist
         ## commit results
         dump_output(pred_out)
 

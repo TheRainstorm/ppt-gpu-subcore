@@ -113,6 +113,33 @@ def parse_kernel_log(file_path):
         kernel_res[k] = float(v)
     return kernel_res
 
+def parse_kernel_json(file_path):
+    with open(file_path, 'r') as f:
+        data_json = json.load(f)
+    
+    # rename
+    # data_json["achieved_occupancy"] = data_json["placeholder"]
+    data_json['warp_inst_executed'] = data_json['tot_warps_instructions_executed']
+    # data_json["gpu_active_cycle_min"] = data_json["placeholder"]
+    # data_json["gpu_active_cycle_max"] = data_json["placeholder"]
+    data_json["sm_active_cycles_sum"] = data_json["sm_act_cycles.sum"]
+    data_json["sm_elapsed_cycles_sum"] = data_json["sm_elp_cycles.sum"]
+    # data_json["my_gpu_active_cycle_max"] = data_json["placeholder"]
+    data_json["my_sm_active_cycles_sum"] = data_json["my_sm_act_cycles.sum"]
+    data_json["my_sm_elapsed_cycles_sum"] = data_json["my_sm_elp_cycles.sum"]
+    data_json["ipc"] = data_json["my_tot_ipc"]
+    data_json["l1_hit_rate"] = data_json["memory_stats"]["umem_hit_rate"]*100
+    data_json["l2_hit_rate"] = data_json["memory_stats"]["hit_rate_l2"]*100
+    data_json["gmem_read_requests"] = data_json["memory_stats"]["gmem_ld_reqs"]
+    data_json["gmem_write_requests"] = data_json["memory_stats"]["gmem_st_reqs"]
+    data_json["gmem_read_trans"] = data_json["memory_stats"]["gmem_ld_trans"]
+    data_json["gmem_write_trans"] = data_json["memory_stats"]["gmem_st_trans"]
+    data_json["l2_read_trans"] = data_json["memory_stats"]["l2_ld_trans_gmem"]
+    data_json["l2_write_trans"] = data_json["memory_stats"]["l2_st_trans_gmem"]
+    data_json["dram_total_trans"] = data_json["memory_stats"]["dram_tot_trans_gmem"]
+    
+    return data_json
+
 collect_data = {}
 
 for app_and_arg in app_and_arg_list:
@@ -123,24 +150,29 @@ for app_and_arg in app_and_arg_list:
         print(f"{app_and_arg} not found")
         continue
     # get all sim log file
+    # file_list = []
+    # for file in os.listdir(app_trace_dir):
+    #     m = re.search(r'kernel\_(?P<kernel_id>\d+)\_(?P<type>SASS|PTX)\_.*\.out', file)
+    #     if m:
+    #         file_list.append( (int(m.group('kernel_id')), os.path.join(app_trace_dir, file)) ) 
     file_list = []
     for file in os.listdir(app_trace_dir):
-        m = re.search(r'kernel\_(?P<kernel_id>\d+)\_(?P<type>SASS|PTX)\_.*\.out', file)
+        m = re.search(r'kernel\_(?P<kernel_id>\d+)\_pred_out.json', file)
         if m:
             file_list.append( (int(m.group('kernel_id')), os.path.join(app_trace_dir, file)) ) 
 
     app_res = [ {} for i in range(len(file_list)) ]
     try:
         for kernel_id, file_path in file_list:
-            app_res[kernel_id-1] = parse_kernel_log(file_path)
+            app_res[kernel_id-1] = parse_kernel_json(file_path)
     except Exception as e:
         print(f"Error in {app_and_arg}")
-        print(f"{kernel_id} {file_path}")
+        print(f"{kernel_id}/{len(file_list)} {file_path}")
         print(e)
         exit(1)
     
     print(f"{app_and_arg}: {len(app_res)}")
     collect_data[app_and_arg] = app_res
 
-with open(args.output, 'w') as f:
-    json.dump(collect_data, f, indent=4)
+    with open(args.output, 'w') as f:
+        json.dump(collect_data, f, indent=4)
