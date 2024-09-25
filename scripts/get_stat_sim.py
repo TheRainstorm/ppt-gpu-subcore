@@ -30,13 +30,7 @@ from common import *
 defined_apps = {}
 parse_app_definition_yaml(args.benchmarks_yaml, defined_apps)
 apps = gen_apps_from_suite_list(args.benchmark_list.split(","), defined_apps)
-
-app_and_arg_list = []
-for app in apps:
-    exec_dir, data_dir, exe_name, args_list = app
-    for argpair in args_list:
-        mem_usage = argpair["accel-sim-mem"]
-        app_and_arg_list.append(os.path.join( exe_name, get_argfoldername( argpair["args"] ) ))  # backprop-rodinia-2.0-ft/4096___data_result_4096_txt
+app_and_arg_list = get_app_arg_list(apps)
 
 def parse_kernel_log(file_path):
     with open(file_path, 'r') as f:
@@ -141,10 +135,18 @@ def parse_kernel_json(file_path):
     return data_json
 
 collect_data = {}
+# when get single app, load old data
+if args.apps:
+    if os.path.exists(args.output):
+        with open(args.output, 'r') as f:
+            collect_data = json.load(f)
 
 for app_and_arg in app_and_arg_list:
     app = app_and_arg.split('/')[0]
     app_trace_dir = os.path.join(args.trace_dir, app_and_arg)
+    
+    if args.apps and app_and_arg not in args.apps:
+        continue
     
     if not os.path.exists(app_trace_dir):
         print(f"{app_and_arg} not found")

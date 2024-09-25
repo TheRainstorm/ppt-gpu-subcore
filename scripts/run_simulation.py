@@ -18,6 +18,9 @@ parser.add_argument("-B", "--benchmark_list",
 parser.add_argument("-Y", "--benchmarks_yaml",
                     required=True,
                     help='benchmarks_yaml path')
+parser.add_argument("--apps",
+                    nargs="*",
+                    help="only run specific apps")
 parser.add_argument("-T", "--trace_dir",
                     required=True,
                     help="The root of all the trace file")
@@ -44,9 +47,6 @@ parser.add_argument("--hw-res",
 parser.add_argument("--no-overwrite", dest="overwrite",
                  action="store_false",
                  help="if overwrite=False, then don't simulate already have .out file app")
-parser.add_argument("--apps",
-                    nargs="*",
-                    help="only run specific apps")
 args = parser.parse_args()
 
 from common import *
@@ -54,13 +54,7 @@ from common import *
 defined_apps = {}
 parse_app_definition_yaml(args.benchmarks_yaml, defined_apps)
 apps = gen_apps_from_suite_list(args.benchmark_list.split(","), defined_apps)
-
-app_and_arg_list = []
-for app in apps:
-    exec_dir, data_dir, exe_name, args_list = app
-    for argpair in args_list:
-        mem_usage = argpair["accel-sim-mem"]
-        app_and_arg_list.append(os.path.join( exe_name, get_argfoldername( argpair["args"] ) ))  # backprop-rodinia-2.0-ft/4096___data_result_4096_txt
+app_and_arg_list = get_app_arg_list(apps)
 
 log_file = open(args.log_file, "a")
 def logging(*args, **kwargs):
@@ -72,7 +66,7 @@ def run_cmd(cmd):
 
 logging(f"Start")
 failed_list = []
-logging(f"{' '.join(sys.argv)}")
+logging(f"CMD: {' '.join(sys.argv)}")
 print(args.apps)
 for app_and_arg in app_and_arg_list:
     app = app_and_arg.split('/')[0]

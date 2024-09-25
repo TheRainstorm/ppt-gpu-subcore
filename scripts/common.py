@@ -1,4 +1,5 @@
 import hashlib
+import os
 import re
 import yaml
 
@@ -44,3 +45,12 @@ def gen_apps_from_suite_list( suite_list, defined_apps):
     for suite in suite_list:
         apps += defined_apps[suite]
     return apps
+
+def get_app_arg_list(apps):
+    app_and_arg_list = []
+    for app in apps:
+        exec_dir, data_dir, exe_name, args_list = app
+        for argpair in args_list:
+            mem_usage = argpair["accel-sim-mem"]
+            app_and_arg_list.append(os.path.join( exe_name, get_argfoldername( argpair["args"] ) ))  # backprop-rodinia-2.0-ft/4096___data_result_4096_txt
+    return app_and_arg_list
