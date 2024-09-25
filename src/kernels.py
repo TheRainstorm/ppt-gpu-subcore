@@ -105,6 +105,11 @@ class Kernel(Entity):
         pred_out["memory_stats"] = {}
         pred_out["simulation_time"] = {}
         
+        # launch statistic
+        pred_out["grid_size"] = kernel_info["grid_size"]
+        pred_out["block_size"] = kernel_info["block_size"]
+        pred_out["num_regs"] = kernel_info["num_regs"]
+        pred_out["smem_size"] = kernel_info["smem_size"]
 
         if self.kernel_block_size > self.acc.max_block_size:
             print_warning("block_size",str(self.acc.max_block_size))

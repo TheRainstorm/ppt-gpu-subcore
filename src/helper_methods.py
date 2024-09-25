@@ -45,6 +45,11 @@ def dump_output(pred_out):
     
     print("\n- Total GPU computations is divided into " + str(pred_out["total_num_workloads"])+\
                 " thread block(s) running on " + str(pred_out["active_SMs"]) + " SM(s)", file=outF)
+    print(f"\n-Launch Statistic:", file=outF)
+    print(f"\t* Grid Size: {pred_out['grid_size']}", file=outF)
+    print(f"\t* Block Size: {pred_out['block_size']}", file=outF)
+    print(f"\t* Registers Per Thread: {pred_out['num_regs']}", file=outF)
+    print(f"\t* Shared Memory Per Thread: {pred_out['smem_size']}", file=outF)
     
     print("\n- Modeled SM-0 running", pred_out["num_workloads_per_SM_new"], "thread block(s):", file=outF)
     print("\t* allocated max active thread block(s):", pred_out["allocated_active_blocks_per_SM"], file=outF)
