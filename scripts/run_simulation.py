@@ -44,6 +44,9 @@ parser.add_argument("--hw-res",
 parser.add_argument("--no-overwrite", dest="overwrite",
                  action="store_false",
                  help="if overwrite=False, then don't simulate already have .out file app")
+parser.add_argument("--apps",
+                    nargs="*",
+                    help="only run specific apps")
 args = parser.parse_args()
 
 from common import *
@@ -70,6 +73,7 @@ def run_cmd(cmd):
 logging(f"Start")
 failed_list = []
 logging(f"{' '.join(sys.argv)}")
+print(args.apps)
 for app_and_arg in app_and_arg_list:
     app = app_and_arg.split('/')[0]
     app_trace_dir = os.path.join(args.trace_dir, app_and_arg)
@@ -81,6 +85,9 @@ for app_and_arg in app_and_arg_list:
             break
     if already_simulated:
         logging(f"{app_and_arg} already simulated")
+        continue
+    
+    if args.apps and app_and_arg not in args.apps:
         continue
 
     logging(f"{datetime.now().strftime('%Y-%m-%d %H:%M:%S')}: {app_and_arg}")
