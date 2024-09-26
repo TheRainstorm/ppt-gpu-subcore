@@ -25,21 +25,6 @@ def dump_output(pred_out):
     outF = open(os.path.join(pred_out["app_report_dir"], "kernel_"+kernel_prefix+".out"), "w+")
     outF2 = open(os.path.join(pred_out["app_report_dir"], f"kernel_{pred_out['kernel_id']}_tasklist.txt"), "w")
     outF3 = open(os.path.join(pred_out["app_report_dir"], f"kernel_{pred_out['kernel_id']}_pred_out.json"), "w")
-    def dump_tasklist(tasklists):
-        # summary
-        insts_cnt = [(warp_id, len(tasklist)) for warp_id, tasklist in tasklists.items()]
-        insts_cnt.sort(key=lambda x: x[0])
-        print(insts_cnt, file=outF2)
-        # inst
-        for warp_id, warp_tasklist in tasklists.items():
-            print(warp_id, file=outF2)
-            for task in warp_tasklist:
-                print(task, file=outF2)
-    dump_tasklist(pred_out["kernel_tasklist"])
-    del pred_out["kernel_tasklist"]
-    json.dump(pred_out, outF3, indent=4)
-    outF2.close()
-    outF3.close()
     
     print("kernel name:", pred_out["kernel_name"], file=outF)
     
@@ -145,11 +130,40 @@ def dump_output(pred_out):
     print(f"CPI stack Warp: {json.dumps(warp_cpi_list, indent=4)}", file=outF)
     print(f"CPI stack Scheduler: {json.dumps(sched_cpi_list, indent=4)}", file=outF)
     
+    print("\n- Instruction Statistics:", file=outF)
+    inst_count_dict = get_inst_count_dict(pred_out["kernel_tasklist"])
+    print(f"{json.dumps(inst_count_dict, indent=4)}", file=outF)
+    
     print("\n- Simulation Time:", file=outF)
     print("\t* Memory model:", round(pred_out["simulation_time"]["memory"], 3), "sec,", convert_sec(pred_out["simulation_time"]["memory"]), file=outF)
     print("\t* Compute model:", round(pred_out["simulation_time"]["compute"], 3), "sec,", convert_sec(pred_out["simulation_time"]["compute"]), file=outF)
 
+    def dump_tasklist(tasklists):
+        # summary
+        insts_cnt = [(warp_id, len(tasklist)) for warp_id, tasklist in tasklists.items()]
+        insts_cnt.sort(key=lambda x: x[0])
+        print(insts_cnt, file=outF2)
+        # inst
+        for warp_id, warp_tasklist in tasklists.items():
+            print(warp_id, file=outF2)
+            for task in warp_tasklist:
+                print(task, file=outF2)
+    dump_tasklist(pred_out["kernel_tasklist"])
+    del pred_out["kernel_tasklist"]
+    json.dump(pred_out, outF3, indent=4)
+    outF2.close()
+    outF3.close()
     outF.close()
+
+def get_inst_count_dict(tasklist, scale_factor=1):
+    inst_count_dict = {}
+    for warp_id, warp_tasklist in tasklist.items():
+        for task in warp_tasklist:
+            inst_count_dict[task[0]] = inst_count_dict.get(task[0], 0) + 1
+    # scale
+    for inst in inst_count_dict:
+        inst_count_dict[inst] *= scale_factor
+    return inst_count_dict
 
 def state_to_cpi(state_dict):
     cpi_stack = {}

@@ -30,52 +30,84 @@ def convert_ncu_to_gsi(data):
             res_json[app_arg].append(kernel_cpi_res)
     return res_json
 
-def state_to_cpi(state_dict):
+def state_to_cpi(state_dict, set_debug=False):
     cpi_stack = {}
     total_cycle = sum(state_dict.values())
     total_inst = state_dict.get('NoStall', 0)  # avoid zero
     if total_inst == 0:
         return {}
-    average_warp_cycle_per_inst = total_cycle/total_inst
     
     for state in state_dict:
-        cpi_stack[state] = state_dict[state]/total_inst  
-    cpi_stack['debug'] = {}
-    cpi_stack['debug']['total_cycle'] = total_cycle
-    cpi_stack['debug']['total_inst'] = total_inst
-    cpi_stack['debug']['average_warp_cycle_per_inst'] = average_warp_cycle_per_inst
+        cpi_stack[state] = state_dict[state]/total_inst
+    
+    if set_debug:
+        cpi_stack['debug'] = {}
+        cpi_stack['debug']['total_cycle'] = total_cycle
+        cpi_stack['debug']['total_inst'] = total_inst
+        cpi_stack['debug']['average_warp_cycle_per_inst'] = total_cycle/total_inst
     return cpi_stack
 
-def get_cpi_stack_list(state_dict_list):
+def get_merged_cpi_stack(cpi_stack):
+    cpi_stack_merged = {}
+    for k,v in cpi_stack.items():
+        if type(v) == dict:
+            continue
+        if '.' in k:
+            stall_type, sub_type = k.split('.')
+            cpi_stack_merged[stall_type] = cpi_stack_merged.get(stall_type, 0) + v
+        else:
+            cpi_stack_merged[k] = cpi_stack_merged.get(k, 0) + v
+    return cpi_stack_merged
+
+def get_cpi_stack_list(state_dict_list, detail=False):
     cpi_stack_list = [state_to_cpi(state_dict) for state_dict in state_dict_list]
     non_zero_num = len([cpi_stack for cpi_stack in cpi_stack_list if cpi_stack])
     # convert to gsi
-    def fill_gsi(cpi_stack):
+    def fill_gsi(cpi_stack, stall_list=gsi_stall_list):
         cpi_stack_new = {}
-        for k in gsi_stall_list:
+        for k in stall_list:
             cpi_stack_new[k] = cpi_stack.get(k, 0)
         return cpi_stack_new
-    cpi_stack_list_new = [fill_gsi(cpi_stack) for cpi_stack in cpi_stack_list]
+    
+    def get_all_kernel_stall_list(cpi_stack_list):
+        all_kernel_stall_list = set()
+        for cpi_stack in cpi_stack_list:
+            all_kernel_stall_list.update(cpi_stack.keys())
+        return all_kernel_stall_list
+    
+    if not detail:
+        cpi_stack_list = [fill_gsi(get_merged_cpi_stack(cpi_stack)) for cpi_stack in cpi_stack_list]
+    else:
+        all_kernel_stall_list = get_all_kernel_stall_list(cpi_stack_list)
+        cpi_stack_list = [fill_gsi(cpi_stack, stall_list=all_kernel_stall_list) for cpi_stack in cpi_stack_list]
+        
     def avg_dict(dict_list, non_zero_num):
+        all_keys = set()
+        for d in dict_list:
+            all_keys.update(d.keys())
         non_zero = [d for d in dict_list if d]
         avg_dict = {}
-        for k in non_zero[0]:
-            avg_dict[k] = sum([d[k] for d in non_zero])/non_zero_num
+        for k in all_keys:
+            if k == 'debug':
+                continue
+            avg_dict[k] = sum([d.get(k, 0) for d in non_zero])/non_zero_num
         return avg_dict
-    # append avg dict to last if more than one subcore
-    cpi_stack_list_new.append(avg_dict(cpi_stack_list_new, non_zero_num))
-    return cpi_stack_list_new
+    
+    if not detail: # subcore may have different detail key, so avg is difficut
+        # append avg dict to last if more than one subcore
+        cpi_stack_list.append(avg_dict(cpi_stack_list, non_zero_num))
+    return cpi_stack_list
         
-def convert_ppt_gpu_to_gsi(data, select):
+def convert_ppt_gpu_to_gsi(data, select, detail=False):
     res_json = {}
     for app_arg, app_res in data.items():
         print(f"{app_arg}: {len(app_res)}")
         res_json[app_arg] = []
         for i, kernel_res in enumerate(app_res):
             if select == "warp":
-                cpi_stack_list = get_cpi_stack_list(kernel_res['warp_stats']['stall_types'])
+                cpi_stack_list = get_cpi_stack_list(kernel_res['warp_stats']['stall_types'], detail)
             else:
-                cpi_stack_list = get_cpi_stack_list(kernel_res['scheduler_stats']['stall_types'])
+                cpi_stack_list = get_cpi_stack_list(kernel_res['scheduler_stats']['stall_types'], detail)
             res_json[app_arg].append(cpi_stack_list)
     return res_json
 
@@ -88,7 +120,7 @@ if __name__ == "__main__":
     parser.add_argument("-o", "--output",
                         help="converted output")
     parser.add_argument("-O", "--out-type",
-                        choices=["gsi"],
+                        choices=["gsi", "gsi-detail"],
                         default="gsi",
                         help="classifiy model")
     parser.add_argument("-I", "--in-type",
@@ -99,12 +131,16 @@ if __name__ == "__main__":
     with open(args.input, 'r') as f:
         data = json.load(f)
     
+    detail = False
+    if "detail" in args.out_type:
+        detail = True
+    
     if args.in_type == "ncu":
         output_json = convert_ncu_to_gsi(data)
     elif args.in_type == "ppt_gpu":
-        output_json = convert_ppt_gpu_to_gsi(data, "warp")
+        output_json = convert_ppt_gpu_to_gsi(data, "warp", detail=detail)
     elif args.in_type == "ppt_gpu_sched":
-        output_json = convert_ppt_gpu_to_gsi(data, "sched")
+        output_json = convert_ppt_gpu_to_gsi(data, "sched", detail=detail)
     else:
         raise NotImplementedError(f"Unknown input type: {args.in_type}")
     

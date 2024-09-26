@@ -203,6 +203,28 @@ def draw_cpi_stack_side2side(save_img, app_list='all', draw_error=False):
         image_path = save_img
         fig.savefig(image_path)
         plt.close(fig)
+
+def draw_cpi_stack_subplot_s2s(save_img, app_list='all', draw_error=False):
+    global overwrite
+    save_img_path = os.path.join(os.getcwd(), save_img)
+    if os.path.exists(save_img_path) and not overwrite:
+        return
+    if not os.path.exists(os.path.dirname(save_img_path)):
+        print(f"Make dir {os.path.dirname(save_img_path)}")
+        os.makedirs(os.path.dirname(save_img_path))
+    x, Y_list, labels1 = get_stack_data(sim_res, app_list=app_list)
+    x2, Y_list2, labels2 = get_stack_data(sim_res2, app_list=app_list)
+    y_list2 = Y_list2[0]
+    print(f"draw subplot sidebyside {save_img[-60:]}: {len(x)}")
+
+    fig, axs = plt.subplots(1, 2, figsize=(15, 15), sharex=True, sharey=True)
+
+    draw_bar(fig, axs[0], x, Y_list[-1], labels1)
+    draw_bar(fig, axs[1], x2, y_list2, labels2)
+
+    image_path = save_img
+    fig.savefig(image_path)
+    plt.close(fig)
     
 def check_app_kernel_num(res, print_num=False):
     for app, app_res in res.items():
@@ -225,7 +247,7 @@ if __name__ == "__main__":
     parser.add_argument("-H", "--hw_res",
                         help="hw result, used to caculate error")
     parser.add_argument("-o", "--output_dir",
-                    default="tmp/draw_cpi_stack/")
+                        default="tmp/draw_cpi_stack/")
     parser.add_argument("--apps",
                         nargs="*",
                         help="a comma seperated list of app to draw. See apps/define-*.yml for the app names. default `all` draw all apps")
@@ -233,6 +255,12 @@ if __name__ == "__main__":
                         type=int,
                         default=300,
                         help="PPT-GPU only trace max 300 kernel, the hw trace we also truncate first 300 kernel. So GIMT also should truncate")
+    parser.add_argument("--subdir",
+                        default="cpi_single",
+                        help="subdir to save the image (used when not draw side by side)")
+    parser.add_argument("--subplot-s2s",
+                        action="store_true",
+                        help="draw subplot side by side, used when two stack figure have different labels")
     args = parser.parse_args()
 
     defined_apps = {}
@@ -281,7 +309,7 @@ if __name__ == "__main__":
                 os.makedirs(app_arg, exist_ok=True)
                 os.chdir(app_arg)
             app_name_safe = app_arg.replace('/', '_')
-            draw_cpi_stack(f"sched_cpi/sched_cpi_{i}_{app_name_safe}.png", app_list=app_arg)
+            draw_cpi_stack(f"{args.subdir}/{i}_{app_name_safe}.png", app_list=app_arg)
     else:
         overwrite = True
         app_list_all = sim_res.keys()
@@ -294,14 +322,8 @@ if __name__ == "__main__":
                     os.makedirs(app_arg, exist_ok=True)
                     os.chdir(app_arg)
             app_name_safe = app_arg.replace('/', '_')
-            draw_cpi_stack_side2side(f"cpi_s2s/cpi_s2s_{i}_{app_name_safe}.png", app_list=app_arg)
-        # draw_cpi_stack_side2side("cpi_s2s_backprop.png", app_list='backprop-rodinia-2.0-ft/4096___data_result_4096_txt', draw_error=draw_error)
-        # compare two result cpi stack
-        # overwrite = True
-        # draw_cpi_stack_side2side("[0:2]", "cpi_stack_b+tree_backprop.png"   ,draw_error=draw_error)
-        # draw_cpi_stack_side2side("[2:3]", "cpi_stack_bfs-1.png"             ,draw_error=draw_error)
-        # draw_cpi_stack_side2side("[3:4]", "cpi_stack_bfs-2.png"             ,draw_error=draw_error)
-        # draw_cpi_stack_side2side("[4:5]", "cpi_stack_bfs-3.png"             ,draw_error=draw_error)
-        # draw_cpi_stack_side2side("[5:6]", "cpi_stack_dwt2d-1.png"           ,draw_error=draw_error)
-        # draw_cpi_stack_side2side("[6:7]", "cpi_stack_dwt2d-2.png"           ,draw_error=draw_error)
+            if args.subplot_s2s:
+                draw_cpi_stack_subplot_s2s(f"cpi_subplot_s2s/cpi_s2s_{i}_{app_name_safe}.png", app_list=app_arg)
+            else:
+                draw_cpi_stack_side2side(f"cpi_s2s/cpi_s2s_{i}_{app_name_safe}.png", app_list=app_arg)
     os.chdir(run_dir)

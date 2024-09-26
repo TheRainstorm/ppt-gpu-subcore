@@ -180,7 +180,7 @@ class Warp(object):
 
                     if not is_issued:
                         if self.stall_type_keeped == 'NoStall':
-                            self.stall_type_keeped = 'CompStruct'
+                            self.stall_type_keeped = f'CompStruct.{hw_unit}'
                     else:
                         self.completions.append(cycles + latency)
                         if self.max_dep < self.completions[-1]:  # No means???

@@ -30,7 +30,7 @@ class Accelerator(object):
         except:
             print_config_error("compute_capabilty")
         
-        if self.compute_capabilty == 70 or self.compute_capabilty == 75:
+        if self.compute_capabilty >= 70:
             self.new_generation = True
         else:
             self.new_generation = False
