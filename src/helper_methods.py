@@ -154,7 +154,10 @@ def dump_output(pred_out):
 def state_to_cpi(state_dict):
     cpi_stack = {}
     total_cycle = sum(state_dict.values())
-    total_inst = state_dict.get('NoStall', 1)  # avoid zero
+    total_inst = state_dict.get('NoStall', 0)  # avoid zero
+    if total_inst == 0:
+        return {}
+    
     average_warp_cycle_per_inst = total_cycle/total_inst
     
     for state in state_dict:
@@ -166,10 +169,14 @@ def state_to_cpi(state_dict):
     return cpi_stack
 
 def get_scheduler_cpi(scheduler_stat_list):
-    return [state_to_cpi(scheduler_stat) for scheduler_stat in scheduler_stat_list]
+    cpi_list = [state_to_cpi(stat) for stat in scheduler_stat_list]
+    cpi_non_empty = [cpi for cpi in cpi_list if cpi]
+    return cpi_non_empty
     
 def get_warp_cpi(sample_list):
-    return [state_to_cpi(sample) for sample in sample_list]
+    cpi_list = [state_to_cpi(stat) for stat in sample_list]
+    cpi_non_empty = [cpi for cpi in cpi_list if cpi]
+    return cpi_non_empty
 
 def counter_avg(counter):
     total_cycle = 0
@@ -192,8 +199,9 @@ def count_eq_zero_pct(counter):
         
 def counter_avg_list(counter_list):
     res = [counter_avg(counter) for counter in counter_list]
-    avg = sum(res)/len(res)
-    return res, avg
+    res_no_zero = [x for x in res if x != 0]
+    avg = sum(res_no_zero)/len(res_no_zero)
+    return res_no_zero, avg
 
 def place_value(number): 
     return ("{:,}".format(number))

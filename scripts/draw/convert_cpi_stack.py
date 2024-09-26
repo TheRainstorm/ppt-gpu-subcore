@@ -33,7 +33,9 @@ def convert_ncu_to_gsi(data):
 def state_to_cpi(state_dict):
     cpi_stack = {}
     total_cycle = sum(state_dict.values())
-    total_inst = state_dict.get('NoStall', 1)  # avoid zero
+    total_inst = state_dict.get('NoStall', 0)  # avoid zero
+    if total_inst == 0:
+        return {}
     average_warp_cycle_per_inst = total_cycle/total_inst
     
     for state in state_dict:
@@ -46,6 +48,7 @@ def state_to_cpi(state_dict):
 
 def get_cpi_stack_list(state_dict_list):
     cpi_stack_list = [state_to_cpi(state_dict) for state_dict in state_dict_list]
+    non_zero_num = len([cpi_stack for cpi_stack in cpi_stack_list if cpi_stack])
     # convert to gsi
     def fill_gsi(cpi_stack):
         cpi_stack_new = {}
@@ -53,15 +56,16 @@ def get_cpi_stack_list(state_dict_list):
             cpi_stack_new[k] = cpi_stack.get(k, 0)
         return cpi_stack_new
     cpi_stack_list_new = [fill_gsi(cpi_stack) for cpi_stack in cpi_stack_list]
-    def avg_dict(dict_list):
+    def avg_dict(dict_list, non_zero_num):
+        non_zero = [d for d in dict_list if d]
         avg_dict = {}
-        for k in dict_list[0]:
-            avg_dict[k] = sum([d[k] for d in dict_list])/len(dict_list)
+        for k in non_zero[0]:
+            avg_dict[k] = sum([d[k] for d in non_zero])/non_zero_num
         return avg_dict
-    # append avg dict to last
-    cpi_stack_list_new.append(avg_dict(cpi_stack_list_new))
+    # append avg dict to last if more than one subcore
+    cpi_stack_list_new.append(avg_dict(cpi_stack_list_new, non_zero_num))
     return cpi_stack_list_new
-            
+        
 def convert_ppt_gpu_to_gsi(data, select):
     res_json = {}
     for app_arg, app_res in data.items():

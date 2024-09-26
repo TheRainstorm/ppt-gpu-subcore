@@ -98,18 +98,18 @@ def get_stack_data(json_data, app_list='all'):
         app_list = app_list.split(',')
     
     multiple_subcore = False
-    num_subcore = 1
+    num_subplots = 1
     x = []
-    # get labels
     labels = []
     app_res = json_data[app_list[0]]
     for j,kernel_res in enumerate(app_res):
         if type(kernel_res) == list:
             multiple_subcore = True
-            num_subcore = len(kernel_res)
+            num_subplots = len(kernel_res)
         kernel_first_subcore_res = kernel_res[0] if multiple_subcore else kernel_res
+        # get labels
         for k, v in kernel_first_subcore_res.items():
-            if type(v) != dict:
+            if type(v) != dict:  # avoid debug info dict
                 labels.append(k)
         break
     
@@ -118,7 +118,7 @@ def get_stack_data(json_data, app_list='all'):
             if type(v) != dict:
                 y_list[labels.index(k)].append(v)
                         
-    Y_list = [[[] for i in range(len(labels))] for j in range(num_subcore)]
+    Y_list = [[[] for i in range(len(labels))] for j in range(num_subplots)]
     for i,app_arg in enumerate(app_list):
         app = app_arg.split('/')[0]
         app_res = json_data[app_arg]
@@ -133,7 +133,7 @@ def get_stack_data(json_data, app_list='all'):
 
 def draw_cpi_stack(save_img, app_list='all', draw_error=False, draw_subplot=False):
     global overwrite
-    save_img_path = save_img
+    save_img_path = os.path.join(os.getcwd(), save_img)
     if os.path.exists(save_img_path) and not overwrite:
         return
     if not os.path.exists(os.path.dirname(save_img_path)):
@@ -142,7 +142,8 @@ def draw_cpi_stack(save_img, app_list='all', draw_error=False, draw_subplot=Fals
     x, Y_list, labels = get_stack_data(sim_res, app_list=app_list)
     print(f"{save_img} len(x): {len(x)}")
     
-    is_subcore = len(Y_list)==5
+    is_subcore = len(Y_list)>1
+    num_subplots = len(Y_list)
     
     fig,ax = plt.subplots()
     if is_subcore:
@@ -167,7 +168,7 @@ def draw_cpi_stack(save_img, app_list='all', draw_error=False, draw_subplot=Fals
 
 def draw_cpi_stack_side2side(save_img, app_list='all', draw_error=False):
     global overwrite
-    save_img_path = save_img
+    save_img_path = os.path.join(os.getcwd(), save_img)
     if os.path.exists(save_img_path) and not overwrite:
         return
     if not os.path.exists(os.path.dirname(save_img_path)):
@@ -179,7 +180,8 @@ def draw_cpi_stack_side2side(save_img, app_list='all', draw_error=False):
     print(f"draw cpi stack {save_img[-60:]}: {len(x)}")
     
     
-    is_subcore = len(Y_list)==5
+    is_subcore = len(Y_list)>1
+    num_subplots = len(Y_list)
     
     fig,ax = plt.subplots()
     if is_subcore:

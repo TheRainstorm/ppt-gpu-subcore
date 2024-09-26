@@ -25,6 +25,7 @@ python ${ppt_gpu_dir}/scripts/draw/convert_cpi_stack.py -i ${res_hw_ncu_json} -I
 }
 
 run_sim(){
+cd ${ppt_gpu_dir}
 # run sim
 python ${ppt_gpu_dir}/scripts/run_simulation.py -M "mpiexec -n 2" -Y ${apps_yaml} -B ${sim_new_benchmarks} -T ${trace_dir} -H TITANV --granularity 2 -R ${report_dir} 2>&1 | tee run_simulation.log
 

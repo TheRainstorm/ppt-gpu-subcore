@@ -5,6 +5,8 @@ import yaml
 
 def process_args_apps( apps_in, defined_apps ):
     apps = []
+    if apps_in == None:
+        return []
     for suite_exe_count in apps_in:
         if suite_exe_count not in defined_apps:
             print(f"app {suite_exe_count} not found in defined_apps")

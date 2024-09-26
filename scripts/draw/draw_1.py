@@ -167,7 +167,7 @@ def draw_error(stat, save_img, app_list='all', draw_kernel=False, sim_res_func=N
     '''
     global overwrite
     # save_img_path = os.path.join(args.output_dir, save_img)
-    save_img_path = save_img
+    save_img_path = os.path.join(os.getcwd(), save_img)
     if os.path.exists(save_img_path) and not overwrite:
         return
     if not os.path.exists(os.path.dirname(save_img_path)):
@@ -217,7 +217,7 @@ def draw_error(stat, save_img, app_list='all', draw_kernel=False, sim_res_func=N
 def draw_side2side(stat, save_img, app_list='all', draw_kernel=False, sim_res_func=None, avg=True, hw_stat=""):
     global overwrite
     # save_img_path = os.path.join(args.output_dir, save_img)
-    save_img_path = save_img
+    save_img_path = os.path.join(os.getcwd(), save_img)
     if os.path.exists(save_img_path) and not overwrite:
         return
     if not os.path.exists(os.path.dirname(save_img_path)):
