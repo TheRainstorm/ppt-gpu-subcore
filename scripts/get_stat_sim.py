@@ -15,6 +15,9 @@ parser = argparse.ArgumentParser(
 parser.add_argument("-B", "--benchmark_list",
                  help="a comma seperated list of benchmark suites to run. See apps/define-*.yml for the benchmark suite names.",
                  default="rodinia_2.0-ft")
+parser.add_argument("--apps",
+                    nargs="*",
+                    help="only update specific apps data")
 parser.add_argument("-Y", "--benchmarks_yaml",
                     required=True,
                     help='benchmarks_yaml path')
@@ -30,6 +33,7 @@ from common import *
 defined_apps = {}
 parse_app_definition_yaml(args.benchmarks_yaml, defined_apps)
 apps = gen_apps_from_suite_list(args.benchmark_list.split(","), defined_apps)
+args.apps = process_args_apps(args.apps, defined_apps)
 app_and_arg_list = get_app_arg_list(apps)
 
 def parse_kernel_log(file_path):
@@ -118,7 +122,7 @@ def parse_kernel_json(file_path):
     # data_json["gpu_active_cycle_max"] = data_json["placeholder"]
     data_json["sm_active_cycles_sum"] = data_json["sm_act_cycles.sum"]
     data_json["sm_elapsed_cycles_sum"] = data_json["sm_elp_cycles.sum"]
-    # data_json["my_gpu_active_cycle_max"] = data_json["placeholder"]
+    data_json["my_gpu_active_cycle_max"] = data_json["my_gpu_act_cycles_max"]
     data_json["my_sm_active_cycles_sum"] = data_json["my_sm_act_cycles.sum"]
     data_json["my_sm_elapsed_cycles_sum"] = data_json["my_sm_elp_cycles.sum"]
     data_json["ipc"] = data_json["my_tot_ipc"]

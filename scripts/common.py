@@ -3,6 +3,14 @@ import os
 import re
 import yaml
 
+def process_args_apps( apps_in, defined_apps ):
+    apps = []
+    for suite_exe_count in apps_in:
+        if suite_exe_count not in defined_apps:
+            print(f"app {suite_exe_count} not found in defined_apps")
+            continue
+        apps += defined_apps[suite_exe_count]
+    return get_app_arg_list(apps)
 
 def get_argfoldername( args ):
     if args == "" or args == None:
@@ -19,7 +27,7 @@ def parse_app_definition_yaml( def_yml, apps ):
     for suite in benchmark_yaml:
         apps[suite] = []
         for exe in benchmark_yaml[suite]['execs']:
-            exe_name = list(exe.keys())[0]
+            exe_name = list(exe.keys())[0]  # dict has only one key (exe name) and one value (list of args dict)
             args_list = list(exe.values())[0]
             count = 0
             for runparms in args_list:
@@ -29,7 +37,7 @@ def parse_app_definition_yaml( def_yml, apps ):
                 apps[suite + ":" + exe_name + ":" + str(count) ] = []
                 apps[suite + ":" + exe_name + ":" + str(count) ].append( ( benchmark_yaml[suite]['exec_dir'],
                                     benchmark_yaml[suite]['data_dirs'],
-                                    exe_name, [args]) )
+                                    exe_name, [runparms]) )
                 count += 1
             apps[suite].append(( benchmark_yaml[suite]['exec_dir'],
                                  benchmark_yaml[suite]['data_dirs'],
@@ -51,6 +59,6 @@ def get_app_arg_list(apps):
     for app in apps:
         exec_dir, data_dir, exe_name, args_list = app
         for argpair in args_list:
-            mem_usage = argpair["accel-sim-mem"]
+            # mem_usage = argpair["accel-sim-mem"]
             app_and_arg_list.append(os.path.join( exe_name, get_argfoldername( argpair["args"] ) ))  # backprop-rodinia-2.0-ft/4096___data_result_4096_txt
     return app_and_arg_list

@@ -2,7 +2,7 @@ import argparse
 
 import subprocess
 import os
-from datetime import datetime
+import datetime
 
 parser = argparse.ArgumentParser(
     description='Simulate all app defined'
@@ -22,13 +22,15 @@ parser.add_argument("-T", "--trace_dir",
 parser.add_argument("-D", "--device_num",
                     help="CUDA device number",
                     default="0")
-parser.add_argument("-c", "--limit_kernel_num",
+parser.add_argument("-c", "--kernel_number",
                     type=int,
                     default=300,
                     help="Sets a hard limit to the number of traced limits")
 # parser.add_argument("-t", "--terminate_upon_limit",
 #                     action="store_true",
 #                     help="Once the kernel limit is reached, terminate the tracing process")
+parser.add_argument("--trace_tool",
+                    help="nvbit trace tool .so file path")
 parser.add_argument("-l", "--log_file",
                     default="run_hw_trace.log")
 parser.add_argument("-n", "--norun",
@@ -42,6 +44,7 @@ from common import *
 defined_apps = {}
 parse_app_definition_yaml(args.benchmarks_yaml, defined_apps)
 apps = gen_apps_from_suite_list(args.benchmark_list.split(","), defined_apps)
+args.apps = process_args_apps(args.apps, defined_apps)
 
 log_file = open(args.log_file, "a")
 def logging(*args, **kwargs):
@@ -72,7 +75,7 @@ for app in apps:
         curr_data_dir = os.path.join(run_dir, "data")
         if os.path.lexists(curr_data_dir):
             os.remove(curr_data_dir)
-        os.symlink(data_dir, curr_data_dir)
+        os.symlink(os.path.join(data_dir, exe_name, 'data'), curr_data_dir)
         
         sh_contents = ""
         if args.kernel_number > 0:
@@ -81,7 +84,7 @@ for app in apps:
         
         sh_contents += f'\nexport CUDA_VISIBLE_DEVICES="{args.device_num}"'\
                 f'\nexport LD_PRELOAD={args.trace_tool}'\
-                f'\n{exec_path} {args}'
+                f'\n{exec_path} {argstr}'
         
         run_script_path = os.path.join(run_dir, args.run_script)
         open(run_script_path, "w").write(sh_contents)

@@ -5,6 +5,12 @@ import numpy as np
 import matplotlib.pyplot as plt
 import argparse
 
+import sys, os
+curr_dir = os.path.dirname(__file__)
+par_dir = os.path.dirname(curr_dir)
+sys.path.insert(0, os.path.abspath(par_dir))
+from common import *
+
 def bar_overlay(ax, bars, x):
     i = 0
     for bar in bars:
@@ -127,7 +133,7 @@ def get_stack_data(json_data, app_list='all'):
 
 def draw_cpi_stack(save_img, app_list='all', draw_error=False, draw_subplot=False):
     global overwrite
-    save_img_path = os.path.join(args.output_dir, save_img)
+    save_img_path = save_img
     if os.path.exists(save_img_path) and not overwrite:
         return
     if not os.path.exists(os.path.dirname(save_img_path)):
@@ -143,7 +149,7 @@ def draw_cpi_stack(save_img, app_list='all', draw_error=False, draw_subplot=Fals
         draw_bar(fig,ax, x, Y_list[-1], labels)
     else:
         draw_bar(fig,ax, x, Y_list[0], labels)
-    image_path = os.path.join(args.output_dir, save_img)
+    image_path = save_img
     fig.savefig(image_path)
     plt.close(fig)
     
@@ -155,13 +161,13 @@ def draw_cpi_stack(save_img, app_list='all', draw_error=False, draw_subplot=Fals
         for i in range(4):
             ax = axs[i//2, i%2]
             draw_bar(fig, ax, x, Y_list[i], labels, legend=(i==0))
-        image_path = os.path.join(args.output_dir, save_img)
+        image_path = save_img
         fig.savefig(image_path)
         plt.close(fig)
 
 def draw_cpi_stack_side2side(save_img, app_list='all', draw_error=False):
     global overwrite
-    save_img_path = os.path.join(args.output_dir, save_img)
+    save_img_path = save_img
     if os.path.exists(save_img_path) and not overwrite:
         return
     if not os.path.exists(os.path.dirname(save_img_path)):
@@ -180,7 +186,7 @@ def draw_cpi_stack_side2side(save_img, app_list='all', draw_error=False):
         draw_bar_side2side(fig,ax, x, Y_list[-1], x2, y_list2, labels)
     else:
         draw_bar_side2side(fig,ax, x, Y_list[0], x2, y_list2, labels)
-    image_path = os.path.join(args.output_dir, save_img)
+    image_path = save_img
     fig.savefig(image_path)
     plt.close(fig)
     
@@ -192,7 +198,7 @@ def draw_cpi_stack_side2side(save_img, app_list='all', draw_error=False):
         for i in range(4):
             ax = axs[i//2, i%2]
             draw_bar_side2side(fig,ax, x, Y_list[i], x2, y_list2, labels)
-        image_path = os.path.join(args.output_dir, save_img)
+        image_path = save_img
         fig.savefig(image_path)
         plt.close(fig)
     
@@ -218,15 +224,19 @@ if __name__ == "__main__":
                         help="hw result, used to caculate error")
     parser.add_argument("-o", "--output_dir",
                     default="tmp/draw_cpi_stack/")
-    parser.add_argument("-A", "--app_list",
-                        help="a comma seperated list of app to draw. See apps/define-*.yml for the app names. default `all` draw all apps",
-                        default="all")
+    parser.add_argument("--apps",
+                        nargs="*",
+                        help="a comma seperated list of app to draw. See apps/define-*.yml for the app names. default `all` draw all apps")
     parser.add_argument("-c", "--limit_kernel_num",
                         type=int,
                         default=300,
                         help="PPT-GPU only trace max 300 kernel, the hw trace we also truncate first 300 kernel. So GIMT also should truncate")
     args = parser.parse_args()
 
+    defined_apps = {}
+    parse_app_definition_yaml(os.environ['apps_yaml'], defined_apps)
+    args.apps = process_args_apps(args.apps, defined_apps)
+    
     if not os.path.exists(args.output_dir):
         os.makedirs(args.output_dir)
 
@@ -255,18 +265,32 @@ if __name__ == "__main__":
         sim_res2, hw_res = find_common(sim_res2, hw_res)
     
     print("\nDraw:")
-
+    run_dir = os.getcwd()
+    os.chdir(args.output_dir)
     if not args.sim_res2:
         # single result cpi stack
         overwrite = True
         app_list_all = sim_res.keys()
         for i,app_arg in enumerate(app_list_all):
+            os.chdir(args.output_dir)
+            if app_arg not in args.apps:
+                continue
+            else:
+                os.makedirs(app_arg, exist_ok=True)
+                os.chdir(app_arg)
             app_name_safe = app_arg.replace('/', '_')
             draw_cpi_stack(f"sched_cpi/sched_cpi_{i}_{app_name_safe}.png", app_list=app_arg)
     else:
         overwrite = True
         app_list_all = sim_res.keys()
         for i,app_arg in enumerate(app_list_all):
+            os.chdir(args.output_dir)
+            if args.apps:
+                if app_arg not in args.apps:
+                    continue
+                else:
+                    os.makedirs(app_arg, exist_ok=True)
+                    os.chdir(app_arg)
             app_name_safe = app_arg.replace('/', '_')
             draw_cpi_stack_side2side(f"cpi_s2s/cpi_s2s_{i}_{app_name_safe}.png", app_list=app_arg)
         # draw_cpi_stack_side2side("cpi_s2s_backprop.png", app_list='backprop-rodinia-2.0-ft/4096___data_result_4096_txt', draw_error=draw_error)
@@ -278,3 +302,4 @@ if __name__ == "__main__":
         # draw_cpi_stack_side2side("[4:5]", "cpi_stack_bfs-3.png"             ,draw_error=draw_error)
         # draw_cpi_stack_side2side("[5:6]", "cpi_stack_dwt2d-1.png"           ,draw_error=draw_error)
         # draw_cpi_stack_side2side("[6:7]", "cpi_stack_dwt2d-2.png"           ,draw_error=draw_error)
+    os.chdir(run_dir)

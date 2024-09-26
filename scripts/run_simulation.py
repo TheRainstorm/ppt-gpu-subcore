@@ -54,6 +54,7 @@ from common import *
 defined_apps = {}
 parse_app_definition_yaml(args.benchmarks_yaml, defined_apps)
 apps = gen_apps_from_suite_list(args.benchmark_list.split(","), defined_apps)
+args.apps = process_args_apps(args.apps, defined_apps)
 app_and_arg_list = get_app_arg_list(apps)
 
 log_file = open(args.log_file, "a")
@@ -72,6 +73,9 @@ for app_and_arg in app_and_arg_list:
     app = app_and_arg.split('/')[0]
     app_trace_dir = os.path.join(args.trace_dir, app_and_arg)
     
+    if args.apps and app_and_arg not in args.apps:
+        continue
+    
     already_simulated = False
     for file in os.listdir(app_trace_dir):
         if file.endswith(".out") and not args.overwrite:
@@ -79,9 +83,6 @@ for app_and_arg in app_and_arg_list:
             break
     if already_simulated:
         logging(f"{app_and_arg} already simulated")
-        continue
-    
-    if args.apps and app_and_arg not in args.apps:
         continue
 
     logging(f"{datetime.now().strftime('%Y-%m-%d %H:%M:%S')}: {app_and_arg}")

@@ -132,7 +132,9 @@ def dump_output(pred_out):
     print(f"Active Warps Per Scheduler: {active_warp_per_cycle_list} {avg1}", file=outF)
     print(f"Eligible Warps Per Scheduler: TODO", file=outF)
     print(f"Issued Warp Per Scheduler: {issued_warp_per_cycle_list} {avg3}", file=outF)
-    print(f"No Eligible: ", file=outF)
+    print(f"CPI: {1/avg3}", file=outF)
+    no_eligible_pct = count_eq_zero_pct(pred_out["scheduler_stats"]["issued_warps"][0])
+    print(f"No Eligible(subcore 0, no issued): {no_eligible_pct}", file=outF)
     
     print("\n- Warp Stat:", file=outF)
     warp_cpi_list = get_warp_cpi(pred_out['warp_stats']['stall_types'])
@@ -178,6 +180,15 @@ def counter_avg(counter):
         prod_sum += prod
         total_cycle += counter[key]
     return prod_sum/total_cycle
+
+def count_eq_zero_pct(counter):
+    total_cycle = 0
+    eq_zero = 0
+    for key in counter:
+        if key == 0:
+            eq_zero += counter[key]
+        total_cycle += counter[key]
+    return eq_zero/total_cycle
         
 def counter_avg_list(counter_list):
     res = [counter_avg(counter) for counter in counter_list]

@@ -4,6 +4,11 @@ import os
 import numpy as np
 import matplotlib.pyplot as plt
 
+import sys, os
+curr_dir = os.path.dirname(__file__)
+par_dir = os.path.dirname(curr_dir)
+sys.path.insert(0, os.path.abspath(par_dir))
+from common import *
 
 '''
 {
@@ -66,7 +71,7 @@ key_map_dict = {
     "GIMT-1080ti": {
         "warp_inst_executed": "inst_executed",
         
-        "sm0_elapsed_cycles": ["elapsed_cycles_sm", 1/28], # elapsed_cycles_sm/sm
+        "sm0_elapsed_cycles": ["elapsed_cycles_sm", 1/28], # nvprof 不能获得 active_cycles_sys，使用 elapsed_cycles_sm/sm 替代
         "sm_elapsed_cycles_sum": "elapsed_cycles_sm",
         
         # "l1_hit_rate": "global_hit_rate",  # 1080ti 采到的都是 0
@@ -161,7 +166,8 @@ def draw_error(stat, save_img, app_list='all', draw_kernel=False, sim_res_func=N
     hw_stat: don't use key map, force hw_stat key
     '''
     global overwrite
-    save_img_path = os.path.join(args.output_dir, save_img)
+    # save_img_path = os.path.join(args.output_dir, save_img)
+    save_img_path = save_img
     if os.path.exists(save_img_path) and not overwrite:
         return
     if not os.path.exists(os.path.dirname(save_img_path)):
@@ -210,7 +216,8 @@ def draw_error(stat, save_img, app_list='all', draw_kernel=False, sim_res_func=N
 
 def draw_side2side(stat, save_img, app_list='all', draw_kernel=False, sim_res_func=None, avg=True, hw_stat=""):
     global overwrite
-    save_img_path = os.path.join(args.output_dir, save_img)
+    # save_img_path = os.path.join(args.output_dir, save_img)
+    save_img_path = save_img
     if os.path.exists(save_img_path) and not overwrite:
         return
     if not os.path.exists(os.path.dirname(save_img_path)):
@@ -292,7 +299,14 @@ if __name__ == "__main__":
                         type=int,
                         default=300,
                         help="PPT-GPU only trace max 300 kernel, the hw trace we also truncate first 300 kernel. So GIMT also should truncate")
+    parser.add_argument("--apps",
+                        nargs="*",
+                        help="a comma seperated list of app to draw. See apps/define-*.yml for the app names. default `all` draw all apps")
     args = parser.parse_args()
+    
+    defined_apps = {}
+    parse_app_definition_yaml(os.environ['apps_yaml'], defined_apps)
+    args.apps = process_args_apps(args.apps, defined_apps)
 
     if not os.path.exists(args.output_dir):
         os.makedirs(args.output_dir)
@@ -308,6 +322,8 @@ if __name__ == "__main__":
     sim_res = truncate_kernel(sim_res, args.limit_kernel_num)
     sim_res, hw_res = find_common(sim_res, hw_res)
 
+    run_dir = os.getcwd()
+    os.chdir(args.output_dir)
     if "GIMT" in args.draw_select:
         overwrite = False
         # very import
@@ -337,18 +353,6 @@ if __name__ == "__main__":
         draw_side2side("warp_inst_executed", "bar_warp_inst_executed.png")
         
         #### draw kernel
-        # overwrite = True
-        # draw_side2side("sm0_elapsed_cycles", "bar-kernel-bfs1-gpu_active_cycle_max.png", app_list='[2:3]', draw_kernel=True)
-        # draw_error("sm0_elapsed_cycles", "kernel-b+tree_backprop-gpu_active_cycle_max.png", app_list='[0:2]', draw_kernel=True, abs=False)
-        # draw_error("sm0_elapsed_cycles", "kernel-bfs12-gpu_active_cycle_max.png", app_list='[2:4]', draw_kernel=True, abs=False)
-        # draw_error("sm0_elapsed_cycles", "kernel-bfs3-gpu_active_cycle_max.png", app_list='[4:5]', draw_kernel=True, abs=False)
-        # draw_error("sm0_elapsed_cycles", "kernel-dwt1-gpu_active_cycle_max.png", app_list='[6:7]', draw_kernel=True, abs=False)
-        # draw_error("sm0_elapsed_cycles", "kernel-dwt2-gpu_active_cycle_max.png", app_list='[7:8]', draw_kernel=True, abs=False)
-        # draw_error("sm0_elapsed_cycles", "kernel-hotspot12-gpu_active_cycle_max.png", app_list='[12:14]', draw_kernel=True, abs=False)
-        # draw_error("sm0_elapsed_cycles", "kernel-particle_float-gpu_active_cycle_max.png", app_list='particlefilter_float-rodinia-3.1/_x_128__y_128__z_10__np_1000', draw_kernel=True, abs=False)
-        # draw_error("sm0_elapsed_cycles", "kernel-particle_naive-gpu_active_cycle_max.png", app_list='particlefilter_naive-rodinia-3.1/_x_128__y_128__z_10__np_1000', draw_kernel=True, abs=False)
-        # draw_error("sm0_elapsed_cycles", "kernel-pathfinder-gpu_active_cycle_max.png", app_list='pathfinder-rodinia-3.1/100000_100_20___result_txt', draw_kernel=True, abs=False)
- 
         # all simple kernel app
         overwrite = True
         best_app_list = \
@@ -368,79 +372,65 @@ if __name__ == "__main__":
         draw_error("sm_elapsed_cycles_sum", "kernel_error_sm_elapsed_cycles_sum.png", app_list=best_app_list)
         draw_error("l1_hit_rate", "kernel_error_sm_l1_hit_rate.png", app_list=best_app_list)
         draw_error("l2_hit_rate", "kernel_error_sm_l2_hit_rate.png", app_list=best_app_list)
-        
-        # app_list = "b+tree-rodinia-3.1/file___data_mil_txt_command___data_command_txt,backprop-rodinia-3.1/65536,"\
-        #     "dwt2d-rodinia-3.1/__data_192_bmp__d_192x192__f__5__l_3,dwt2d-rodinia-3.1/__data_rgb_bmp__d_1024x1024__f__5__l_3,"\
-        #     "gaussian-rodinia-3.1/_f___data_matrix4_txt,"\
-        #     "hotspot-rodinia-3.1/512_2_2___data_temp_512___data_power_512_output_out,hotspot-rodinia-3.1/1024_2_2___data_temp_1024___data_power_1024_output_out,"\
-        #     "nn-rodinia-3.1/__data_filelist_4__r_5__lat_30__lng_90,"\
-        #     "particlefilter_naive-rodinia-3.1/_x_128__y_128__z_10__np_1000,"\
-        #     "pathfinder-rodinia-3.1/100000_100_20___result_txt"
-        # draw_error("sm0_elapsed_cycles", "kernel-simple-gpu_active_cycle_max.png", app_list=app_list, draw_kernel=True)
-        # draw_error("sm_elapsed_cycles_sum", "kernel-simple-sm_elapsed_cycles_sum.png", app_list=app_list, draw_kernel=True)
-        # draw_error("l1_hit_rate", "kernel-simple-l1_hit_rate.png", sim_res_func = lambda x: x*100, app_list=app_list, draw_kernel=True)
-        # draw_error("l1_hit_rate", "kernel-simple-l1_hit_rate_global_hit_rate.png", sim_res_func = lambda x: x*100, app_list=app_list, draw_kernel=True)
-        # draw_error("l2_hit_rate", "kernel-simple-l2_hit_rate.png", sim_res_func = lambda x: x*100, app_list=app_list, draw_kernel=True)
-        # draw_error("l1_read_requests", "kernel-simple-l1_read_requests.png", app_list=app_list, draw_kernel=True)
-        # draw_error("l1_write_requests", "kernel-simple-l1_write_requests.png", app_list=app_list, draw_kernel=True)
-        # draw_error("l1_read_trans", "kernel-simple-l1_read_trans.png", app_list=app_list, draw_kernel=True)
-        # draw_error("l1_write_trans", "kernel-simple-l1_write_trans.png", app_list=app_list, draw_kernel=True)
-        # draw_error("l2_read_trans", "kernel-simple-l2_read_trans.png", app_list=app_list, draw_kernel=True)
-        # draw_error("l2_write_trans", "kernel-simple-l2_write_trans.png", app_list=app_list, draw_kernel=True)
-        # draw_error("dram_total_trans", "kernel-simple-dram_total_trans.png", app_list=app_list, draw_kernel=True)
 
     if args.draw_select=="PPT-GPU":
         overwrite = False
-        draw_error("warp_inst_executed", "error_1_warp_inst_executed.png")
-        draw_error("achieved_occupancy", "error_2_app_occupancy_error.png", sim_res_func = lambda x: x/100)
+        if not args.apps:
+            draw_error("warp_inst_executed", "error_1_warp_inst_executed.png")
+            draw_error("achieved_occupancy", "error_2_app_occupancy_error.png", sim_res_func = lambda x: x/100)
+            
+            draw_error("ipc", "error_3_ipc.png")
+            
+            # draw_error("gpu_active_cycle_max", "error_3_gpu_active_cycle_max.png")
+            # draw_error("sm_active_cycles_sum", "error_3_sm_active_cycles_sum.png")
+            # draw_error("sm_elapsed_cycles_sum", "error_3_sm_elapsed_cycles_sum.png")
+            
+            draw_error("my_gpu_active_cycle_max", "error_4_my_gpu_active_cycle_max.png")
+            draw_error("my_sm_active_cycles_sum", "error_4_my_sm_active_cycles_sum.png")
+            draw_error("my_sm_elapsed_cycles_sum", "error_4_my_sm_elapsed_cycles_sum.png")
+            
+            draw_error("l1_hit_rate",           "error_6_l1_hit_rate.png")
+            draw_error("l2_hit_rate",           "error_6_l2_hit_rate.png")
+            draw_error("gmem_read_requests",    "error_6_gmem_read_requests.png")
+            draw_error("gmem_write_requests",   "error_6_gmem_write_requests.png")
+            draw_error("gmem_read_trans",       "error_6_gmem_read_trans.png")
+            draw_error("gmem_write_trans",      "error_6_gmem_write_trans.png")
+            draw_error("l2_read_trans",         "error_6_l2_read_trans.png")
+            draw_error("l2_write_trans",        "error_6_l2_write_trans.png")
+            draw_error("dram_total_trans",      "error_6_dram_total_trans.png")
+            
+            #### draw side2side
+            draw_side2side("warp_inst_executed",    "bar_1_warp_inst_executed.png")
+            draw_side2side("achieved_occupancy",    "bar_2_app_occupancy_error.png", sim_res_func = lambda x: x/100)
+            
+            draw_side2side("ipc",  "bar_3_ipc.png")
+            
+            # draw_side2side("gpu_active_cycle_max",  "bar_3_gpu_active_cycle_max.png")
+            # draw_side2side("sm_elapsed_cycles_sum", "bar_3_sm_elapsed_cycles_sum.png")
+            draw_side2side("my_gpu_active_cycle_max",  "bar_4_my_gpu_active_cycle_max.png")
+            draw_side2side("my_sm_elapsed_cycles_sum", "bar_4_my_sm_elapsed_cycles_sum.png")
+            
+            draw_side2side("l1_hit_rate", "bar_6_l1_hit_rate.png")
+            draw_side2side("l2_hit_rate", "bar_6_l2_hit_rate.png")
+            draw_side2side("gmem_read_requests",    "bar_6_gmem_read_requests.png")
+            draw_side2side("gmem_write_requests",   "bar_6_gmem_write_requests.png")
+            draw_side2side("gmem_read_trans",       "bar_6_gmem_read_trans.png")
+            draw_side2side("gmem_write_trans",      "bar_6_gmem_write_trans.png")
+            draw_side2side("l2_read_trans",         "bar_6_l2_read_trans.png")
+            draw_side2side("l2_write_trans",        "bar_6_l2_write_trans.png")
+            draw_side2side("dram_total_trans",      "bar_6_dram_total_trans.png")
         
-        draw_error("ipc", "error_3_ipc.png")
-        
-        # draw_error("gpu_active_cycle_max", "error_3_gpu_active_cycle_max.png")
-        # draw_error("sm_active_cycles_sum", "error_3_sm_active_cycles_sum.png")
-        # draw_error("sm_elapsed_cycles_sum", "error_3_sm_elapsed_cycles_sum.png")
-        
-        draw_error("my_gpu_active_cycle_max", "error_4_my_gpu_active_cycle_max.png")
-        draw_error("my_sm_active_cycles_sum", "error_4_my_sm_active_cycles_sum.png")
-        draw_error("my_sm_elapsed_cycles_sum", "error_4_my_sm_elapsed_cycles_sum.png")
-        
-        draw_error("l1_hit_rate",           "error_6_l1_hit_rate.png")
-        draw_error("l2_hit_rate",           "error_6_l2_hit_rate.png")
-        draw_error("gmem_read_requests",    "error_6_gmem_read_requests.png")
-        draw_error("gmem_write_requests",   "error_6_gmem_write_requests.png")
-        draw_error("gmem_read_trans",       "error_6_gmem_read_trans.png")
-        draw_error("gmem_write_trans",      "error_6_gmem_write_trans.png")
-        draw_error("l2_read_trans",         "error_6_l2_read_trans.png")
-        draw_error("l2_write_trans",        "error_6_l2_write_trans.png")
-        draw_error("dram_total_trans",      "error_6_dram_total_trans.png")
-        
-        #### draw side2side
-        draw_side2side("warp_inst_executed",    "bar_1_warp_inst_executed.png")
-        draw_side2side("achieved_occupancy",    "bar_2_app_occupancy_error.png", sim_res_func = lambda x: x/100)
-        
-        draw_side2side("ipc",  "bar_3_ipc.png")
-        
-        # draw_side2side("gpu_active_cycle_max",  "bar_3_gpu_active_cycle_max.png")
-        # draw_side2side("sm_elapsed_cycles_sum", "bar_3_sm_elapsed_cycles_sum.png")
-        draw_side2side("my_gpu_active_cycle_max",  "bar_4_my_gpu_active_cycle_max.png")
-        draw_side2side("my_sm_elapsed_cycles_sum", "bar_4_my_sm_elapsed_cycles_sum.png")
-        
-        draw_side2side("l1_hit_rate", "bar_6_l1_hit_rate.png")
-        draw_side2side("l2_hit_rate", "bar_6_l2_hit_rate.png")
-        draw_side2side("gmem_read_requests",    "bar_6_gmem_read_requests.png")
-        draw_side2side("gmem_write_requests",   "bar_6_gmem_write_requests.png")
-        draw_side2side("gmem_read_trans",       "bar_6_gmem_read_trans.png")
-        draw_side2side("gmem_write_trans",      "bar_6_gmem_write_trans.png")
-        draw_side2side("l2_read_trans",         "bar_6_l2_read_trans.png")
-        draw_side2side("l2_write_trans",        "bar_6_l2_write_trans.png")
-        draw_side2side("dram_total_trans",      "bar_6_dram_total_trans.png")
-        
-        # draw_error("l2_hit_rate", "kernel-bar_6_l2_hit_rate", app_list="gaussian-rodinia-3.1/_f___data_matrix208_txt", draw_kernel=True)
-        #### Kernel
-        overwrite = False
-        # mkdir
+        overwrite = True
         app_list_all = sim_res.keys()
         for i,app_arg in enumerate(app_list_all):
+            os.chdir(args.output_dir)
+            if args.apps:
+                if app_arg not in args.apps:
+                    continue
+                else:
+                    os.makedirs(app_arg, exist_ok=True)
+                    os.chdir(app_arg)
+            
             app_name_safe = app_arg.replace('/', '_')
             draw_error("my_gpu_active_cycle_max", f"4_my_gpu_active_cycle_max/error_4_my_gpu_active_cycle_max_{i}_{app_name_safe}.png", app_list=app_arg, draw_kernel=True)
             draw_side2side("my_gpu_active_cycle_max", f"4_my_gpu_active_cycle_max/bar_4_my_gpu_active_cycle_max_{i}_{app_name_safe}.png", app_list=app_arg, draw_kernel=True)
@@ -450,9 +440,4 @@ if __name__ == "__main__":
             
             draw_side2side("l1_hit_rate", f"6_l1_hit_rate/bar_6_l1_hit_rate_{i}_{app_name_safe}.png", app_list=app_arg, draw_kernel=True)
             draw_side2side("l2_hit_rate", f"6_l2_hit_rate/bar_6_l2_hit_rate_{i}_{app_name_safe}.png", app_list=app_arg, draw_kernel=True)
-        
-        # draw_error("my_gpu_active_cycle_max", "kernel_rodinia2_error_4_my_gpu_active_cycle_max.png", app_list='[0:7]', draw_kernel=True)
-        # draw_side2side("my_gpu_active_cycle_max", "kernel_rodinia2_bar_4_my_gpu_active_cycle_max.png", app_list='[0:7]', draw_kernel=True)
-        # draw_error("achieved_occupancy", "kernel_rodinia2_error_2_app_occupancy_error.png", app_list='[0:7]', draw_kernel=True, sim_res_func = lambda x: x/100)
-        # draw_side2side("achieved_occupancy", "kernel_rodinia2_bar_2_app_occupancy_error.png", app_list='[0:7]', draw_kernel=True, sim_res_func = lambda x: x/100)
-        
+    os.chdir(run_dir)

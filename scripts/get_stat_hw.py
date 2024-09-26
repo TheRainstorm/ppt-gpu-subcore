@@ -47,6 +47,7 @@ from common import *
 defined_apps = {}
 parse_app_definition_yaml(args.benchmarks_yaml, defined_apps)
 apps = gen_apps_from_suite_list(args.benchmark_list.split(","), defined_apps)
+args.apps = process_args_apps(args.apps, defined_apps)
 app_and_arg_list = get_app_arg_list(apps)
 
 def parse_csv_file(profiling_file):
