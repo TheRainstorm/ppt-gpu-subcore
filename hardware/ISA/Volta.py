@@ -51,11 +51,11 @@ initial_interval = {
     "LDST"              :   32 // 8,   # load store unit
     
     # "bTCU"              :   64,
-    "iTCU"              :   32 // 1,
-    "hTCU"              :   32 // 1,
-    "fTCU"              :   32 // 1,
-    "dTCU"              :   32 // 1,
-    "BRA"               :   32 // 1,
+    "iTCU"              :   32 // 2,
+    "hTCU"              :   32 // 2,
+    # "fTCU"              :   32 // 2,
+    # "dTCU"              :   32 // 2,
+    "BRA"               :   32 // 32,
     "EXIT"              :   32 // 16,
 }
 
