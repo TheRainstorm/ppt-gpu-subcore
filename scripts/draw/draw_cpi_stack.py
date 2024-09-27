@@ -87,15 +87,9 @@ def draw_bar_side2side(fig, ax, x1, y1_list, x2, y2_list, labels, legend=True):
     plt.xticks(rotation=-90)
     # fig.subplots_adjust(bottom=0.4)
 
-def get_stack_data(json_data, app_list='all'):
-    if app_list == 'all':
-        app_list = json_data.keys()
-    elif app_list.startswith('['):  # python slice, e.g [0: 10] mean first 10
-        local_namespace = {'json_data':json_data}
-        exec(f"res = list(json_data.keys()){app_list}", globals(), local_namespace)
-        app_list = local_namespace['res']
-    else:
-        app_list = app_list.split(',')
+def get_stack_data(json_data, app_list=''):
+    all_app_list = json_data.keys()
+    app_list = filter_app_list(all_app_list, app_list)
     
     multiple_subcore = False
     num_subplots = 1
@@ -131,7 +125,7 @@ def get_stack_data(json_data, app_list='all'):
                 get(kernel_res, Y_list[0])
     return x, Y_list, labels
 
-def draw_cpi_stack(save_img, app_list='all', draw_error=False, draw_subplot=False):
+def draw_cpi_stack(save_img, app_list='', draw_error=False, draw_subcore=False):
     global overwrite
     save_img_path = os.path.join(os.getcwd(), save_img)
     if os.path.exists(save_img_path) and not overwrite:
@@ -154,7 +148,7 @@ def draw_cpi_stack(save_img, app_list='all', draw_error=False, draw_subplot=Fals
     fig.savefig(image_path)
     plt.close(fig)
     
-    if is_subcore:
+    if is_subcore and draw_subcore:
         fig, axs = plt.subplots(2, 2, figsize=(15, 15), sharex=True, sharey=True)
 
         # draw subplots
@@ -166,7 +160,7 @@ def draw_cpi_stack(save_img, app_list='all', draw_error=False, draw_subplot=Fals
         fig.savefig(image_path)
         plt.close(fig)
 
-def draw_cpi_stack_side2side(save_img, app_list='all', draw_error=False):
+def draw_cpi_stack_side2side(save_img, app_list='', draw_error=False, draw_subcore=False):
     global overwrite
     save_img_path = os.path.join(os.getcwd(), save_img)
     if os.path.exists(save_img_path) and not overwrite:
@@ -192,7 +186,7 @@ def draw_cpi_stack_side2side(save_img, app_list='all', draw_error=False):
     fig.savefig(image_path)
     plt.close(fig)
     
-    if is_subcore:
+    if is_subcore and draw_subcore:
         fig, axs = plt.subplots(2, 2, figsize=(15, 15), sharex=True, sharey=True)
 
         # draw subplots
@@ -204,7 +198,7 @@ def draw_cpi_stack_side2side(save_img, app_list='all', draw_error=False):
         fig.savefig(image_path)
         plt.close(fig)
 
-def draw_cpi_stack_subplot_s2s(save_img, app_list='all', draw_error=False):
+def draw_cpi_stack_subplot_s2s(save_img, app_list='', draw_error=False):
     global overwrite
     save_img_path = os.path.join(os.getcwd(), save_img)
     if os.path.exists(save_img_path) and not overwrite:
@@ -238,7 +232,7 @@ from draw_1 import truncate_kernel,get_kernel_stat,find_common
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(
-        description=''
+        description='This script draw CPI stack image, it support: 1) draw single or, side by side campare with second result'
     )
     parser.add_argument("-S", "--sim_res",
                         help="first sim result (left)")
@@ -248,24 +242,22 @@ if __name__ == "__main__":
                         help="hw result, used to caculate error")
     parser.add_argument("-o", "--output_dir",
                         default="tmp/draw_cpi_stack/")
-    parser.add_argument("--apps",
-                        nargs="*",
-                        help="a comma seperated list of app to draw. See apps/define-*.yml for the app names. default `all` draw all apps")
+    parser.add_argument("-F", "--app-filter", default="", help="filter apps. e.g. regex:.*-rodinia-2.0-ft, coord:[suite]:[exec]:[count]")
     parser.add_argument("-c", "--limit_kernel_num",
                         type=int,
                         default=300,
                         help="PPT-GPU only trace max 300 kernel, the hw trace we also truncate first 300 kernel. So GIMT also should truncate")
-    parser.add_argument("--subdir",
-                        default="cpi_single",
-                        help="subdir to save the image (used when not draw side by side)")
-    parser.add_argument("--subplot-s2s",
-                        action="store_true",
-                        help="draw subplot side by side, used when two stack figure have different labels")
+    # parser.add_argument("--subdir",
+    #                     default="cpi_single",
+    #                     help="subdir to save the image (used when not draw side by side)")
+    parser.add_argument("--s2s", action="store_true", help="draw side by side")
+    parser.add_argument("--draw-subcore", action="store_true", help="draw subcore if have")
+    
+    parser.add_argument("--seperate-dir", action="store_true", help="draw app in sperate folder, useful when draw single")
+    parser.add_argument("--subplot-s2s", action="store_true", help="draw subplot side by side, used when two stack figure have different labels")
+    parser.add_argument("--subdir", default='cpi_warp', help="draw single cpi stack, we store in subdir to distinguish")
+    
     args = parser.parse_args()
-
-    defined_apps = {}
-    parse_app_definition_yaml(os.environ['apps_yaml'], defined_apps)
-    args.apps = process_args_apps(args.apps, defined_apps)
     
     if not os.path.exists(args.output_dir):
         os.makedirs(args.output_dir)
@@ -283,47 +275,40 @@ if __name__ == "__main__":
         print("\nsim res2 info:")
         check_app_kernel_num(sim_res2, print_num=True)
 
-    draw_error = False
-    if args.hw_res:
-        with open(args.hw_res, 'r') as f:
-            hw_res = json.load(f)
-        hw_res = truncate_kernel(hw_res, args.limit_kernel_num)
-        draw_error = True
-        print("\nhw res info:")
-        check_app_kernel_num(hw_res, print_num=True)
-        sim_res, hw_res = find_common(sim_res, hw_res)
-        sim_res2, hw_res = find_common(sim_res2, hw_res)
-    
     print("\nDraw:")
     run_dir = os.getcwd()
     os.chdir(args.output_dir)
-    if not args.sim_res2:
-        # single result cpi stack
-        overwrite = True
-        app_list_all = sim_res.keys()
-        for i,app_arg in enumerate(app_list_all):
-            os.chdir(args.output_dir)
-            if app_arg not in args.apps:
-                continue
-            else:
+    
+    overwrite = True
+    app_list_all = sim_res.keys()
+    app_list = filter_app_list(app_list_all, args.app_filter)  # convert coord filter to app_and_arg filter
+    # print(app_list)
+        
+    if args.s2s:
+        if not args.sim_res2:
+            print("s2s need two sim res")
+            exit(1)
+
+        for i,app_arg in enumerate(app_list):
+            if args.seperate_dir:
+                os.chdir(args.output_dir)
                 os.makedirs(app_arg, exist_ok=True)
                 os.chdir(app_arg)
-            app_name_safe = app_arg.replace('/', '_')
-            draw_cpi_stack(f"{args.subdir}/{i}_{app_name_safe}.png", app_list=app_arg)
-    else:
-        overwrite = True
-        app_list_all = sim_res.keys()
-        for i,app_arg in enumerate(app_list_all):
-            os.chdir(args.output_dir)
-            if args.apps:
-                if app_arg not in args.apps:
-                    continue
-                else:
-                    os.makedirs(app_arg, exist_ok=True)
-                    os.chdir(app_arg)
+
             app_name_safe = app_arg.replace('/', '_')
             if args.subplot_s2s:
-                draw_cpi_stack_subplot_s2s(f"cpi_subplot_s2s/cpi_s2s_{i}_{app_name_safe}.png", app_list=app_arg)
+                draw_cpi_stack_subplot_s2s(f"cpi_s2s_detail/cpi_s2s_{i}_{app_name_safe}.png", app_list=app_arg)
             else:
-                draw_cpi_stack_side2side(f"cpi_s2s/cpi_s2s_{i}_{app_name_safe}.png", app_list=app_arg)
+                draw_cpi_stack_side2side(f"cpi_s2s/cpi_s2s_{i}_{app_name_safe}.png", app_list=app_arg, draw_subcore=args.draw_subcore)
+    else:
+        # single result cpi stack
+        for i,app_arg in enumerate(app_list):
+            if args.seperate_dir:
+                os.chdir(args.output_dir)
+                os.makedirs(app_arg, exist_ok=True)
+                os.chdir(app_arg)
+
+            app_name_safe = app_arg.replace('/', '_')
+            draw_cpi_stack(f"{args.subdir}/{args.subdir}_{app_name_safe}.png", app_list=app_arg, draw_subcore=args.draw_subcore)
+
     os.chdir(run_dir)

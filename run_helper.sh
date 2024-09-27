@@ -40,23 +40,18 @@ python ${ppt_gpu_dir}/scripts/draw/convert_cpi_stack.py -i ${res_sim_json} -I "p
 draw(){
 # draw
 rm -rf ${draw_output}
-python ${ppt_gpu_dir}/scripts/draw/draw_1.py -S ${res_sim_json} -H ${res_hw_json} -o ${draw_output} -D PPT-GPU
+python ${ppt_gpu_dir}/scripts/draw/draw_1.py -S ${res_sim_json} -H ${res_hw_json} -o ${draw_output} app
+python ${ppt_gpu_dir}/scripts/draw/draw_1.py -F rodinia-2.0-ft -S ${res_sim_json} -H ${res_hw_json} -o ${draw_output} kernel
 
-# # draw hw cpi stack
-# python ${ppt_gpu_dir}/scripts/draw/draw_cpi_stack.py -S ${res_hw_cpi_json} -o ${draw_cpi_ncu_output}
-
-# # draw ppt gpu cpi stack
-python ${ppt_gpu_dir}/scripts/draw/draw_cpi_stack.py -S ${res_sim_cpi_json} -o ${draw_output}
-
-# draw side2sdie
-python ${ppt_gpu_dir}/scripts/draw/draw_cpi_stack.py -S ${res_sim_cpi_json} -R ${res_hw_cpi_json} -o ${draw_output}
+# python ${ppt_gpu_dir}/scripts/draw/draw_cpi_stack.py -S ${res_sim_cpi_json} -o ${draw_output} --subdir cpi_warp
+# python ${ppt_gpu_dir}/scripts/draw/draw_cpi_stack.py -S ${res_sim_cpi_json} -R ${res_hw_cpi_json} -o ${draw_output} --s2s --draw-subcore
+python ${ppt_gpu_dir}/scripts/draw/draw_cpi_stack.py -S ${res_sim_cpi_json} -R ${res_hw_cpi_json} -o ${draw_output} --s2s
 
 # save result 用于复现
-cp ${res_hw_json} ${res_hw_ncu_json} ${res_hw_cpi_json} ${res_sim_json} ${res_sim_cpi_json} ${draw_output}
+# cp ${res_hw_json} ${res_hw_ncu_json} ${res_hw_cpi_json} ${res_sim_json} ${res_sim_cpi_json} ${draw_output}
 }
 
 run_single(){
-
 if [[ $1 != "0" ]]; then
 echo "run trace and profiling"
 # run hw trace
@@ -76,14 +71,17 @@ fi
 python ${ppt_gpu_dir}/scripts/run_simulation.py --apps $(echo ${single_app}) -Y ${apps_yaml} -B ${benchmarks} -T ${trace_dir} -H TITANV --granularity 2 -R ${single_report_dir}
 python ${ppt_gpu_dir}/scripts/get_stat_sim.py --apps $(echo ${single_app}) -Y ${apps_yaml} -B ${benchmarks} -T ${single_report_dir} -o ${res_sim_json}
 python ${ppt_gpu_dir}/scripts/draw/convert_cpi_stack.py -i ${res_sim_json} -I "ppt_gpu" -o ${res_sim_cpi_json}
-python ${ppt_gpu_dir}/scripts/draw/convert_cpi_stack.py -i ${res_sim_json} -I "ppt_gpu" -O "gsi-detail" -o ${res_sim_detail_cpi_json}
 python ${ppt_gpu_dir}/scripts/draw/convert_cpi_stack.py -i ${res_sim_json} -I "ppt_gpu_sched"  -o ${res_sim_sched_cpi_json}
+python ${ppt_gpu_dir}/scripts/draw/convert_cpi_stack.py -i ${res_sim_json} -I "ppt_gpu" -O "gsi-detail" -o ${res_sim_detail_cpi_json}
 
-# draw
-python ${ppt_gpu_dir}/scripts/draw/draw_1.py --apps $(echo ${single_app}) -S ${res_sim_json} -H ${res_hw_json} -o ${single_draw_output} -D PPT-GPU
-python ${ppt_gpu_dir}/scripts/draw/draw_cpi_stack.py --apps $(echo ${single_app}) -S ${res_sim_cpi_json} --subdir "cpi_sched" -o ${single_draw_output}
-python ${ppt_gpu_dir}/scripts/draw/draw_cpi_stack.py --apps $(echo ${single_app}) --subplot-s2s -S ${res_sim_detail_cpi_json} -R ${res_hw_cpi_json} -o ${single_draw_output}
-python ${ppt_gpu_dir}/scripts/draw/draw_cpi_stack.py --apps $(echo ${single_app}) -S ${res_sim_cpi_json} -R ${res_hw_cpi_json} -o ${single_draw_output}
+# draw error
+python ${ppt_gpu_dir}/scripts/draw/draw_1.py -F ${single_app} -S ${res_sim_json} -H ${res_hw_json} -o ${single_draw_output} single
+
+# draw cpi stack
+python ${ppt_gpu_dir}/scripts/draw/draw_cpi_stack.py -F ${single_app} -S ${res_sim_cpi_json} -o ${single_draw_output} --seperate-dir
+python ${ppt_gpu_dir}/scripts/draw/draw_cpi_stack.py -F ${single_app} -S ${res_sim_sched_cpi_json} -o ${single_draw_output} --seperate-dir 
+python ${ppt_gpu_dir}/scripts/draw/draw_cpi_stack.py -F ${single_app} -S ${res_sim_cpi_json} -R ${res_hw_cpi_json} -o ${single_draw_output} --seperate-dir --s2s
+python ${ppt_gpu_dir}/scripts/draw/draw_cpi_stack.py -F ${single_app} -S ${res_sim_detail_cpi_json} -R ${res_hw_cpi_json} -o ${single_draw_output} --seperate-dir --s2s --subplot-s2s 
 }
 # run_trace
 # run_hw
