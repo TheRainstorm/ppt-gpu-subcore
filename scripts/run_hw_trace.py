@@ -14,9 +14,6 @@ parser.add_argument("--apps",
                     nargs="*",
                     help="only run specific apps")
 parser.add_argument("-F", "--app-filter", default="", help="filter apps. e.g. regex:.*-rodinia-2.0-ft, [suite]:[exec]:[count]")
-parser.add_argument("-Y", "--benchmarks_yaml",
-                    required=True,
-                    help='benchmarks_yaml path')
 parser.add_argument("-T", "--trace_dir",
                     required=True,
                     help="The root of all the trace file")

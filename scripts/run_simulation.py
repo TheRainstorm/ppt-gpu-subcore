@@ -15,9 +15,6 @@ parser = argparse.ArgumentParser(
 parser.add_argument("-B", "--benchmark_list",
                  help="a comma seperated list of benchmark suites to run. See apps/define-*.yml for the benchmark suite names.",
                  default="rodinia_2.0-ft")
-parser.add_argument("-Y", "--benchmarks_yaml",
-                    required=True,
-                    help='benchmarks_yaml path')
 parser.add_argument("--apps",
                     nargs="*",
                     help="only run specific apps")
