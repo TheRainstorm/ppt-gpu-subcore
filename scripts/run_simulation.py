@@ -21,6 +21,7 @@ parser.add_argument("-Y", "--benchmarks_yaml",
 parser.add_argument("--apps",
                     nargs="*",
                     help="only run specific apps")
+parser.add_argument("-F", "--app-filter", default="", help="filter apps. e.g. regex:.*-rodinia-2.0-ft, [suite]:[exec]:[count]")
 parser.add_argument("-T", "--trace_dir",
                     required=True,
                     help="The root of all the trace file")
@@ -51,11 +52,12 @@ args = parser.parse_args()
 
 from common import *
 
-defined_apps = {}
-parse_app_definition_yaml(args.benchmarks_yaml, defined_apps)
+# defined_apps = {}
+# parse_app_definition_yaml(args.benchmarks_yaml, defined_apps)
 apps = gen_apps_from_suite_list(args.benchmark_list.split(","), defined_apps)
-args.apps = process_args_apps(args.apps, defined_apps)
 app_and_arg_list = get_app_arg_list(apps)
+# args.apps = process_args_apps(args.apps, defined_apps)
+args.apps = filter_app_list(app_and_arg_list, args.app_filter)
 
 log_file = open(args.log_file, "a")
 def logging(*args, **kwargs):

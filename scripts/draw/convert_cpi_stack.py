@@ -2,6 +2,13 @@ import json
 import argparse
 
 gsi_stall_list = ['MemData', 'MemStruct', 'CompData', 'CompStruct', 'NotSelect', 'NoStall', 'Sync', 'Misc', 'Idle']
+gsi_stall_list_detail = [
+    'MemData',
+    'MemStruct',
+    'CompData',
+    'CompStruct', 'CompStruct.iALU', 'CompStruct.fALU', 'CompStruct.hALU', 'CompStruct.dALU', 'CompStruct.SFU', 'CompStruct.dSFU', 'CompStruct.iTCU', 'CompStruct.hTCU', 'CompStruct.BRA', 'CompStruct.EXIT',
+    'NotSelect', 'NoStall', 'Sync', 'Misc', 'Idle'
+]
 def convert_ncu_to_gsi(data):
     res_json = {}
     for app_arg, app_res in data.items():
@@ -69,17 +76,12 @@ def get_cpi_stack_list(state_dict_list, detail=False):
             cpi_stack_new[k] = cpi_stack.get(k, 0)
         return cpi_stack_new
     
-    def get_all_kernel_stall_list(cpi_stack_list):
-        all_kernel_stall_list = set()
-        for cpi_stack in cpi_stack_list:
-            all_kernel_stall_list.update(cpi_stack.keys())
-        return all_kernel_stall_list
-    
     if not detail:
         cpi_stack_list = [fill_gsi(get_merged_cpi_stack(cpi_stack)) for cpi_stack in cpi_stack_list]
     else:
-        all_kernel_stall_list = get_all_kernel_stall_list(cpi_stack_list)
-        cpi_stack_list = [fill_gsi(cpi_stack, stall_list=all_kernel_stall_list) for cpi_stack in cpi_stack_list]
+        # all_kernel_stall_list = get_all_kernel_stall_list(cpi_stack_list)
+        # print(all_kernel_stall_list)
+        cpi_stack_list = [fill_gsi(cpi_stack, stall_list=gsi_stall_list_detail) for cpi_stack in cpi_stack_list]
         
     def avg_dict(dict_list, non_zero_num):
         all_keys = set()

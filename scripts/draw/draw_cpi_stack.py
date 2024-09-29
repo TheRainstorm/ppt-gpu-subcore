@@ -242,7 +242,7 @@ if __name__ == "__main__":
                         help="hw result, used to caculate error")
     parser.add_argument("-o", "--output_dir",
                         default="tmp/draw_cpi_stack/")
-    parser.add_argument("-F", "--app-filter", default="", help="filter apps. e.g. regex:.*-rodinia-2.0-ft, coord:[suite]:[exec]:[count]")
+    parser.add_argument("-F", "--app-filter", default="", help="filter apps. e.g. regex:.*-rodinia-2.0-ft, [suite]:[exec]:[count]")
     parser.add_argument("-c", "--limit_kernel_num",
                         type=int,
                         default=300,
@@ -266,14 +266,14 @@ if __name__ == "__main__":
         sim_res = json.load(f)
         sim_res = truncate_kernel(sim_res, args.limit_kernel_num)
         print("\nsim res1 info:")
-        check_app_kernel_num(sim_res, print_num=True)
+        check_app_kernel_num(sim_res, print_num=False)
 
     if args.sim_res2:
         with open(args.sim_res2, 'r') as f:
             sim_res2 = json.load(f)
         sim_res2 = truncate_kernel(sim_res2, args.limit_kernel_num)
         print("\nsim res2 info:")
-        check_app_kernel_num(sim_res2, print_num=True)
+        check_app_kernel_num(sim_res2, print_num=False)
 
     print("\nDraw:")
     run_dir = os.getcwd()

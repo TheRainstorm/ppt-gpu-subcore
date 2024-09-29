@@ -259,17 +259,17 @@ if __name__ == "__main__":
                         type=int,
                         default=300,
                         help="PPT-GPU only trace max 300 kernel, the hw trace we also truncate first 300 kernel. So GIMT also should truncate")
-    parser.add_argument("-F", "--app-filter", default="", help="filter apps. e.g. regex:.*-rodinia-2.0-ft, coord:[suite]:[exec]:[count]")
+    parser.add_argument("-F", "--app-filter", default="", help="filter apps. e.g. regex:.*-rodinia-2.0-ft, [suite]:[exec]:[count]")
     subparsers = parser.add_subparsers(title="command", dest="command")
     
     parser_app = subparsers.add_parser("app", help="to get overview error of cycle, memory performance and etc. at granurality of apps.")
-    # parser_app.add_argument("-F", "--app-filter", default="", help="filter apps. e.g. regex:.*-rodinia-2.0-ft, coord:[suite]:[exec]:[count]")
+    # parser_app.add_argument("-F", "--app-filter", default="", help="filter apps. e.g. regex:.*-rodinia-2.0-ft, [suite]:[exec]:[count]")
     
     parser_kernel = subparsers.add_parser("kernel", help="draw all error bar in granurality of kernel")
-    # parser_kernel.add_argument("-F", "--app-filter", default="", help="filter apps. e.g. regex:.*-rodinia-2.0-ft, coord:[suite]:[exec]:[count]")
+    # parser_kernel.add_argument("-F", "--app-filter", default="", help="filter apps. e.g. regex:.*-rodinia-2.0-ft, [suite]:[exec]:[count]")
     
     parser_single = subparsers.add_parser("single", help="draw seperate app in single dir, it's useful when we want to get single app info mation")
-    # parser_single.add_argument("-F", "--app-filter", default="", help="filter apps. e.g. regex:.*-rodinia-2.0-ft, coord:[suite]:[exec]:[count]")
+    # parser_single.add_argument("-F", "--app-filter", default="", help="filter apps. e.g. regex:.*-rodinia-2.0-ft, [suite]:[exec]:[count]")
 
     args = parser.parse_args()
 

@@ -18,6 +18,7 @@ parser.add_argument("-B", "--benchmark_list",
 parser.add_argument("--apps",
                     nargs="*",
                     help="only update specific apps data")
+parser.add_argument("-F", "--app-filter", default="", help="filter apps. e.g. regex:.*-rodinia-2.0-ft, [suite]:[exec]:[count]")
 parser.add_argument("-Y", "--benchmarks_yaml",
                     required=True,
                     help='benchmarks_yaml path')
@@ -44,11 +45,12 @@ args = parser.parse_args()
 
 from common import *
 
-defined_apps = {}
-parse_app_definition_yaml(args.benchmarks_yaml, defined_apps)
+# defined_apps = {}
+# parse_app_definition_yaml(args.benchmarks_yaml, defined_apps)
 apps = gen_apps_from_suite_list(args.benchmark_list.split(","), defined_apps)
-args.apps = process_args_apps(args.apps, defined_apps)
 app_and_arg_list = get_app_arg_list(apps)
+# args.apps = process_args_apps(args.apps, defined_apps)
+args.apps = filter_app_list(app_and_arg_list, args.app_filter)
 
 def parse_csv_file(profiling_file):
     '''
