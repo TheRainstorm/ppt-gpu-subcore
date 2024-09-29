@@ -17,7 +17,7 @@
 
 import random
 import sys, time, importlib
-from simian import Entity, Simian
+# from simian import Entity, Simian
 from .helper_methods import *
 from .memory_model import *
 from .blocks import Block
@@ -25,10 +25,10 @@ from .warp_scheduler import Scheduler
 from collections import deque
 from .utils import LinkedList
 
-class Kernel(Entity):
+class Kernel():
 
     def __init__(self, base_info, gpuNode, kernel_info):
-        super(Kernel, self).__init__(base_info)
+        # super(Kernel, self).__init__(base_info)
         # print("kernel %s, %s inits on Entity %d, Rank %d" % (kernel_info['kernel_name'], self.name, self.num, self.engine.rank))
         # sys.stdout.flush()
 
@@ -37,9 +37,9 @@ class Kernel(Entity):
         self.acc = self.gpuNode.accelerators[0] 
 
         # get kernel_info
-        self.kernel_id_real = self.num
         self.kernel_name = kernel_info['kernel_name']
         self.kernel_id = int(kernel_info["kernel_id"])
+        self.kernel_id_0_base = int(kernel_info["kernel_id"]) - 1
         self.mem_traces_dir_path = kernel_info['mem_traces_dir_path']
         self.kernel_grid_size = kernel_info['grid_size']
         self.kernel_block_size = kernel_info['block_size']
@@ -265,7 +265,7 @@ class Kernel(Entity):
         ###### ---- compute performance predictions ---- ######
         tic = time.time()
         block_list = self.spawn_blocks(self.acc, pred_out["num_workloads_per_SM_new"], pred_out["allocated_active_warps_per_block"],\
-                                        self.kernel_tasklist, self.kernel_id_real, self.ISA, pred_out["AMAT"], pred_out["ACPAO"])
+                                        self.kernel_tasklist, self.kernel_id_0_base, self.ISA, pred_out["AMAT"], pred_out["ACPAO"])
 
         
         ## before we do anything we need to activate Blocks up to active blocks

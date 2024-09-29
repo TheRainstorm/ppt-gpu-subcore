@@ -34,9 +34,9 @@ parser.add_argument("-H", "--hw_config",
 parser.add_argument("-g", "--granularity",
                     default="2",
                     help="1=One Thread Block per SM or 2=Active Thread Blocks per SM or 3=All Thread Blocks per SM")
-parser.add_argument("--libmpich-path",
-                    default="/usr/lib/x86_64-linux-gnu/libmpich.so",
-                    help="path to libmpich.so")
+# parser.add_argument("--libmpich-path",
+#                     default="/usr/lib/x86_64-linux-gnu/libmpich.so",
+#                     help="path to libmpich.so")
 parser.add_argument("-M", "--mpi-run",
                     default="",
                     help="mpirun string, e.g mpirun -n 2")
@@ -90,10 +90,11 @@ for app_and_arg in app_and_arg_list:
     logging(f"{datetime.now().strftime('%Y-%m-%d %H:%M:%S')}: {app_and_arg}")
     hw_res_option_str = f"--hw-res {args.hw_res}" if args.hw_res else ""
     if args.mpi_run != "":
-        cmd = f"{args.mpi_run} python ppt.py --mpi --libmpich-path {args.libmpich_path} --app {app_trace_dir} --sass --config {args.hw_config} --granularity {args.granularity} {hw_res_option_str} --report-output-dir {args.report_output_dir}"
+        cmd = f"{args.mpi_run} python ppt.py --mpi --app {app_trace_dir} --sass --config {args.hw_config} --granularity {args.granularity} {hw_res_option_str} --report-output-dir {args.report_output_dir}"
     else:
-        cmd = f"python ppt.py --app {app_trace_dir} --libmpich-path {args.libmpich_path} --sass --config {args.hw_config} --granularity {args.granularity} {hw_res_option_str} --report-output-dir {args.report_output_dir}"
+        cmd = f"python ppt.py --app {app_trace_dir} --sass --config {args.hw_config} --granularity {args.granularity} {hw_res_option_str} --report-output-dir {args.report_output_dir}"
     # logging(cmd)
+    # print(cmd)
     try:
         exit_status = run_cmd(cmd)
         if exit_status!=0:
