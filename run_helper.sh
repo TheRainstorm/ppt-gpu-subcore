@@ -7,16 +7,21 @@ python ${ppt_gpu_dir}/scripts/run_hw_trace.py -B ${benchmarks} -F ${filter_app} 
 
 run_hw(){
 # hw run
-python ${ppt_gpu_dir}/scripts/run_hw_profling.py -B ${benchmarks} -F ${filter_app} -T ${trace_dir} --loop_cnt 3
-python ${ppt_gpu_dir}/scripts/get_stat_hw.py -B ${benchmarks} -F ${filter_app} -T ${trace_dir} -o ${res_hw_json}
+# python ${ppt_gpu_dir}/scripts/run_hw_profling.py -B ${benchmarks} -F ${filter_app} -T ${trace_dir} --loop_cnt 3
+# python ${ppt_gpu_dir}/scripts/get_stat_hw.py -B ${benchmarks} -F ${filter_app} -T ${trace_dir} -o ${res_hw_nvprof_json}
+# cp ${res_hw_nvprof_json} ${res_hw_json}
+
+python ${ppt_gpu_dir}/scripts/run_hw_profling.py -B ${benchmarks} -F ${filter_app} -T ${trace_dir} --select ncu --loop_cnt 3
+python ${ppt_gpu_dir}/scripts/get_stat_hw.py -B ${benchmarks} -F ${filter_app} -T ${trace_dir} --select ncu -o ${res_hw_ncu_json} --loop 3
+python ${ppt_gpu_dir}/scripts/convert_hw_metrics.py -i ${res_hw_ncu_json} -o ${res_hw_json}
 }
 
 run_hw_ncu(){
 # hw run
 python ${ppt_gpu_dir}/scripts/run_hw_profling.py -B ${benchmarks} -F ${filter_app} -T ${trace_dir} --select ncu-cpi --loop_cnt 3
 
-python ${ppt_gpu_dir}/scripts/get_stat_hw.py -B ${benchmarks} -F ${filter_app} -T ${trace_dir} --select ncu-cpi -o ${res_hw_ncu_json} --loop 3
-python ${ppt_gpu_dir}/scripts/draw/convert_cpi_stack.py -i ${res_hw_ncu_json} -I "ncu" -o ${res_hw_cpi_json} # convert to cpi stack
+python ${ppt_gpu_dir}/scripts/get_stat_hw.py -B ${benchmarks} -F ${filter_app} -T ${trace_dir} --select ncu-cpi -o ${res_hw_ncu_cpi_json} --loop 3
+python ${ppt_gpu_dir}/scripts/draw/convert_cpi_stack.py -i ${res_hw_ncu_cpi_json} -I "ncu" -o ${res_hw_cpi_json} # convert to cpi stack
 }
 
 run_sim(){
@@ -78,13 +83,16 @@ fi
 if (( $1 & 4 )); then
 echo "run profling"
 # run_hw profling
-python ${ppt_gpu_dir}/scripts/run_hw_profling.py -F ${single_app} -B ${benchmarks} -T ${trace_dir} --loop_cnt 3
-python ${ppt_gpu_dir}/scripts/get_stat_hw.py -F ${single_app} -B ${benchmarks} -T ${trace_dir} -o ${res_hw_json}
+# python ${ppt_gpu_dir}/scripts/run_hw_profling.py -F ${single_app} -B ${benchmarks} -T ${trace_dir} --loop_cnt 3
+# python ${ppt_gpu_dir}/scripts/get_stat_hw.py -F ${single_app} -B ${benchmarks} -T ${trace_dir} -o ${res_hw_json}
+python ${ppt_gpu_dir}/scripts/run_hw_profling.py -F ${single_app} -B ${benchmarks} -T ${trace_dir} --select ncu --loop_cnt 3
+python ${ppt_gpu_dir}/scripts/get_stat_hw.py -F ${single_app} -B ${benchmarks} -T ${trace_dir} --select ncu -o ${res_hw_ncu_json}
+python ${ppt_gpu_dir}/scripts/convert_hw_metrics.py -i ${res_hw_ncu_json} -o ${res_hw_json}
 
 # run_hw_ncu
 python ${ppt_gpu_dir}/scripts/run_hw_profling.py -F ${single_app} -B ${benchmarks} -T ${trace_dir} --select ncu-cpi --loop_cnt 3
-python ${ppt_gpu_dir}/scripts/get_stat_hw.py -F ${single_app} -B ${benchmarks} -T ${trace_dir} --select ncu-cpi -o ${res_hw_ncu_json} --loop 3
-python ${ppt_gpu_dir}/scripts/draw/convert_cpi_stack.py -i ${res_hw_ncu_json} -I "ncu" -o ${res_hw_cpi_json}
+python ${ppt_gpu_dir}/scripts/get_stat_hw.py -F ${single_app} -B ${benchmarks} -T ${trace_dir} --select ncu-cpi -o ${res_hw_ncu_cpi_json} --loop 3
+python ${ppt_gpu_dir}/scripts/draw/convert_cpi_stack.py -i ${res_hw_ncu_cpi_json} -I "ncu" -o ${res_hw_cpi_json}
 fi
 
 if (( $1 & 2 )); then
