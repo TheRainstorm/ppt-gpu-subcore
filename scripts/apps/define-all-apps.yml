@@ -341,7 +341,27 @@ ubench:
     data_dirs: "$GPUAPPS_ROOT/data_dirs/"
     execs:
         - kernel_lat:
-          - args: 512 512
+            - args: 32   128
+            - args: 64   128
+            - args: 128  128
+            - args: 256  128
+            - args: 512  128
+            - args: 1024 128
+            - args: 2048 128
+            - args: 32   256
+            - args: 64   256
+            - args: 128  256
+            - args: 256  256
+            - args: 512  256
+            - args: 1024 256
+            - args: 2048 256
+            - args: 32   512
+            - args: 64   512
+            - args: 128  512
+            - args: 256  512
+            - args: 512  512
+            - args: 1024 512
+            - args: 2048 512
 
 rodinia-3.1:
     exec_dir: "$GPUAPPS_ROOT/bin/$CUDA_VERSION/release/"
