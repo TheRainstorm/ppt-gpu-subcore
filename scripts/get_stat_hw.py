@@ -22,8 +22,8 @@ parser.add_argument("-F", "--app-filter", default="", help="filter apps. e.g. re
 parser.add_argument("-T", "--trace_dir",
                     required=True,
                     help="The root of all the trace file")
-parser.add_argument("-f", "--profiling_filename",
-                 default="profiling.csv")
+# parser.add_argument("-f", "--profiling_filename",
+#                  default="profiling.csv")
 parser.add_argument("-o", "--output",
                  default="hw_res.json")
 parser.add_argument("-c", "--limit_kernel_num",
@@ -31,9 +31,9 @@ parser.add_argument("-c", "--limit_kernel_num",
                     default=300,
                     help="trace tool only trace max 300 kernel, nvprof can't set trace limit(nsight-sys can)." \
                         "so we limit the kernel number when get stat")
-parser.add_argument("--ncu",
-                 action="store_true",
-                 help="get ncu result")
+parser.add_argument("--select", default="nvprof",
+                 choices=["nvprof", "ncu", "ncu-cpi"],
+                 help="get which tool's stat")
 parser.add_argument("--loop",
                  default=-1,
                  type=int,
@@ -91,6 +91,11 @@ def parse_csv_file(profiling_file):
         for row in csvreader:
             kernel_data = {}
             for key, value in zip(keys_list, row):
+                # m = re.match(r'[\d,.]+', value)
+                # if m:
+                #     print(value)
+                if ',' in value:
+                    value = value.replace(',', '')
                 try:
                     # digit
                     value = float(value)
@@ -143,24 +148,22 @@ for app_and_arg in app_and_arg_list:
         continue
     
     # get all profling file
-    profiling_file_list = []
-    profiling_file_list_ncu = []
+    profiling_res = {}
     for file in os.listdir(app_trace_dir):
-        if file.startswith(args.profiling_filename):
-            if '.ncu' in file:
-                profiling_file_list_ncu.append(os.path.join(app_trace_dir, file))
-            else:
-                profiling_file_list.append(os.path.join(app_trace_dir, file))
+        if file.startswith('profiling.') and file.endswith('.csv'):
+            _, select , cnt, _ = file.split('.')
+            if select not in profiling_res:
+                profiling_res[select] = []
+            profiling_res[select].append(os.path.join(app_trace_dir, file))
     
     # sort
-    profiling_file_list.sort()
-    profiling_file_list_ncu.sort()
-    if args.loop != -1:
-        profiling_file_list = profiling_file_list[:args.loop]
-        profiling_file_list_ncu = profiling_file_list_ncu[:args.loop]
+    for select, profiling_file_list in profiling_res.items():
+        profiling_file_list.sort()
+        if args.loop != -1:
+            profiling_file_list = profiling_file_list[:args.loop]
     
-    if not args.ncu:
-        acc_res = get_average_csv(profiling_file_list)
+    if args.select == 'nvprof':
+        acc_res = get_average_csv(profiling_res['nvprof'])
         
         # skip first empty kernel line
         acc_res = acc_res[1:]
@@ -169,7 +172,7 @@ for app_and_arg in app_and_arg_list:
             acc_res[i]['kernel_name'] = re.search(r'\w+', acc_res[i]['Kernel']).group(0)  # delete function params define
             del acc_res[i]['Kernel']
     else:
-        acc_res = get_average_csv(profiling_file_list_ncu)
+        acc_res = get_average_csv(profiling_res[args.select])
 
         # ncu 获得的结果一行不是 kernel，而是一个 metric
         # 需要"转置"一下，获得 kernel 关于 metric 的结果

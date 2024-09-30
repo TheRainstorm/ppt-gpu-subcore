@@ -67,7 +67,7 @@ def run_cmd(cmd):
 logging(f"Start")
 failed_list = []
 logging(f"CMD: {' '.join(sys.argv)}")
-print(args.apps)
+print(f"filter apps: {args.apps}")
 for app_and_arg in app_and_arg_list:
     app = app_and_arg.split('/')[0]
     app_trace_dir = os.path.join(args.trace_dir, app_and_arg)

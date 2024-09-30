@@ -3,17 +3,6 @@ import os
 import re
 import yaml
 
-def process_args_apps( apps_in, defined_apps ):
-    apps = []
-    if apps_in == None:
-        return []
-    for suite_exe_count in apps_in:
-        if suite_exe_count not in defined_apps:
-            print(f"app {suite_exe_count} not found in defined_apps")
-            continue
-        apps += defined_apps[suite_exe_count]
-    return get_app_arg_list(apps)
-
 def get_argfoldername( args ):
     if args == "" or args == None:
         return "NO_ARGS"
@@ -24,7 +13,10 @@ def get_argfoldername( args ):
             foldername = "hashed_args_" + hashlib.md5(args).hexdigest()
         return foldername
 
-def parse_app_definition_yaml( def_yml, apps ):
+def parse_app_definition_yaml(def_yml):
+    ''' read app definition yaml file and return a dict containing list of app 4-element-tuple at different levels(suite, apps, count)
+    '''
+    apps = {}
     benchmark_yaml = yaml.load(open(def_yml), Loader=yaml.FullLoader)
     for suite in benchmark_yaml:
         apps[suite] = []
@@ -48,7 +40,7 @@ def parse_app_definition_yaml( def_yml, apps ):
             apps[suite + ":" + exe_name].append( ( benchmark_yaml[suite]['exec_dir'],
                                  benchmark_yaml[suite]['data_dirs'],
                                  exe_name, args_list ) )
-    return
+    return apps
 
 def gen_apps_from_suite_list( suite_list, defined_apps):
     apps = []
@@ -57,6 +49,7 @@ def gen_apps_from_suite_list( suite_list, defined_apps):
     return apps
 
 def get_app_arg_list(apps):
+    # convert app tuple list to app_and_arg list
     app_and_arg_list = []
     for app in apps:
         exec_dir, data_dir, exe_name, args_list = app
@@ -66,6 +59,9 @@ def get_app_arg_list(apps):
     return app_and_arg_list
 
 def get_suite_info(def_yml):
+    '''the app_and_arg loss the info of which suite it belongs to, 
+    this function retuns a map from app_and_arg to suite, exe, count
+    '''
     benchmark_yaml = yaml.load(open(def_yml), Loader=yaml.FullLoader)
     info = {}
     info['suites'] = []
@@ -83,8 +79,10 @@ def get_suite_info(def_yml):
                 count += 1
     return info
 
-
 def filter_app_list_coord(app_arg_list, coord_str):
+    '''
+    filter app_arg contained in [suite]:[exe]:[count] 
+    '''
     global suite_info
     def get_coord(filter_expr):
         parts = filter_expr.split(':')
@@ -104,12 +102,17 @@ def filter_app_list_coord(app_arg_list, coord_str):
     
     new_app_arg_list = []
     for app_arg in app_arg_list:
+        if not app_arg in suite_info['map']:
+            continue
         if not contain_in(suite_info['map'][app_arg], coord_filter):
             continue
         new_app_arg_list.append(app_arg)
     return new_app_arg_list
 
 def filter_app_list_re(app_arg_list, rexp):
+    '''
+    filter app_arg matching the regex
+    '''
     new_app_arg_list = []
     for app_arg in app_arg_list:
         m = re.search(rexp, app_arg)
@@ -130,6 +133,5 @@ def filter_app_list(all_app_list, app_filter):
         app_list = filter_app_list_coord(all_app_list, coord_filter)
     return app_list
 
-defined_apps = {}
-parse_app_definition_yaml(os.environ['apps_yaml'], defined_apps)
+defined_apps = parse_app_definition_yaml(os.environ['apps_yaml'])
 suite_info = get_suite_info(os.environ['apps_yaml'])
