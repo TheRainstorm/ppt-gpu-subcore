@@ -413,6 +413,11 @@ class Kernel():
         scale = pred_out["gpu_act_cycles_max"]//act_cycles_max
         pred_out["my_gpu_act_cycles_min"] = pred_out["others"]["my_block_act_cycles_min"] * scale
         pred_out["my_gpu_act_cycles_max"] = pred_out["others"]["my_block_act_cycles_max"] * scale
+        
+        # kernel lat compensation
+        kernel_lat = 2.11*pred_out['grid_size'] + 1716 - 733
+        pred_out['kernel_lat'] = kernel_lat
+        pred_out["my_gpu_act_cycles_max"] += kernel_lat
 
         pred_out["sm_act_cycles.sum"] = pred_out["gpu_act_cycles_max"] * pred_out["active_SMs"]
         pred_out["sm_elp_cycles.sum"] = pred_out["gpu_act_cycles_max"] * self.acc.num_SMs

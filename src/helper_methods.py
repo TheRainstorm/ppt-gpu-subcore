@@ -99,6 +99,7 @@ def dump_output(pred_out):
     print("\t* My GPU active cycles (max):", place_value(int(pred_out["my_gpu_act_cycles_max"])), file=outF)
     print("\t* My SM active cycles (sum):", place_value(int(pred_out["my_sm_act_cycles.sum"])), file=outF)
     print("\t* My SM elapsed cycles (sum):", place_value(int(pred_out["my_sm_elp_cycles.sum"])), file=outF)
+    print("\t* Kernel lat:", place_value(int(pred_out["kernel_lat"])), file=outF)
     
     print("\n- Warp instructions executed:", place_value(int(pred_out["tot_warps_instructions_executed"])), file=outF)
     print("- Thread instructions executed:", place_value(int(pred_out["tot_threads_instructions_executed"])), file=outF)

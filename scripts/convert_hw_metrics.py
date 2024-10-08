@@ -17,7 +17,8 @@ def convert_ncu_to_nvprof(data):
             
             kernel_res['active_cycles'] = k['sm__cycles_active.sum']
             # kernel_res['active_cycles_sys'] = k['sys__cycles_active.sum']
-            kernel_res['active_cycles_sys'] = k['gpc__cycles_elapsed.avg']
+            # kernel_res['active_cycles_sys'] = k['gpc__cycles_elapsed.avg']
+            kernel_res['active_cycles_sys'] = k['gpc__cycles_elapsed.max']
             kernel_res['elapsed_cycles_pm'] = k['sm__cycles_elapsed.sum']
             kernel_res['elapsed_cycles_sm'] = k['sm__cycles_elapsed.sum']
             kernel_res['elapsed_cycles_sys'] = k['sys__cycles_elapsed.sum']

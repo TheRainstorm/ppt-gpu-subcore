@@ -40,14 +40,16 @@ if __name__ == "__main__":
     data = {}
     for app_arg, app_res in res.items():
         kernel_name, params = app_arg.split("/")
+        if 'kernel_lat' not in kernel_name:
+            continue
         m = re.search(r'(\d+)_+(\d+)', params)
         if m:
             grid_size, block_size = map(int, m.groups())
         else:
             exit(1)
         
-        cycle1 = int(app_res[0]['gpc__cycles_elapsed.avg'])
-        cycle2 = int(app_res[0]['sys__cycles_active.sum'])
+        # cycle1 = int(app_res[0]['gpc__cycles_elapsed.avg'])
+        # cycle2 = int(app_res[0]['sys__cycles_active.sum'])
         cycle3 = int(app_res[0]['gpc__cycles_elapsed.max'])
         if block_size not in data:
             data[block_size] = [[], []]
