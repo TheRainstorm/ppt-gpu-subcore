@@ -8,7 +8,7 @@ def convert_ncu_to_nvprof(data):
         print(f"{app_arg}: {len(app_res)}")
         for i, k in enumerate(app_res):
             kernel_res = {}
-            kernel_res['kenrel_name'] = k['kernel_name']
+            kernel_res['kernel_name'] = k['kernel_name']
             
             kernel_res['inst_executed'] = k['smsp__inst_executed.sum']
             kernel_res['inst_issued'] = k['smsp__inst_executed.sum']
@@ -22,9 +22,12 @@ def convert_ncu_to_nvprof(data):
             kernel_res['elapsed_cycles_sm'] = k['sm__cycles_elapsed.sum']
             kernel_res['elapsed_cycles_sys'] = k['sys__cycles_elapsed.sum']
             kernel_res['active_warps'] = k['sm__warps_active.sum']
-            kernel_res['achieved_occupancy'] = k['sm__warps_active.avg.pct_of_peak_sustained_active']
+            kernel_res['achieved_occupancy'] = k['sm__warps_active.avg.pct_of_peak_sustained_active']/100
             
-            kernel_res['global_hit_rate'] = (k['l1tex__t_sectors_pipe_lsu_mem_global_op_ld_lookup_hit.sum'] + k['l1tex__t_sectors_pipe_lsu_mem_global_op_st_lookup_hit.sum'] + k['l1tex__t_sectors_pipe_lsu_mem_global_op_red_lookup_hit.sum'] + k['l1tex__t_sectors_pipe_lsu_mem_global_op_atom_lookup_hit.sum']) / (k['l1tex__t_sectors_pipe_lsu_mem_global_op_ld.sum'] + k['l1tex__t_sectors_pipe_lsu_mem_global_op_st.sum'] + k['l1tex__t_sectors_pipe_lsu_mem_global_op_red.sum'] + k['l1tex__t_sectors_pipe_lsu_mem_global_op_atom.sum'])
+            try:
+                kernel_res['global_hit_rate'] = (k['l1tex__t_sectors_pipe_lsu_mem_global_op_ld_lookup_hit.sum'] + k['l1tex__t_sectors_pipe_lsu_mem_global_op_st_lookup_hit.sum'] + k['l1tex__t_sectors_pipe_lsu_mem_global_op_red_lookup_hit.sum'] + k['l1tex__t_sectors_pipe_lsu_mem_global_op_atom_lookup_hit.sum']) / (k['l1tex__t_sectors_pipe_lsu_mem_global_op_ld.sum'] + k['l1tex__t_sectors_pipe_lsu_mem_global_op_st.sum'] + k['l1tex__t_sectors_pipe_lsu_mem_global_op_red.sum'] + k['l1tex__t_sectors_pipe_lsu_mem_global_op_atom.sum'])
+            except ZeroDivisionError:
+                kernel_res['global_hit_rate'] = 0
             kernel_res['tex_cache_hit_rate'] = k['l1tex__t_sector_hit_rate.pct']
             kernel_res['l2_tex_hit_rate'] = k['lts__t_sector_hit_rate.pct']
             kernel_res['l2_tex_read_hit_rate'] = k['lts__t_sector_op_read_hit_rate.pct']

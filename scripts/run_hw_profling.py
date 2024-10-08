@@ -87,7 +87,7 @@ for loop in range(args.loop_cnt):
                         f' {exec_path} {argstr}'
             elif args.select == 'ncu-cpi': # cpi stack
                 sh_contents += f'export CUDA_VISIBLE_DEVICES="{args.device_num}";\n' \
-                        f'ncu --csv --log-file {profiling_output} --metrics="smsp__average_warps_issue_stalled_.*_per_issue_active\.ratio",smsp__average_warp_latency_per_inst_issued.ratio ' \
+                        f'ncu --csv --log-file {profiling_output} --metrics=regex:"smsp__average_warps_issue_stalled_.*_per_issue_active\.ratio",smsp__average_warp_latency_per_inst_issued.ratio ' \
                         f' {exec_path} {argstr}'
             else:
                 sh_contents += f'export CUDA_VISIBLE_DEVICES="{args.device_num}";\n' \
