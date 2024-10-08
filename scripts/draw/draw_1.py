@@ -261,16 +261,7 @@ if __name__ == "__main__":
                         help="PPT-GPU only trace max 300 kernel, the hw trace we also truncate first 300 kernel. So GIMT also should truncate")
     parser.add_argument("-F", "--app-filter", default="", help="filter apps. e.g. regex:.*-rodinia-2.0-ft, [suite]:[exec]:[count]")
     parser.add_argument('-d', '--dir-name', default='', help='dir name to save image, default "app" and "kernel"')
-    subparsers = parser.add_subparsers(title="command", dest="command")
-    
-    parser_app = subparsers.add_parser("app", help="to get overview error of cycle, memory performance and etc. at granurality of apps.")
-    # parser_app.add_argument("-F", "--app-filter", default="", help="filter apps. e.g. regex:.*-rodinia-2.0-ft, [suite]:[exec]:[count]")
-    
-    parser_kernel = subparsers.add_parser("kernel", help="draw all error bar in granurality of kernel")
-    # parser_kernel.add_argument("-F", "--app-filter", default="", help="filter apps. e.g. regex:.*-rodinia-2.0-ft, [suite]:[exec]:[count]")
-    
-    parser_single = subparsers.add_parser("single", help="draw seperate app in single dir, it's useful when we want to get single app info mation")
-    # parser_single.add_argument("-F", "--app-filter", default="", help="filter apps. e.g. regex:.*-rodinia-2.0-ft, [suite]:[exec]:[count]")
+    parser.add_argument("command", choices=["app", "kernel", "kernel_by_app", "app_by_bench", "single"], help="draw app or kernel. app: to get overview error of cycle, memory performance and etc. at granurality of apps. kernel: draw all error bar in granurality of kernel. single: draw seperate app in single dir, it's useful when we want to get single app info mation")
 
     args = parser.parse_args()
 
@@ -292,7 +283,7 @@ if __name__ == "__main__":
     if args.command=="app":
         overwrite = True
         app_filter = args.app_filter
-        args.dir_name = args.dir_name if args.dir_name else "app"
+        args.dir_name = args.dir_name if args.dir_name else args.command
         os.makedirs(args.dir_name, exist_ok=True)  # save image in app dir
         os.chdir(args.dir_name)
         
@@ -339,15 +330,44 @@ if __name__ == "__main__":
         draw_side2side("l2_read_trans",         "bar_6_l2_read_trans.png")
         draw_side2side("l2_write_trans",        "bar_6_l2_write_trans.png")
         draw_side2side("dram_total_trans",      "bar_6_dram_total_trans.png")
+    elif args.command=="app_by_bench":
+        args.dir_name = args.dir_name if args.dir_name else args.command
+        os.makedirs(args.dir_name, exist_ok=True)  # save image in seperate dir
+        os.chdir(args.dir_name)
+        
+        # get all bench
+        app_list_all = sim_res.keys()
+        benchs = set()
+        for app_arg in app_list_all:
+            benchs.add(suite_info['map'][app_arg][0])
+        # set each bench as filter
+        for bench in benchs:
+            app_filter = bench
+            draw_error("my_gpu_active_cycle_max", f"{bench}_error_4_my_gpu_active_cycle_max.png")
+            draw_side2side("my_gpu_active_cycle_max", f"{bench}_bar_4_my_gpu_active_cycle_max.png")
+    
     elif args.command == 'kernel':
-        args.dir_name = args.dir_name if args.dir_name else "kernel"
+        args.dir_name = args.dir_name if args.dir_name else args.command
         os.makedirs(args.dir_name, exist_ok=True)  # save image in seperate dir
         os.chdir(args.dir_name)
         
         overwrite = True
         app_filter = args.app_filter
         draw_error("my_gpu_active_cycle_max", "error_4_my_gpu_active_cycle_max.png", draw_kernel=True)
-
+        draw_side2side("my_gpu_active_cycle_max", f"bar_4_my_gpu_active_cycle_max.png", draw_kernel=True)
+    elif args.command == 'kernel_by_app':
+        args.dir_name = args.dir_name if args.dir_name else args.command
+        os.makedirs(args.dir_name, exist_ok=True)  # save image in seperate dir
+        os.chdir(args.dir_name)
+        
+        app_list_all = sim_res.keys()
+        app_list = filter_app_list(app_list_all, args.app_filter)
+        for i,app_arg in enumerate(app_list):
+            app_filter=app_arg  # set global filter to single app
+            
+            app_name_safe = app_arg.replace('/', '_')
+            draw_error("my_gpu_active_cycle_max", f"error_{app_name_safe}_4_my_gpu_active_cycle_max.png", draw_kernel=True)
+            draw_side2side("my_gpu_active_cycle_max", f"bar_{app_name_safe}_4_my_gpu_active_cycle_max.png", draw_kernel=True)
     elif args.command == 'single':
         overwrite = True
         app_list_all = sim_res.keys()
