@@ -121,6 +121,16 @@ def filter_app_list_re(app_arg_list, rexp):
     return new_app_arg_list
 
 def filter_app_list(all_app_list, app_filter):
+    if '|' in app_filter:
+        filter_list = app_filter.split('|')
+        app_list = []
+        for filter in filter_list:
+            curr_app_list = filter_app_list(all_app_list, filter)
+            app_list += curr_app_list
+        # delete duplicates, without changing the order
+        app_list = list(dict.fromkeys(app_list))
+        return app_list
+    
     if app_filter == '':
         app_list = all_app_list
     elif app_filter.startswith('regex:'):
