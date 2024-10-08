@@ -260,6 +260,7 @@ if __name__ == "__main__":
                         default=300,
                         help="PPT-GPU only trace max 300 kernel, the hw trace we also truncate first 300 kernel. So GIMT also should truncate")
     parser.add_argument("-F", "--app-filter", default="", help="filter apps. e.g. regex:.*-rodinia-2.0-ft, [suite]:[exec]:[count]")
+    parser.add_argument('-d', '--dir-name', default='', help='dir name to save image, default "app" and "kernel"')
     subparsers = parser.add_subparsers(title="command", dest="command")
     
     parser_app = subparsers.add_parser("app", help="to get overview error of cycle, memory performance and etc. at granurality of apps.")
@@ -291,8 +292,9 @@ if __name__ == "__main__":
     if args.command=="app":
         overwrite = True
         app_filter = args.app_filter
-        os.makedirs('app', exist_ok=True)  # save image in app dir
-        os.chdir('app')
+        args.dir_name = args.dir_name if args.dir_name else "app"
+        os.makedirs(args.dir_name, exist_ok=True)  # save image in app dir
+        os.chdir(args.dir_name)
         
         draw_error("warp_inst_executed", "error_1_warp_inst_executed.png")
         draw_error("achieved_occupancy", "error_2_app_occupancy_error.png", sim_res_func = lambda x: x/100)
@@ -338,8 +340,9 @@ if __name__ == "__main__":
         draw_side2side("l2_write_trans",        "bar_6_l2_write_trans.png")
         draw_side2side("dram_total_trans",      "bar_6_dram_total_trans.png")
     elif args.command == 'kernel':
-        os.makedirs('kernel', exist_ok=True)  # save image in app dir
-        os.chdir('kernel')
+        args.dir_name = args.dir_name if args.dir_name else "kernel"
+        os.makedirs(args.dir_name, exist_ok=True)  # save image in seperate dir
+        os.chdir(args.dir_name)
         
         overwrite = True
         app_filter = args.app_filter
