@@ -19,6 +19,7 @@ trace_dir=/staff/fyyuan/workspace/hw_trace/kernel_lat_${model}-${gpu}/${cuda_ver
 res_hw_ncu_json=${ppt_gpu_dir}/scripts/kernel_lat/tmp/res_hw_${gpu}_ncu.json
 
 run(){
-python ${ppt_gpu_dir}/scripts/run_hw_profling.py -B ${benchmarks} -T ${trace_dir} --select ncu --loop_cnt 1
-python ${ppt_gpu_dir}/scripts/get_stat_hw.py -B ${benchmarks} -T ${trace_dir} --select ncu -o ${res_hw_ncu_json} --loop 1
+python ${ppt_gpu_dir}/scripts/run_hw_profling.py -B ${benchmarks} -T ${trace_dir} --select ncu --loop_cnt 3
+rm ${res_hw_ncu_json} # clean old apps
+python ${ppt_gpu_dir}/scripts/get_stat_hw.py -B ${benchmarks} -T ${trace_dir} --select ncu -o ${res_hw_ncu_json} --loop 3
 }
