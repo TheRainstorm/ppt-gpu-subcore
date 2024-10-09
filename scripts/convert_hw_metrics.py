@@ -27,6 +27,7 @@ def convert_ncu_to_nvprof(data):
             
             try:
                 kernel_res['global_hit_rate'] = (k['l1tex__t_sectors_pipe_lsu_mem_global_op_ld_lookup_hit.sum'] + k['l1tex__t_sectors_pipe_lsu_mem_global_op_st_lookup_hit.sum'] + k['l1tex__t_sectors_pipe_lsu_mem_global_op_red_lookup_hit.sum'] + k['l1tex__t_sectors_pipe_lsu_mem_global_op_atom_lookup_hit.sum']) / (k['l1tex__t_sectors_pipe_lsu_mem_global_op_ld.sum'] + k['l1tex__t_sectors_pipe_lsu_mem_global_op_st.sum'] + k['l1tex__t_sectors_pipe_lsu_mem_global_op_red.sum'] + k['l1tex__t_sectors_pipe_lsu_mem_global_op_atom.sum'])
+                kernel_res['global_hit_rate'] *= 100  # all cache hit rate use percentage
             except ZeroDivisionError:
                 kernel_res['global_hit_rate'] = 0
             kernel_res['tex_cache_hit_rate'] = k['l1tex__t_sector_hit_rate.pct']
