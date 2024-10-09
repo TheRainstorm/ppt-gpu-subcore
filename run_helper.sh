@@ -42,9 +42,10 @@ draw(){
 # rm -rf ${draw_output} 
 # python ${ppt_gpu_dir}/scripts/draw/draw_1.py -F ${filter_app} -S ${res_sim_json} -H ${res_hw_nvprof_json} -o ${draw_output} -d app_nvprof app
 python ${ppt_gpu_dir}/scripts/draw/draw_1.py -F ${filter_app} -S ${res_sim_json} -H ${res_hw_json} -o ${draw_output} app
+python ${ppt_gpu_dir}/scripts/draw/draw_1.py -F "rodinia-2.0-ft|rodinia-3.1" -S ${res_sim_json} -H ${res_hw_json} -o ${draw_output} -d app_rodinia23 app
 # python ${ppt_gpu_dir}/scripts/draw/draw_1.py -F ubench -S ${res_sim_json} -H ${res_hw_json} -o ${draw_output} -d app_ubench app
 python ${ppt_gpu_dir}/scripts/draw/draw_1.py -F ${filter_app} -S ${res_sim_json} -H ${res_hw_json} -o ${draw_output} app_by_bench
-python ${ppt_gpu_dir}/scripts/draw/draw_1.py -F rodinia-2.0-ft -S ${res_sim_json} -H ${res_hw_json} -o ${draw_output} kernel_by_app
+python ${ppt_gpu_dir}/scripts/draw/draw_1.py -S ${res_sim_json} -H ${res_hw_json} -o ${draw_output} kernel_by_app
 python ${ppt_gpu_dir}/scripts/draw/draw_1.py -F rodinia-2.0-ft -S ${res_sim_json} -H ${res_hw_json} -o ${draw_output} -d kernel_rodinia2 kernel
 
 # python ${ppt_gpu_dir}/scripts/draw/draw_cpi_stack.py -S ${res_sim_cpi_json} -o ${draw_output} --subdir cpi_warp

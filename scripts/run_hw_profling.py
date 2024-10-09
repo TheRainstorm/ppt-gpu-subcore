@@ -65,7 +65,10 @@ for loop in range(args.loop_cnt):
             app_and_arg = os.path.join( exe_name, get_argfoldername( argstr ) )  # backprop-rodinia-2.0-ft/4096___data_result_4096_txt
             exec_path = os.path.join(exec_dir, exe_name)
             run_dir = os.path.join(args.trace_dir, app_and_arg)
-            # link data dir (skip)
+            
+            # mkdir run_dir
+            if not os.path.exists(run_dir):
+                os.makedirs(run_dir)
             
             if args.apps and app_and_arg not in args.apps:
                 continue

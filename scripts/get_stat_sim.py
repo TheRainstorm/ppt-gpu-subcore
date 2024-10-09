@@ -142,7 +142,10 @@ collect_data = {}
 if args.apps:
     if os.path.exists(args.output):
         with open(args.output, 'r') as f:
-            collect_data = json.load(f)
+            try:
+                collect_data = json.load(f)
+            except:
+                pass
 
 for app_and_arg in app_and_arg_list:
     app = app_and_arg.split('/')[0]
