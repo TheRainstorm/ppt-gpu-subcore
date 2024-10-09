@@ -388,15 +388,16 @@ class Kernel():
             last_inst_delay_act_min = max(last_inst_delay, block.actual_end - pred_out["active_cycles"])
             last_inst_delay_act_max = max(last_inst_delay, block.actual_end)
 
-        act_cycles_min = pred_out["active_cycles"] + pred_out["comp_cycles"] + last_inst_delay_act_min
-        act_cycles_max = pred_out["active_cycles"] + pred_out["comp_cycles"] + last_inst_delay_act_max
+        act_cycles_min = pred_out["active_cycles"] + last_inst_delay_act_min
+        act_cycles_max = pred_out["active_cycles"] + last_inst_delay_act_max
 
         pred_out["others"]["last_inst_delay_act_min"] = last_inst_delay_act_min
         pred_out["others"]["last_inst_delay_act_max"] = last_inst_delay_act_max
-        # last block last warp end
+        
+        # get my cycle
         actual_end_list = [block.actual_end for block in block_list]
-        pred_out["others"]["my_block_act_cycles_min"] = min(actual_end_list) + pred_out["comp_cycles"]
-        pred_out["others"]["my_block_act_cycles_max"] = max(actual_end_list) + pred_out["comp_cycles"]
+        pred_out["others"]["my_block_act_cycles_min"] = min(actual_end_list)
+        pred_out["others"]["my_block_act_cycles_max"] = max(actual_end_list)
 
         avg_instructions_executed_per_block = pred_out["warps_instructions_executed"] / len(block_list)
 
@@ -406,17 +407,23 @@ class Kernel():
             remaining_cycles = ceil((num_workloads_left/pred_out["num_workloads_per_SM_new"]),1)
             pred_out["gpu_act_cycles_min"] = act_cycles_min * remaining_cycles
             pred_out["gpu_act_cycles_max"] = act_cycles_max * remaining_cycles
+            
+            pred_out['comp_cycles_scale'] = pred_out["comp_cycles"] * remaining_cycles
         else:
             pred_out["gpu_act_cycles_min"] = act_cycles_min
             pred_out["gpu_act_cycles_max"] = act_cycles_max
+            pred_out['comp_cycles_scale'] = pred_out["comp_cycles"]
+        
 
         scale = pred_out["gpu_act_cycles_max"]//act_cycles_max
         pred_out["my_gpu_act_cycles_min"] = pred_out["others"]["my_block_act_cycles_min"] * scale
         pred_out["my_gpu_act_cycles_max"] = pred_out["others"]["my_block_act_cycles_max"] * scale
         
         # kernel lat compensation
-        kernel_lat = 2.11*pred_out['grid_size'] + 1716 - 733
+        kernel_lat = 2.16*(pred_out['grid_size'] if pred_out['grid_size'] >= 128 else 128) + 1656
+        
         pred_out['kernel_lat'] = kernel_lat
+        pred_out["my_gpu_act_cycles_min"] += kernel_lat
         pred_out["my_gpu_act_cycles_max"] += kernel_lat
 
         pred_out["sm_act_cycles.sum"] = pred_out["gpu_act_cycles_max"] * pred_out["active_SMs"]
