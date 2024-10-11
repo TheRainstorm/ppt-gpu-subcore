@@ -78,12 +78,12 @@ class Kernel():
         pred_out["th_active_warps"] = 0
         pred_out["th_active_threads"] = 0
         pred_out["th_occupancy"] = 0.0
-        pred_out["allocated_active_blocks_per_SM"] = 0
         pred_out["allocated_active_warps_per_block"] = 0
         pred_out["achieved_active_warps"] = 0.0
         pred_out["achieved_occupancy"] = 0.0
-        pred_out["num_workloads_per_SM_orig"] = 0
-        pred_out["num_workloads_per_SM_new"] = 0
+        pred_out["num_workloads_per_SM_orig"] = 0   # block 数除以 SM 数
+        pred_out["allocated_active_blocks_per_SM"] = 0 # 首先计算了理论 SM 最大 block 数目（和 reg、shared、block size）。然后该变量还和 num_workloads_per_SM_orig 取了个最小值
+        pred_out["num_workloads_per_SM_new"] = 0    # 根据模拟粒度，决定最终模拟的 SM 中 block 数目。AcTB 时赋值为 allocated_active_blocks_per_SM
         pred_out["active_cycles"] = 0
         pred_out["warps_instructions_executed"] = 0
         pred_out["threads_instructions_executed"] = 0
@@ -334,7 +334,7 @@ class Kernel():
                                 new_active_warp_list.append(warp)
                     current_active_blocks += 1
             '''
-            warp to sub core schedule
+            fetch warp to subcore warp list
             '''
             # allocate chunk (maybe imbalance?)
             # for i in range(num_subcore):
@@ -357,11 +357,12 @@ class Kernel():
             new_active_warp_list = deque()
             
             '''
-            schedule subcore
+            subcore scheduler issue warps
             '''
             counter_inc(sm_stats['active_blocks'], len(current_active_block_list))
             # print(debug_i)
             for i in range(num_subcore):
+                is_empty = len(subcore_warp_list[i]) == 0
                 counter_inc(scheduler_stats['active_warps'][i], len(subcore_warp_list[i]))
                 ## pass warps belonging to the active blocks to the warp scheduler to step the computations
                 instructions_executed, warp_executed, scheduler_stall_type, warp_state_sampled = \
@@ -372,6 +373,9 @@ class Kernel():
                 counter_inc(scheduler_stats['issued_warps'][i], warp_executed)
                 counter_inc(scheduler_stats['stall_types'][i], scheduler_stall_type)
                 pred_out["warps_instructions_executed"] += instructions_executed
+                # subcore becomes idle
+                if not is_empty and len(subcore_warp_list[i])==0:
+                    subcore_completed[i] = pred_out["active_cycles"]
 
             for block in current_active_block_list:
                 pred_out["achieved_active_warps"] += block.count_active_warps()
@@ -382,54 +386,82 @@ class Kernel():
         pred_out["achieved_active_warps"] = pred_out["achieved_active_warps"] / pred_out["active_cycles"]
         pred_out["achieved_occupancy"]= (float(pred_out["achieved_active_warps"]) / float(self.acc.max_active_warps_per_SM)) * 100
 
+        kernel_detail = {}
+        # origin cycle
         #TODO: has to be done in a more logical way per TB
         last_inst_delay = 0
         for block in block_list:
             last_inst_delay_act_min = max(last_inst_delay, block.actual_end - pred_out["active_cycles"])
             last_inst_delay_act_max = max(last_inst_delay, block.actual_end)
-
-        act_cycles_min = pred_out["active_cycles"] + last_inst_delay_act_min
-        act_cycles_max = pred_out["active_cycles"] + last_inst_delay_act_max
-
-        pred_out["others"]["last_inst_delay_act_min"] = last_inst_delay_act_min
-        pred_out["others"]["last_inst_delay_act_max"] = last_inst_delay_act_max
+        kernel_detail["last_inst_delay_act_min"], kernel_detail["last_inst_delay_act_max"] = last_inst_delay_act_min, last_inst_delay_act_max
         
-        # get my cycle
-        actual_end_list = [block.actual_end for block in block_list]
-        pred_out["others"]["my_block_act_cycles_min"] = min(actual_end_list)
-        pred_out["others"]["my_block_act_cycles_max"] = max(actual_end_list)
+        act_cycles_min = pred_out["active_cycles"] + pred_out["comp_cycles"] + last_inst_delay_act_min
+        act_cycles_max = pred_out["active_cycles"] + pred_out["comp_cycles"] + last_inst_delay_act_max
+        kernel_detail["act_cycles_min"], kernel_detail["act_cycles_max"] = act_cycles_min, act_cycles_max
 
-        avg_instructions_executed_per_block = pred_out["warps_instructions_executed"] / len(block_list)
-
+        scale1 = pred_out["num_workloads_per_SM_orig"] / pred_out["num_workloads_per_SM_new"]
+        scale2 = ceil(pred_out["num_workloads_per_SM_orig"] / pred_out["num_workloads_per_SM_new"], 1)
         num_workloads_left = pred_out["num_workloads_per_SM_orig"] - pred_out["num_workloads_per_SM_new"]
+        remaining_cycles = ceil((num_workloads_left/pred_out["num_workloads_per_SM_new"]),1)
+        scale_ori = max(1, remaining_cycles)
         
-        if num_workloads_left > 0:
-            remaining_cycles = ceil((num_workloads_left/pred_out["num_workloads_per_SM_new"]),1)
-            pred_out["gpu_act_cycles_min"] = act_cycles_min * remaining_cycles
-            pred_out["gpu_act_cycles_max"] = act_cycles_max * remaining_cycles
-            
-            pred_out['comp_cycles_scale'] = pred_out["comp_cycles"] * remaining_cycles
-        else:
-            pred_out["gpu_act_cycles_min"] = act_cycles_min
-            pred_out["gpu_act_cycles_max"] = act_cycles_max
-            pred_out['comp_cycles_scale'] = pred_out["comp_cycles"]
-        
+        pred_out["PPT-GPU_min"] = pred_out["gpu_act_cycles_min"] = act_cycles_min * scale_ori
+        pred_out["PPT-GPU_max"] = pred_out["gpu_act_cycles_max"] = act_cycles_max * scale_ori
 
-        scale = pred_out["gpu_act_cycles_max"]//act_cycles_max
-        pred_out["my_gpu_act_cycles_min"] = pred_out["others"]["my_block_act_cycles_min"] * scale
-        pred_out["my_gpu_act_cycles_max"] = pred_out["others"]["my_block_act_cycles_max"] * scale
+        block_actual_end = max([block.actual_end for block in block_list])
+        # my cycle
+        subcore_completed_nzero = [e for e in subcore_completed if e != 0]
+        smsp_act_cycles_min = min(subcore_completed_nzero)
+        smsp_act_cycles_max = max(subcore_completed_nzero)
+        smsp_act_cycles_avg = sum(subcore_completed_nzero) / len(subcore_completed_nzero)
+        last_inst = block_actual_end - smsp_act_cycles_max
+        tail = smsp_act_cycles_max - smsp_act_cycles_avg
         
+        result = {}
+        scale = scale_ori
+        result["ours_base"] = pred_out["active_cycles"] * scale
+        result["ours_BL"] = (pred_out["active_cycles"] + pred_out['comp_cycles']) * scale
+        result["ours_smsp_min"] = smsp_act_cycles_min * scale
+        result["ours_smsp_max"] = smsp_act_cycles_max * scale
+        result["ours_smsp_avg"] = smsp_act_cycles_avg * scale
+        result["ours_smsp_avg_LI"] = smsp_act_cycles_avg * scale + last_inst
+        result["ours_smsp_avg_tail"] = smsp_act_cycles_avg * scale + tail
+        result["ours_smsp_avg_tail_LI"] = smsp_act_cycles_avg * scale + tail + last_inst
+        result["ours_smsp_avg_scale2"] = smsp_act_cycles_avg * scale2
+        result["ours_smsp_avg_tail_scale2"] = smsp_act_cycles_avg * scale2 + tail
+        result["ours_smsp_avg_tail_scale2_LI"] = smsp_act_cycles_avg * scale2 + tail + last_inst
+
         # kernel lat compensation
         kernel_lat = 2.16*(pred_out['grid_size'] if pred_out['grid_size'] >= 128 else 128) + 1656
+        kernel_detail['kernel_lat'] = kernel_lat
+
+        pred_out['result'] = result
+        kernel_detail['active_cycles'] = pred_out["active_cycles"]
+        # kernel_detail['subcore_completed'] = subcore_completed
+        kernel_detail['subcore_cycles'] = ','.join([str(e) for e in subcore_completed])
+        kernel_detail['comp_cycles'] = pred_out["comp_cycles"]
+        kernel_detail['comp_cycles_scale'] = pred_out["comp_cycles"] * scale
+        kernel_detail['scale'] = scale
+        kernel_detail['scale1'] = scale1
+        kernel_detail['scale2'] = scale2
+        kernel_detail['scale_ori'] = scale_ori
+        kernel_detail['block_actual_end'] = block_actual_end
+        kernel_detail['smsp_act_cycles_avg'] = smsp_act_cycles_avg
+        kernel_detail['smsp_act_cycles_avg'] = smsp_act_cycles_avg
+        kernel_detail['last_inst'] = last_inst
+        kernel_detail['tail'] = tail
+        pred_out['kernel_detail'] = kernel_detail
         
-        pred_out['kernel_lat'] = kernel_lat
-        pred_out["my_gpu_act_cycles_min"] += kernel_lat
-        pred_out["my_gpu_act_cycles_max"] += kernel_lat
+        # for scripts compability, keep original name
+        pred_out["my_gpu_act_cycles_min"] = result["ours_smsp_min"]
+        pred_out["my_gpu_act_cycles_max"] = result["ours_smsp_avg_tail_LI"] + kernel_lat
+        result['my_gpu_act_cycles_max'] = pred_out["my_gpu_act_cycles_max"]
 
         pred_out["sm_act_cycles.sum"] = pred_out["gpu_act_cycles_max"] * pred_out["active_SMs"]
         pred_out["sm_elp_cycles.sum"] = pred_out["gpu_act_cycles_max"] * self.acc.num_SMs
         pred_out["my_sm_act_cycles.sum"] = pred_out["my_gpu_act_cycles_max"] * pred_out["active_SMs"]
         pred_out["my_sm_elp_cycles.sum"] = pred_out["my_gpu_act_cycles_max"] * self.acc.num_SMs
+        avg_instructions_executed_per_block = pred_out["warps_instructions_executed"] / len(block_list)
         pred_out["tot_warps_instructions_executed"] = avg_instructions_executed_per_block * pred_out["total_num_workloads"]
         pred_out["tot_threads_instructions_executed"] = (pred_out["tot_warps_instructions_executed"] * self.kernel_block_size) / pred_out["allocated_active_warps_per_block"]
         pred_out["tot_ipc"] = pred_out["tot_warps_instructions_executed"] * (1.0/pred_out["sm_act_cycles.sum"])

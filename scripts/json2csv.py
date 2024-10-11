@@ -43,14 +43,22 @@ def dump_to_csv(json_data, output_file='output.csv', select=JSON2CSV.NCU):
     
     csvfile.close()
 
+def get_value(d, key_path):
+    key_list = key_path.split('/')
+    value = d
+    for k in key_list:
+        value = value[k]
+    return value
+
 def dump_to_csv_merge(json_data, json_data2, output_file='output.csv'):
     csvfile = open(output_file, 'w', newline='')
     csv_writer = csv.writer(csvfile, delimiter=',',
                             quotechar='|', quoting=csv.QUOTE_MINIMAL)
     
     # title
-    columns1 = ['app', 'kernel_name', 'gpc__cycles_elapsed.avg', 'gpc__cycles_elapsed.max', 'sys__cycles_active.sum']
-    columns2 = ['my_gpu_act_cycles_max', 'my_gpu_act_cycles_min', 'warp_inst_executed', 'comp_cycles_scale', 'grid_size', 'block_size', 'kernel_lat']
+    columns1 = ['app', 'kernel_name', 'gpc__cycles_elapsed.max']
+    # columns1 = ['app', 'kernel_name', 'gpc__cycles_elapsed.avg', 'gpc__cycles_elapsed.max', 'sys__cycles_active.sum']
+    columns2 = ['my_gpu_act_cycles_max', 'my_gpu_act_cycles_min', 'warp_inst_executed', 'grid_size', 'block_size', 'AMAT', 'result/ours_smsp_min', 'result/ours_smsp_avg', 'result/ours_smsp_max', 'result/ours_smsp_avg_tail_LI', 'my_gpu_act_cycles_max', 'kernel_detail/kernel_lat', 'kernel_detail/last_inst', 'kernel_detail/tail', 'PPT-GPU_min', 'PPT-GPU_max', 'kernel_detail/comp_cycles_scale']
     csv_writer.writerow(columns1 + columns2)
         
     for app_arg, app_res in json_data.items():
@@ -61,7 +69,7 @@ def dump_to_csv_merge(json_data, json_data2, output_file='output.csv'):
             # get second json data kernel result
             kernel_res2 = json_data2[app_arg][kid]
             for col in columns2:
-                row.append(kernel_res2[col])
+                row.append(get_value(kernel_res2,col))
             csv_writer.writerow(row)
     
     csvfile.close()

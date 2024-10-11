@@ -354,14 +354,19 @@ def get_memory_perf(kernel_id, mem_trace_dir_path, grid_size, num_SMs, l1_cache_
     #     with open('sm_output.pickle', 'rb') as f:
     #         SMs_output_list = pickle.load(f)
     # else:
+    #     SMs_output_list = Parallel(n_jobs=num_jobs, prefer="processes")(delayed(private_SM_computation)(i, kernel_id, grid_size,\
+    #                                                                                                 num_SMs, mem_trace_dir_path, max_blocks_per_SM_new,\
+    #                                                                                                 l1_cache_size, l1_cache_line_size,\
+    #                                                                                                 l1_cache_associativity)\
+    #                                                                                                 for i in range(parallel_comp))
+    # with open('sm_output.pickle', 'wb') as f:
+    #     print("write to pickle")
+    #     pickle.dump(SMs_output_list, f)
     SMs_output_list = Parallel(n_jobs=num_jobs, prefer="processes")(delayed(private_SM_computation)(i, kernel_id, grid_size,\
                                                                                                 num_SMs, mem_trace_dir_path, max_blocks_per_SM_new,\
                                                                                                 l1_cache_size, l1_cache_line_size,\
                                                                                                 l1_cache_associativity)\
                                                                                                 for i in range(parallel_comp))
-    # with open('sm_output.pickle', 'wb') as f:
-    #     print("write to pickle")
-    #     pickle.dump(SMs_output_list, f)
 
     for SMi_stats in SMs_output_list:
         if SMi_stats:

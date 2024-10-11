@@ -122,6 +122,20 @@ def parse_kernel_json(file_path):
     data_json["sm_active_cycles_sum"] = data_json["sm_act_cycles.sum"]
     data_json["sm_elapsed_cycles_sum"] = data_json["sm_elp_cycles.sum"]
     data_json["my_gpu_active_cycle_max"] = data_json["my_gpu_act_cycles_max"]
+    
+    ## select other result
+    # result = data_json["result"]
+    kernel_detail = data_json["kernel_detail"]
+    # kernel_lat = kernel_detail['kernel_lat']
+    # data_json["my_gpu_active_cycle_max"] = result['ours_smsp_max'] + kernel_lat
+    # data_json["my_gpu_active_cycle_max"] = result['ours_smsp_avg'] + kernel_lat
+    # data_json["my_gpu_active_cycle_max"] = result['ours_smsp_avg_tail'] + kernel_lat
+    # data_json["my_gpu_active_cycle_max"] = result['ours_smsp_avg_LI'] + kernel_lat
+    # data_json["my_gpu_active_cycle_max"] = result['ours_smsp_avg_tail_LI'] + kernel_lat
+    # data_json["my_gpu_active_cycle_max"] = result['ours_smsp_avg_scale2'] + kernel_lat
+    # data_json["my_gpu_active_cycle_max"] = result['ours_smsp_avg_tail_scale2'] + kernel_lat
+    # data_json["my_gpu_active_cycle_max"] = result['ours_smsp_avg_tail_scale2_LI'] + kernel_lat
+    
     data_json["my_sm_active_cycles_sum"] = data_json["my_sm_act_cycles.sum"]
     data_json["my_sm_elapsed_cycles_sum"] = data_json["my_sm_elp_cycles.sum"]
     data_json["ipc"] = data_json["my_tot_ipc"]

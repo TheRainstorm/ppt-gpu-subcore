@@ -30,7 +30,7 @@ def dump_output(pred_out):
     
     print("\n- Total GPU computations is divided into " + str(pred_out["total_num_workloads"])+\
                 " thread block(s) running on " + str(pred_out["active_SMs"]) + " SM(s)", file=outF)
-    print(f"\n-Launch Statistic:", file=outF)
+    print(f"\n- Launch Statistic:", file=outF)
     print(f"\t* Grid Size: {pred_out['grid_size']}", file=outF)
     print(f"\t* Block Size: {pred_out['block_size']}", file=outF)
     print(f"\t* Registers Per Thread: {pred_out['num_regs']}", file=outF)
@@ -41,10 +41,10 @@ def dump_output(pred_out):
     print("\t* allocated max active warps per thread block:", pred_out["allocated_active_warps_per_block"], file=outF)
 
     print("\n- Occupancy of SM-0:", file=outF)
-    print("\t* Thread block Limit SM:", pred_out["max_active_blocks_per_SM"], file=outF)
     print("\t* Thread block limit registers:", pred_out["blocks_per_SM_limit_regs"], file=outF)
     print("\t* Thread block limit shared memory:", pred_out["blocks_per_SM_limit_smem"], file=outF)
     print("\t* Thread block limit warps:", pred_out["blocks_per_SM_limit_warps"], file=outF)
+    print("\t* Thread block Limit SM:", pred_out["max_active_blocks_per_SM"], file=outF)
     print("\t* theoretical max active thread block(s):", pred_out["th_active_blocks"], file=outF)
     print("\t* theoretical max active warps per SM:", pred_out["th_active_warps"], file=outF)
     print("\t* theoretical occupancy:", pred_out["th_occupancy"],"%", file=outF)
@@ -90,7 +90,6 @@ def dump_output(pred_out):
     print("\t* Global memory atomic and reduction transactions:", pred_out["memory_stats"]["atom_red_tot_trans"], file=outF)
     
     print("\n- Kernel cycles:", file=outF)
-    print("\t* debug: active_cycles:", pred_out["active_cycles"], file=outF)
     # print("\t* GPU active cycles (min):", place_value(int(pred_out["gpu_act_cycles_min"])), file=outF)
     # print("\t* GPU active cycles (max):", place_value(int(pred_out["gpu_act_cycles_max"])), file=outF)
     # print("\t* SM active cycles (sum):", place_value(int(pred_out["sm_act_cycles.sum"])), file=outF)
@@ -99,7 +98,8 @@ def dump_output(pred_out):
     print("\t* My GPU active cycles (max):", place_value(int(pred_out["my_gpu_act_cycles_max"])), file=outF)
     print("\t* My SM active cycles (sum):", place_value(int(pred_out["my_sm_act_cycles.sum"])), file=outF)
     print("\t* My SM elapsed cycles (sum):", place_value(int(pred_out["my_sm_elp_cycles.sum"])), file=outF)
-    print("\t* Kernel lat:", place_value(int(pred_out["kernel_lat"])), file=outF)
+    print(f"result: {json.dumps(pred_out['result'], indent=4)}", file=outF)
+    print(f"kernel detail: {json.dumps(pred_out['kernel_detail'], indent=4)}", file=outF)
     
     print("\n- Warp instructions executed:", place_value(int(pred_out["tot_warps_instructions_executed"])), file=outF)
     print("- Thread instructions executed:", place_value(int(pred_out["tot_threads_instructions_executed"])), file=outF)
