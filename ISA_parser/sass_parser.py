@@ -73,9 +73,9 @@ def parse(units_latency, sass_instructions, sass_path, num_warps):
         elif "ATOM" in opcode or "RED" in opcode:
             inst_list.append("ATOMIC_OP")
             inst_list.append("") #for now just put an empty holder; need to be changed to the type of atomic operation later
-        elif "BAR" in opcode:
-            inst_list.append("BarrierSYNC")
-            inst_list.append(0)
+        # elif "BAR" in opcode:
+        #     inst_list.append("BarrierSYNC")
+        #     inst_list.append(0)
         elif "MEMBAR" in opcode:
             inst_list.append("MEMBAR")
             inst_list.append(0)

@@ -179,7 +179,7 @@ class Warp(object):
                         exit(-1)
 
                     if not is_issued:
-                        if self.stall_type_keeped == 'NoStall':
+                        if self.stall_type_keeped == 'NoStall':  # nomarl compute instruction
                             self.stall_type_keeped = f'CompStruct.{hw_unit}'
                     else:
                         self.completions.append(cycles + latency)
