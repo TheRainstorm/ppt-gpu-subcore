@@ -300,6 +300,9 @@ class Kernel():
         block_is_visited = set()
         subcore_warp_list = [[] for i in range(num_subcore)]  # schedule warps in new list to subcore
                                                               # each subcore warp scheduler maintains a pool of warps
+        subcore_completed = [0 for i in range(num_subcore)]  # record the cycle when subcore idle
+        subcore_warp_executed = [0 for i in range(num_subcore)]
+        subcore_instr_executed = [0 for i in range(num_subcore)]
         
         # subcore_warp_list = [LinkedList() for i in range(num_subcore)]
         ## process instructions of the tasklist by the active blocks every cycle
@@ -373,6 +376,9 @@ class Kernel():
                 counter_inc(scheduler_stats['issued_warps'][i], warp_executed)
                 counter_inc(scheduler_stats['stall_types'][i], scheduler_stall_type)
                 pred_out["warps_instructions_executed"] += instructions_executed
+                subcore_warp_executed[i] += warp_executed
+                subcore_instr_executed[i] += instructions_executed
+                
                 # subcore becomes idle
                 if not is_empty and len(subcore_warp_list[i])==0:
                     subcore_completed[i] = pred_out["active_cycles"]
@@ -470,10 +476,18 @@ class Kernel():
         pred_out["tot_throughput_ips"] = pred_out["tot_ipc"] * self.acc.GPU_clockspeed
         pred_out["execution_time_sec"] = pred_out["sm_elp_cycles.sum"] * (1.0/self.acc.GPU_clockspeed)
 
+        pred_out['subcore_warp_executed'] = subcore_warp_executed
+        pred_out['subcore_instr_executed'] = subcore_instr_executed
+        pred_out['subcore_warp_executed_scaled'] = [e * scale for e in subcore_warp_executed]
+        pred_out['subcore_instr_executed_scaled'] = [e * scale for e in subcore_instr_executed]
+        
         toc = time.time()
         pred_out["simulation_time"]["compute"] = (toc - tic)
 
         pred_out["kernel_tasklist"] = self.kernel_tasklist
+        warp_inst_len = [len(tasklist) for tasklist in self.kernel_tasklist.values()]
+        pred_out['warp_inst_len'] = warp_inst_len
+        
         ## commit results
         dump_output(pred_out)
 

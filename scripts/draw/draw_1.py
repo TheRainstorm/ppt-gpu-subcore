@@ -368,6 +368,8 @@ if __name__ == "__main__":
             app_name_safe = app_arg.replace('/', '_')
             draw_error("my_gpu_active_cycle_max", f"error_{app_name_safe}_4_my_gpu_active_cycle_max.png", draw_kernel=True)
             draw_side2side("my_gpu_active_cycle_max", f"bar_{app_name_safe}_4_my_gpu_active_cycle_max.png", draw_kernel=True)
+            draw_error("warp_inst_executed", f"error_{app_name_safe}_1_warp_inst_executed.png", draw_kernel=True)
+            draw_side2side("warp_inst_executed", f"bar_{app_name_safe}_1_my_warp_inst_executed.png", draw_kernel=True)
     elif args.command == 'single':
         overwrite = True
         app_list_all = sim_res.keys()
@@ -384,6 +386,8 @@ if __name__ == "__main__":
             
             draw_error("achieved_occupancy", f"error_2_app_occupancy.png", draw_kernel=True, sim_res_func = lambda x: x/100)
             draw_side2side("achieved_occupancy", f"bar_2_app_occupancy.png", draw_kernel=True, sim_res_func = lambda x: x/100)
+            draw_error("warp_inst_executed", f"error_1_warp_inst_executed.png", draw_kernel=True)
+            draw_side2side("warp_inst_executed", f"bar_1_my_warp_inst_executed.png", draw_kernel=True)
             
             draw_side2side("l1_hit_rate", f"bar_6_l1_hit_rate.png", draw_kernel=True)
             draw_side2side("l2_hit_rate", f"bar_6_l2_hit_rate.png", draw_kernel=True)
