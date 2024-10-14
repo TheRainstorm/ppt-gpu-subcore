@@ -1,4 +1,4 @@
-.env*
+env.*.sh
 *.png
 *.log
 *.json
