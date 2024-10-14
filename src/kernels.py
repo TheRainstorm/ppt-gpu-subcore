@@ -224,6 +224,7 @@ class Kernel():
             pred_out["others"]["l2_cycles_no_contention"] = l2_cycles_no_contention
             pred_out["others"]["dram_cycles_no_contention"] = dram_cycles_no_contention
             
+            mem_cycles_no_contention_sum = l1_cycles_no_contention + l2_cycles_no_contention + dram_cycles_no_contention
             mem_cycles_no_contention = max(l1_cycles_no_contention, l2_cycles_no_contention) 
             mem_cycles_no_contention = max(mem_cycles_no_contention, dram_cycles_no_contention)
             mem_cycles_no_contention = ceil(mem_cycles_no_contention, 1)
@@ -244,15 +245,22 @@ class Kernel():
                 mem_cycles_ovhds += noc_queueing_delay_cycles
 
             mem_cycles_ovhds = ceil(mem_cycles_ovhds, 1)
+            pred_out["others"]["mem_cycles_no_contention"] = mem_cycles_no_contention
+            pred_out["others"]["mem_cycles_no_contention_sum"] = mem_cycles_no_contention
+            pred_out["others"]["mem_cycles_ovhds"] = mem_cycles_ovhds
 
             tot_mem_cycles = ceil((mem_cycles_no_contention + mem_cycles_ovhds), 1)
-            pred_out["others"]["mem_cycles_no_contention"] = mem_cycles_no_contention
-            pred_out["others"]["mem_cycles_ovhds"] = mem_cycles_ovhds
+            tot_mem_cycles_sum = ceil((mem_cycles_no_contention_sum + mem_cycles_ovhds), 1)
             
-            pred_out["AMAT"] = tot_mem_cycles/pred_out["memory_stats"]["gmem_tot_reqs"]
-            pred_out["AMAT"] = ceil(pred_out["AMAT"], 1)
+            pred_out["AMAT_ori"] = ceil(tot_mem_cycles/pred_out["memory_stats"]["gmem_tot_reqs"], 1)
+            pred_out["AMAT_sum"] = ceil(tot_mem_cycles_sum/pred_out["memory_stats"]["gmem_tot_reqs"], 1)
 
-                
+            m1 = 1 - pred_out["memory_stats"]['gmem_hit_rate']
+            m2 = 1 - pred_out["memory_stats"]['hit_rate_l2']
+            # m2 = 1 - 0.8
+            pred_out["AMAT_foumula"] = ceil(self.acc.l1_cache_access_latency + m1*(self.acc.l2_cache_from_l1_access_latency + m2*self.acc.dram_mem_from_l2_access_latency), 1)
+            pred_out["AMAT"] = pred_out["AMAT_ori"]
+            
         # ACPAO: Average Cycles Per Atomic Operation
         # ACPAO = atomic operations latency / total atomic requests
         # atomic operations latency= (atomic & redcutions transactions * access latency of atomic & red requests)
