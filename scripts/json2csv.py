@@ -42,6 +42,7 @@ def dump_to_csv(json_data, output_file='output.csv', select=JSON2CSV.NCU):
             csv_writer.writerow(row)
     
     csvfile.close()
+    print(f"output to {output_file}")
 
 def get_value(d, key_path):
     key_list = key_path.split('/')
@@ -58,7 +59,7 @@ def dump_to_csv_merge(json_data, json_data2, output_file='output.csv'):
     # title
     columns1 = ['app', 'kernel_name', 'gpc__cycles_elapsed.max']
     # columns1 = ['app', 'kernel_name', 'gpc__cycles_elapsed.avg', 'gpc__cycles_elapsed.max', 'sys__cycles_active.sum']
-    columns2 = ['my_gpu_act_cycles_max', 'my_gpu_act_cycles_min', 'warp_inst_executed', 'grid_size', 'block_size', 'AMAT', 'result/ours_smsp_min', 'result/ours_smsp_avg', 'result/ours_smsp_max', 'result/ours_smsp_avg_tail_LI', 'my_gpu_act_cycles_max', 'kernel_detail/kernel_lat', 'kernel_detail/last_inst', 'kernel_detail/tail', 'PPT-GPU_min', 'PPT-GPU_max', 'kernel_detail/comp_cycles_scale']
+    columns2 = ['my_gpu_act_cycles_max', 'warp_inst_executed', 'grid_size', 'block_size', 'AMAT', 'result/ours_smsp_min', 'result/ours_smsp_avg', 'result/ours_smsp_max', 'result/ours_smsp_avg_tail_LI', 'kernel_detail/kernel_lat', 'kernel_detail/last_inst', 'kernel_detail/tail', 'PPT-GPU_min', 'PPT-GPU_max', 'kernel_detail/comp_cycles_scale']
     csv_writer.writerow(columns1 + columns2)
         
     for app_arg, app_res in json_data.items():
@@ -73,7 +74,14 @@ def dump_to_csv_merge(json_data, json_data2, output_file='output.csv'):
             csv_writer.writerow(row)
     
     csvfile.close()
-    
+    print(f"output to {output_file}")
+
+def filter_res(res, app_arg_filtered_list):
+    for app in res.copy():
+        if app not in app_arg_filtered_list:
+            del res[app]
+    return res
+  
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(
         description='This script draw CPI stack image, it support: 1) draw single or, side by side campare with second result'
@@ -90,8 +98,15 @@ if __name__ == "__main__":
     parser.add_argument("-o", "--output",
                         default="output.csv",
                         help="output csv file")
+    parser.add_argument("-F", "--app-filter", default="", help="filter apps. e.g. regex:.*-rodinia-2.0-ft, [suite]:[exec]:[count]")
     
     args = parser.parse_args()
+    
+    from common import *
+    apps = gen_apps_from_suite_list()
+    app_and_arg_list = get_app_arg_list(apps)
+    app_arg_filtered_list = filter_app_list(app_and_arg_list, args.app_filter)
+    print(f"app_arg_filtered_list: {app_arg_filtered_list}")
     
     if args.type == JSON2CSV.BOTH:
         with open(args.json_file, 'r') as f:
@@ -100,11 +115,13 @@ if __name__ == "__main__":
         with open(args.json_file2, 'r') as f:
             json_data2 = json.load(f)
 
+        json_data = filter_res(json_data, app_arg_filtered_list)
+        json_data2 = filter_res(json_data2, app_arg_filtered_list)
+        
         dump_to_csv_merge(json_data, json_data2, output_file=args.output)
     elif args.type == JSON2CSV.NCU:
         with open(args.json_file, 'r') as f:
             json_data = json.load(f)
+        json_data = filter_res(json_data, app_arg_filtered_list)
         dump_to_csv(json_data, output_file=args.output, select=JSON2CSV.NCU)
     
-
-

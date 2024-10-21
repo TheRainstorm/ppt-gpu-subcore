@@ -59,32 +59,32 @@ rodinia-2.0-ft:
   data_dirs: "$GPUAPPS_ROOT/data_dirs/cuda/rodinia/2.0-ft/"
   execs:
     - backprop-rodinia-2.0-ft:
-        - args: 4096 ./data/result-4096.txt
+        - args: 4096 ./data/result-4096.txt # 2
           accel-sim-mem: 1G
     - bfs-rodinia-2.0-ft:
-        - args: ./data/graph4096.txt ./data/graph4096-result.txt
+        - args: ./data/graph4096.txt ./data/graph4096-result.txt # 16
           accel-sim-mem: 1G
     - hotspot-rodinia-2.0-ft:
-        - args: 30 6 40 ./data/result_30_6_40.txt
+        - args: 30 6 40 ./data/result_30_6_40.txt # 7
           accel-sim-mem: 1G
     - heartwall-rodinia-2.0-ft:
-        - args: ./data/test.avi 1 ./data/result-1.txt
+        - args: ./data/test.avi 1 ./data/result-1.txt # 1
           accel-sim-mem: 1G
           # Uses legacy texture cache instructions, it is unclear if it still makes sense to support
     - lud-rodinia-2.0-ft:
-        - args: -v -b -i ./data/64.dat
+        - args: -v -b -i ./data/64.dat # 10
           accel-sim-mem: 1G
     # - kmeans-rodinia-2.0-ft:
     #     - args: -i ./data/400.txt -g data/400-result.txt -o
     #       accel-sim-mem: 1G
     - nw-rodinia-2.0-ft:
-        - args: 128 10 ./data/result_128_10.txt
+        - args: 128 10 ./data/result_128_10.txt # 15
           accel-sim-mem: 1G
     - nn-rodinia-2.0-ft:
-        - args: ./data/filelist_4 3 30 90 ./data/filelist_4_3_30_90-result.txt
+        - args: ./data/filelist_4 3 30 90 ./data/filelist_4_3_30_90-result.txt # 4
           accel-sim-mem: 1G
     - pathfinder-rodinia-2.0-ft:
-        - args: 1000 20 5 ./data/result_1000_20_5.txt
+        - args: 1000 20 5 ./data/result_1000_20_5.txt # 4
           accel-sim-mem: 1G
     # # failed on snode2 ppt-gpu
     # - srad_v2-rodinia-2.0-ft:
@@ -100,48 +100,48 @@ rodinia-3.1-base:
   data_dirs: "$GPUAPPS_ROOT/data_dirs/cuda/rodinia/3.1/"
   execs:
     - b+tree-rodinia-3.1:
-        - args: file ./data/mil.txt command ./data/command.txt
+        - args: file ./data/mil.txt command ./data/command.txt # 2
           accel-sim-mem: 1G
     - backprop-rodinia-3.1:
-        - args: 65536
+        - args: 65536 # 2
           accel-sim-mem: 1G
     - bfs-rodinia-3.1:
-        - args: ./data/graph4096.txt
+        - args: ./data/graph4096.txt # 16
           accel-sim-mem: 1G
-        - args: ./data/graph65536.txt
+        - args: ./data/graph65536.txt # 20
           accel-sim-mem: 1G
-        - args: ./data/graph1MW_6.txt
+        - args: ./data/graph1MW_6.txt # 24
           accel-sim-mem: 1G
-    - cfd-rodinia-3.1:
-        - args: ./data/fvcorr.domn.097K
-          accel-sim-mem: 1G
+    # - cfd-rodinia-3.1:
+    #     - args: ./data/fvcorr.domn.097K
+    #       accel-sim-mem: 1G
     #     - args: ./data/fvcorr.domn.193K
     #       accel-sim-mem: 1G
     #     - args: ./data/missile.domn.0.2M
     #       accel-sim-mem: 4G
     - heartwall-rodinia-3.1:
-        - args: ./data/test.avi 1
+        - args: ./data/test.avi 1 # 1
         # - args: ./data/test.avi 20
     - hotspot-rodinia-3.1:
-        - args: 512 2 2 ./data/temp_512 ./data/power_512 output.out
+        - args: 512 2 2 ./data/temp_512 ./data/power_512 output.out # 1
           accel-sim-mem: 1G
-        - args: 1024 2 2 ./data/temp_1024 ./data/power_1024 output.out
+        - args: 1024 2 2 ./data/temp_1024 ./data/power_1024 output.out # 1
           accel-sim-mem: 1G
     # - hotspot3D-rodinia-3.1:
     #     - args:  512 8 100 ./data/power_512x8 ./data/temp_512x8 output.out
     #       accel-sim-mem: 4G
     - dwt2d-rodinia-3.1:
-        - args: ./data/192.bmp -d 192x192 -f -5 -l 3
+        - args: ./data/192.bmp -d 192x192 -f -5 -l 3 # 10
           accel-sim-mem: 1G
-        - args: ./data/rgb.bmp -d 1024x1024 -f -5 -l 3
+        - args: ./data/rgb.bmp -d 1024x1024 -f -5 -l 3 # 10
           accel-sim-mem: 1G
     - lud-rodinia-3.1:
-        - args: -s 256 -v
+        - args: -s 256 -v # 46
           accel-sim-mem: 1G
-        - args: -i ./data/512.dat
+        - args: -i ./data/512.dat # 94
           accel-sim-mem: 1G
     - nn-rodinia-3.1:
-        - args: ./data/filelist_4 -r 5 -lat 30 -lng 90
+        - args: ./data/filelist_4 -r 5 -lat 30 -lng 90 # 1
           accel-sim-mem: 4G
 
 rodinia-3.1-extra:
@@ -150,42 +150,42 @@ rodinia-3.1-extra:
   execs:
     # my extra
     - nw-rodinia-3.1:
-        - args: 2048 10
+        - args: 2048 10 # 255
           accel-sim-mem: 1G
     - gaussian-rodinia-3.1:
-        - args: -f ./data/matrix4.txt
+        - args: -f ./data/matrix4.txt # 6
           accel-sim-mem: 1G
-        - args: -s 16
+        - args: -s 16 # 30
           accel-sim-mem: 1G
-        - args: -f ./data/matrix208.txt
+        - args: -f ./data/matrix208.txt #300
           accel-sim-mem: 1G
-        - args: -s 64
+        - args: -s 64 # 126
           accel-sim-mem: 1G
-        - args: -s 256
+        - args: -s 256 #300
           accel-sim-mem: 1G
     # # me: too long time
     # - particlefilter_float-rodinia-3.1:
     #     - args:  -x 128 -y 128 -z 10 -np 1000
     #       accel-sim-mem: 1G
     - particlefilter_naive-rodinia-3.1:
-        - args: -x 128 -y 128 -z 10 -np 1000
+        - args: -x 128 -y 128 -z 10 -np 1000 # 9
           accel-sim-mem: 1G
     - pathfinder-rodinia-3.1:
-        - args: 100000 100 20 > result.txt
+        - args: 100000 100 20 > result.txt # 5
           accel-sim-mem: 1G
-    
+
     # Accel-Sim extra
     - srad_v1-rodinia-3.1:
-        - args: 100 0.5 502 458
+        - args: 100 0.5 502 458 # 400
           accel-sim-mem: 1G
     # - srad_v2-rodinia-3.1:
     #     - args:  2048 2048 0 127 0 127 0.5 2
     - streamcluster-rodinia-3.1:
-        - args: 3 6 16 65536 65536 1000 none output.txt 1 output.txt
-        - args: 10 20 256 65536 65536 1000 none output.txt 1
+        - args: 3 6 16 65536 65536 1000 none output.txt 1 output.txt # 224
+        # - args: 10 20 256 65536 65536 1000 none output.txt 1 # 1611 kernel
     # me: GIMT sim 40min
     - lavaMD-rodinia-3.1:
-        - args: -boxes1d 10
+        - args: -boxes1d 10 # 1
           accel-sim-mem: 32G
     # # Uses legacy texture cache instructions, it is unclear if it still makes sense to support
     # # me: PPT-GPU trace aborted
@@ -223,51 +223,51 @@ polybench:
   data_dirs: "$GPUAPPS_ROOT/data_dirs/"
   execs:
     - polybench-2DConvolution:
-        - args:
+        - args:   # 1
           accel-sim-mem: 1G
-    # me: PPT-GPU trace stuck
-    # - polybench-2mm:
-    #     - args:
-    #       accel-sim-mem: 13G
     - polybench-3DConvolution:
-        - args:
+        - args: # 254
           accel-sim-mem: 1G
     - polybench-3mm:
-        - args:
+        - args: # 3
           accel-sim-mem: 4G
     - polybench-atax:
-        - args:
+        - args: # 2
           accel-sim-mem: 2G
     - polybench-bicg:
-        - args:
+        - args: # 2
           accel-sim-mem: 2G
-    - polybench-correlation:
-        - args:
-          accel-sim-mem: 160G
-    - polybench-covariance:
-        - args:
-          accel-sim-mem: 160G
-    - polybench-fdtd2d:
-        - args:
-          accel-sim-mem: 1G
+    # - polybench-fdtd2d:
+    #     - args: # >300
+    #       accel-sim-mem: 1G
     - polybench-gemm:
-        - args:
+        - args: # 1
           accel-sim-mem: 4G
     - polybench-gesummv:
-        - args:
+        - args: # 1
           accel-sim-mem: 2G
-    - polybench-gramschmidt:
-        - args:
-          accel-sim-mem: 3G
+    # - polybench-gramschmidt:
+    #     - args: # >300
+    #       accel-sim-mem: 3G
     - polybench-mvt:
-        - args:
+        - args: # 2
           accel-sim-mem: 2G
-    - polybench-syr2k:
-        - args:
-          accel-sim-mem: 25G
     - polybench-syrk:
-        - args:
+        - args: # 1
           accel-sim-mem: 8G
+    # - polybench-syr2k:
+    #     - args: # 1, 179.7G
+    #       accel-sim-mem: 25G
+    # - polybench-correlation:
+    #     - args: # 4
+    #       accel-sim-mem: 160G
+    # - polybench-covariance:
+    #     - args: # 3
+    #       accel-sim-mem: 160G
+    # # me: PPT-GPU trace stuck
+    # - polybench-2mm:
+    #     - args: # 2
+    #       accel-sim-mem: 13G
 
 sdk-4.2-scaled:
   exec_dir: "$GPUAPPS_ROOT/bin/$CUDA_VERSION/release/"
@@ -314,6 +314,7 @@ GPU_Microbenchmark:
   exec_dir: "$GPUAPPS_ROOT/bin/$CUDA_VERSION/release/"
   data_dirs: "$GPUAPPS_ROOT/data_dirs/"
   execs:
+    # all 1 kernel
     - l1_bw_32f:
         - args:
           accel-sim-mem: 1G
@@ -344,9 +345,10 @@ GPU_Microbenchmark:
     - mem_lat:
         - args:
           accel-sim-mem: 1G
-    - shared_bw:
-        - args:
-          accel-sim-mem: 2G
+    # ppt-gpu sim failed
+    # - shared_bw:
+    #     - args:
+    #       accel-sim-mem: 2G
     - shared_lat:
         - args:
           accel-sim-mem: 1G
@@ -362,6 +364,54 @@ GPU_Microbenchmark:
     - l1_bw_32f_unroll_large:
         - args:
           accel-sim-mem: 1G
+
+parboil:
+  exec_dir: "$GPUAPPS_ROOT/bin/$CUDA_VERSION/release/"
+  data_dirs: "$GPUAPPS_ROOT/data_dirs/parboil/"
+  execs:
+    - parboil-sad:
+        - args: -i ./data/default/input/reference.bin,./data/default/input/frame.bin -o out.bin
+          accel-sim-mem: 4G
+
+    - parboil-sgemm:
+        - args: -i ./data/medium/input/matrix1.txt,./data/medium/input/matrix2t.txt,./data/medium/input/matrix2t.txt -o matrix3.txt
+          accel-sim-mem: 8G
+
+    - parboil-stencil:
+        - args: -i ./data/small/input/128x128x32.bin -o 128x128x32.out -- 128 128 32 100
+          accel-sim-mem: 1G
+    - parboil-cutcp:
+        - args: -i ./data/small/input/watbox.sl40.pqr -o lattice.dat
+          accel-sim-mem: 5G
+
+    - parboil-mri-q:
+        - args: -i ./data/small/input/32_32_32_dataset.bin -o 32_32_32_dataset.out
+          accel-sim-mem: 1G
+
+    - parboil-histo:
+        - args: -i ./data/default/input/img.bin -o ref.bmp -- 20 4
+          accel-sim-mem: 2G
+
+      #        - parboil-lbm:
+      #            - args:  -i ./data/long/input/120_120_150_ldc.of -o reference.dat -- 3000
+
+    - parboil-spmv:
+        - args: -i ./data/large/input/Dubcova3.mtx.bin,./data/large/input/vector.bin -o Dubcova3.mtx.out
+          accel-sim-mem: 2G
+
+    - parboil-mri-gridding:
+        - args: -i ./data/small/input/small.uks -o output.txt -- 32 0
+          accel-sim-mem: 1G
+
+    - parboil-bfs:
+        #            - args: -i ./data/1M/input/graph_input.dat -o bfs-1M.out
+        - args: -i ./data/NY/input/graph_input.dat -o bfs-NY.out
+          accel-sim-mem: 2G
+#            - args: -i ./data/SF/input/graph_input.dat -o bfs-SF.out
+#            - args: -i ./data/UT/input/graph_input.dat -o bfs-UT.out
+
+#        - parboil-tpacf:
+#            - args: -i ./data/large/input/Datapnts.1,./data/large/input/Randompnts.1,./data/large/input/Randompnts.2,./data/large/input/Randompnts.3,./data/large/input/Randompnts.4,./data/large/input/Randompnts.5,./data/large/input/Randompnts.6,./data/large/input/Randompnts.7,./data/large/input/Randompnts.8,./data/large/input/Randompnts.9,./data/large/input/Randompnts.10,./data/large/input/Randompnts.11,./data/large/input/Randompnts.12,./data/large/input/Randompnts.13,./data/large/input/Randompnts.14,./data/large/input/Randompnts.15,./data/large/input/Randompnts.16,./data/large/input/Randompnts.17,./data/large/input/Randompnts.18,./data/large/input/Randompnts.19,./data/large/input/Randompnts.20,./data/large/input/Randompnts.21,./data/large/input/Randompnts.22,./data/large/input/Randompnts.23,./data/large/input/Randompnts.24,./data/large/input/Randompnts.25,./data/large/input/Randompnts.26,./data/large/input/Randompnts.27,./data/large/input/Randompnts.28,./data/large/input/Randompnts.29,./data/large/input/Randompnts.30,./data/large/input/Randompnts.31,./data/large/input/Randompnts.32,./data/large/input/Randompnts.33,./data/large/input/Randompnts.34,./data/large/input/Randompnts.35,./data/large/input/Randompnts.36,./data/large/input/Randompnts.37,./data/large/input/Randompnts.38,./data/large/input/Randompnts.39,./data/large/input/Randompnts.40,./data/large/input/Randompnts.41,./data/large/input/Randompnts.42,./data/large/input/Randompnts.43,./data/large/input/Randompnts.44,./data/large/input/Randompnts.45,./data/large/input/Randompnts.46,./data/large/input/Randompnts.47,./data/large/input/Randompnts.48,./data/large/input/Randompnts.49,./data/large/input/Randompnts.50,./data/large/input/Randompnts.51,./data/large/input/Randompnts.52,./data/large/input/Randompnts.53,./data/large/input/Randompnts.54,./data/large/input/Randompnts.55,./data/large/input/Randompnts.56,./data/large/input/Randompnts.57,./data/large/input/Randompnts.58,./data/large/input/Randompnts.59,./data/large/input/Randompnts.60,./data/large/input/Randompnts.61,./data/large/input/Randompnts.62,./data/large/input/Randompnts.63,./data/large/input/Randompnts.64,./data/large/input/Randompnts.65,./data/large/input/Randompnts.66,./data/large/input/Randompnts.67,./data/large/input/Randompnts.68,./data/large/input/Randompnts.69,./data/large/input/Randompnts.70,./data/large/input/Randompnts.71,./data/large/input/Randompnts.72,./data/large/input/Randompnts.73,./data/large/input/Randompnts.74,./data/large/input/Randompnts.75,./data/large/input/Randompnts.76,./data/large/input/Randompnts.77,./data/large/input/Randompnts.78,./data/large/input/Randompnts.79,./data/large/input/Randompnts.80,./data/large/input/Randompnts.81,./data/large/input/Randompnts.82,./data/large/input/Randompnts.83,./data/large/input/Randompnts.84,./data/large/input/Randompnts.85,./data/large/input/Randompnts.86,./data/large/input/Randompnts.87,./data/large/input/Randompnts.88,./data/large/input/Randompnts.89,./data/large/input/Randompnts.90,./data/large/input/Randompnts.91,./data/large/input/Randompnts.92,./data/large/input/Randompnts.93,./data/large/input/Randompnts.94,./data/large/input/Randompnts.95,./data/large/input/Randompnts.96,./data/large/input/Randompnts.97,./data/large/input/Randompnts.98,./data/large/input/Randompnts.99,./data/large/input/Randompnts.100 -o tpacf.out -- -n 100 -p 10391
 
 Deepbench_nvidia_tencore:
   exec_dir: "$GPUAPPS_ROOT/bin/$CUDA_VERSION/release/"
@@ -516,54 +566,6 @@ Deepbench_nvidia_normal:
           accel-sim-mem: 20G
         - args: train half 128 32 1 gru
           accel-sim-mem: 20G
-
-parboil:
-  exec_dir: "$GPUAPPS_ROOT/bin/$CUDA_VERSION/release/"
-  data_dirs: "$GPUAPPS_ROOT/data_dirs/parboil/"
-  execs:
-    - parboil-sad:
-        - args: -i ./data/default/input/reference.bin,./data/default/input/frame.bin -o out.bin
-          accel-sim-mem: 4G
-
-    - parboil-sgemm:
-        - args: -i ./data/medium/input/matrix1.txt,./data/medium/input/matrix2t.txt,./data/medium/input/matrix2t.txt -o matrix3.txt
-          accel-sim-mem: 8G
-
-    - parboil-stencil:
-        - args: -i ./data/small/input/128x128x32.bin -o 128x128x32.out -- 128 128 32 100
-          accel-sim-mem: 1G
-    - parboil-cutcp:
-        - args: -i ./data/small/input/watbox.sl40.pqr -o lattice.dat
-          accel-sim-mem: 5G
-
-    - parboil-mri-q:
-        - args: -i ./data/small/input/32_32_32_dataset.bin -o 32_32_32_dataset.out
-          accel-sim-mem: 1G
-
-    - parboil-histo:
-        - args: -i ./data/default/input/img.bin -o ref.bmp -- 20 4
-          accel-sim-mem: 2G
-
-      #        - parboil-lbm:
-      #            - args:  -i ./data/long/input/120_120_150_ldc.of -o reference.dat -- 3000
-
-    - parboil-spmv:
-        - args: -i ./data/large/input/Dubcova3.mtx.bin,./data/large/input/vector.bin -o Dubcova3.mtx.out
-          accel-sim-mem: 2G
-
-    - parboil-mri-gridding:
-        - args: -i ./data/small/input/small.uks -o output.txt -- 32 0
-          accel-sim-mem: 1G
-
-    - parboil-bfs:
-        #            - args: -i ./data/1M/input/graph_input.dat -o bfs-1M.out
-        - args: -i ./data/NY/input/graph_input.dat -o bfs-NY.out
-          accel-sim-mem: 2G
-#            - args: -i ./data/SF/input/graph_input.dat -o bfs-SF.out
-#            - args: -i ./data/UT/input/graph_input.dat -o bfs-UT.out
-
-#        - parboil-tpacf:
-#            - args: -i ./data/large/input/Datapnts.1,./data/large/input/Randompnts.1,./data/large/input/Randompnts.2,./data/large/input/Randompnts.3,./data/large/input/Randompnts.4,./data/large/input/Randompnts.5,./data/large/input/Randompnts.6,./data/large/input/Randompnts.7,./data/large/input/Randompnts.8,./data/large/input/Randompnts.9,./data/large/input/Randompnts.10,./data/large/input/Randompnts.11,./data/large/input/Randompnts.12,./data/large/input/Randompnts.13,./data/large/input/Randompnts.14,./data/large/input/Randompnts.15,./data/large/input/Randompnts.16,./data/large/input/Randompnts.17,./data/large/input/Randompnts.18,./data/large/input/Randompnts.19,./data/large/input/Randompnts.20,./data/large/input/Randompnts.21,./data/large/input/Randompnts.22,./data/large/input/Randompnts.23,./data/large/input/Randompnts.24,./data/large/input/Randompnts.25,./data/large/input/Randompnts.26,./data/large/input/Randompnts.27,./data/large/input/Randompnts.28,./data/large/input/Randompnts.29,./data/large/input/Randompnts.30,./data/large/input/Randompnts.31,./data/large/input/Randompnts.32,./data/large/input/Randompnts.33,./data/large/input/Randompnts.34,./data/large/input/Randompnts.35,./data/large/input/Randompnts.36,./data/large/input/Randompnts.37,./data/large/input/Randompnts.38,./data/large/input/Randompnts.39,./data/large/input/Randompnts.40,./data/large/input/Randompnts.41,./data/large/input/Randompnts.42,./data/large/input/Randompnts.43,./data/large/input/Randompnts.44,./data/large/input/Randompnts.45,./data/large/input/Randompnts.46,./data/large/input/Randompnts.47,./data/large/input/Randompnts.48,./data/large/input/Randompnts.49,./data/large/input/Randompnts.50,./data/large/input/Randompnts.51,./data/large/input/Randompnts.52,./data/large/input/Randompnts.53,./data/large/input/Randompnts.54,./data/large/input/Randompnts.55,./data/large/input/Randompnts.56,./data/large/input/Randompnts.57,./data/large/input/Randompnts.58,./data/large/input/Randompnts.59,./data/large/input/Randompnts.60,./data/large/input/Randompnts.61,./data/large/input/Randompnts.62,./data/large/input/Randompnts.63,./data/large/input/Randompnts.64,./data/large/input/Randompnts.65,./data/large/input/Randompnts.66,./data/large/input/Randompnts.67,./data/large/input/Randompnts.68,./data/large/input/Randompnts.69,./data/large/input/Randompnts.70,./data/large/input/Randompnts.71,./data/large/input/Randompnts.72,./data/large/input/Randompnts.73,./data/large/input/Randompnts.74,./data/large/input/Randompnts.75,./data/large/input/Randompnts.76,./data/large/input/Randompnts.77,./data/large/input/Randompnts.78,./data/large/input/Randompnts.79,./data/large/input/Randompnts.80,./data/large/input/Randompnts.81,./data/large/input/Randompnts.82,./data/large/input/Randompnts.83,./data/large/input/Randompnts.84,./data/large/input/Randompnts.85,./data/large/input/Randompnts.86,./data/large/input/Randompnts.87,./data/large/input/Randompnts.88,./data/large/input/Randompnts.89,./data/large/input/Randompnts.90,./data/large/input/Randompnts.91,./data/large/input/Randompnts.92,./data/large/input/Randompnts.93,./data/large/input/Randompnts.94,./data/large/input/Randompnts.95,./data/large/input/Randompnts.96,./data/large/input/Randompnts.97,./data/large/input/Randompnts.98,./data/large/input/Randompnts.99,./data/large/input/Randompnts.100 -o tpacf.out -- -n 100 -p 10391
 
 cutlass_5_trace:
   exec_dir: "$GPUAPPS_ROOT/bin/$CUDA_VERSION/release/"
