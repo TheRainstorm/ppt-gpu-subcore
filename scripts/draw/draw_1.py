@@ -162,7 +162,14 @@ def draw_error(stat, save_img, draw_kernel=False, sim_res_func=None, error_text=
         error_y = np.abs(np.array(y2) - np.array(y1))/np.array(y1)
     else:
         error_y = (np.array(y2) - np.array(y1))/np.array(y1)
-    avg_error = np.mean(np.abs(error_y))
+    MAE = np.mean(np.abs(error_y))
+    t = np.array(y2) - np.array(y1)
+    RMSE = np.sqrt(np.mean(t**2))
+    NRMSE = RMSE/np.mean(np.abs(y1))
+    NRMSE_max_min = RMSE/(np.max(y1)-np.min(y1))
+    
+    # correlation
+    corr = np.corrcoef(y1, y2)[0, 1]
     
     fig, ax = plt.subplots()
     bars = ax.bar(x1, error_y)
@@ -174,7 +181,7 @@ def draw_error(stat, save_img, draw_kernel=False, sim_res_func=None, error_text=
     fig.subplots_adjust(bottom=0.4)
     ax.set_ylabel("Error")
     ax.set_xlabel("app")
-    ax.set_title(f"{stat} Error, avg abs error={avg_error:.2f}")
+    ax.set_title(f"{stat} Error, corr={corr:.2f}, MAE={MAE:.2f}, NRMSE={NRMSE:.2f}")
     # plt.show()
     fig.savefig(save_img_path)
     plt.close(fig)
@@ -200,6 +207,13 @@ def draw_side2side(stat, save_img, draw_kernel=False, sim_res_func=None, avg=Tru
         x1, y1 = get_kernel_stat(hw_res, hw_stat_key, app_filter=app_filter, func=lambda x: x*scale)
         _, y2 = get_kernel_stat(sim_res, stat, app_filter=app_filter, func=sim_res_func)
     
+    corr = np.corrcoef(y1, y2)[0, 1]
+    MAE = np.mean(np.abs(np.array(y2) - np.array(y1)))
+    t = np.array(y2) - np.array(y1)
+    RMSE = np.sqrt(np.mean(t**2))
+    NRMSE = RMSE/np.mean(np.abs(y1))
+    NRMSE_max_min = RMSE/(np.max(y1)-np.min(y1))
+        
     N = len(x1)
     ind = np.arange(N) + .15 # the x locations for the groups
     width = 0.35       # the width of the bars
@@ -211,11 +225,12 @@ def draw_side2side(stat, save_img, draw_kernel=False, sim_res_func=None, avg=Tru
     
     ax.set_xticks(ind+width+xtra_space)
     ax.set_xticklabels( x1 )
-        
+    
     # add some text for labels, title and axes ticks
     ax.set_xlabel("app")
     ax.set_ylabel(stat)
     ax.set_title(f"{stat} side by side")
+    ax.set_title(f"{stat} s2s, corr={corr:.2f}, MAE={MAE:.2f}, NRMSE={NRMSE:.2f}")
     
     plt.xticks(rotation=-90)
 
@@ -245,6 +260,12 @@ def find_common(sim_res, hw_res):
     sim_res = {app: sim_res[app] for app in common_apps}
     return sim_res, hw_res
 
+def filter_res(res, app_arg_filtered_list):
+    for app in res.copy():
+        if app not in app_arg_filtered_list:
+            del res[app]
+    return res
+    
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(
         description='draw_1 support: 1) error bar or side by side bar cmp with hw 2) apps or kernels granularity 3) all apps or part of it. we can combine them to draw what we want'
@@ -264,7 +285,13 @@ if __name__ == "__main__":
     parser.add_argument("command", choices=["app", "kernel", "kernel_by_app", "app_by_bench", "single"], help="draw app or kernel. app: to get overview error of cycle, memory performance and etc. at granurality of apps. kernel: draw all error bar in granurality of kernel. single: draw seperate app in single dir, it's useful when we want to get single app info mation")
 
     args = parser.parse_args()
-
+    
+    from common import *
+    apps = gen_apps_from_suite_list()
+    app_and_arg_list = get_app_arg_list(apps)
+    app_arg_filtered_list = filter_app_list(app_and_arg_list, args.app_filter)
+    print(f"app_arg_filtered_list: {app_arg_filtered_list}")
+    
     if not os.path.exists(args.output_dir):
         os.makedirs(args.output_dir)
 
@@ -274,6 +301,8 @@ if __name__ == "__main__":
     with open(args.sim_res, 'r') as f:
         sim_res = json.load(f)
     
+    sim_res = filter_res(sim_res, app_arg_filtered_list)
+    hw_res = filter_res(hw_res, app_arg_filtered_list)
     sim_res = truncate_kernel(sim_res, args.limit_kernel_num)
     sim_res, hw_res = find_common(sim_res, hw_res)
 
@@ -331,18 +360,24 @@ if __name__ == "__main__":
         draw_side2side("l2_write_trans",        "bar_6_l2_write_trans.png")
         draw_side2side("dram_total_trans",      "bar_6_dram_total_trans.png")
     elif args.command=="app_by_bench":
+        overwrite = True
         args.dir_name = args.dir_name if args.dir_name else args.command
         os.makedirs(args.dir_name, exist_ok=True)  # save image in seperate dir
         os.chdir(args.dir_name)
         
+        print(f"\n{args.command}:")
         # get all bench
         app_list_all = sim_res.keys()
         benchs = set()
         for app_arg in app_list_all:
-            benchs.add(suite_info['map'][app_arg][0])
+            try:
+                benchs.add(suite_info['map'][app_arg][0])
+            except:
+                print(f"Warning: {app_arg} not found in suite_info, skip")
         # set each bench as filter
         for bench in benchs:
             app_filter = bench
+            draw_error("warp_inst_executed", f"{bench}_error_1_warp_inst_executed.png")
             draw_error("my_gpu_active_cycle_max", f"{bench}_error_4_my_gpu_active_cycle_max.png")
             draw_side2side("my_gpu_active_cycle_max", f"{bench}_bar_4_my_gpu_active_cycle_max.png")
     

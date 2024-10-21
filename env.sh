@@ -1,10 +1,12 @@
 my_home=/staff/fyyuan/
 ppt_gpu_dir=$my_home/repo/PPT-GPU
 cuda_version=11.0
-benchmarks=rodinia-2.0-ft,rodinia-3.1,ubench
-filter_app="rodinia-2.0-ft|rodinia-3.1|ubench"
-# filter_app="rodinia-2.0-ft|rodinia-3.1"
-# filter_app="ubench"
+GPU=1
+benchmarks="rodinia-2.0-ft|rodinia-3.1-base|rodinia-3.1-extra|polybench|GPU_Microbenchmark"
+# benchmarks=GPU_Microbenchmark
+filter_app="rodinia-3.1-base|rodinia-3.1-extra"
+filter_app="polybench"
+filter_app="GPU_Microbenchmark"
 
 model=ppt-gpu
 gpu=titanv
@@ -17,6 +19,7 @@ export apps_yaml=${ppt_gpu_dir}/scripts/apps/define-all-apps.yml
 
 # trace_dir=$my_home/repo/accel-sim-framework/hw_run/traces/${model}-${gpu}/${cuda_version}
 trace_dir=/extra/hw_trace/${model}-${gpu}/${cuda_version}
+# trace_dir=$my_home/hw_trace/${model}-${gpu}/${cuda_version}
 
 # run hw
 res_hw_json=${ppt_gpu_dir}/tmp/res_hw_${gpu}.json

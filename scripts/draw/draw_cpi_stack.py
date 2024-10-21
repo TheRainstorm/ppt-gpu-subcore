@@ -228,7 +228,7 @@ def check_app_kernel_num(res, print_num=False):
         if print_num:
             print(f"{app}: {len(app_res)}")
 
-from draw_1 import truncate_kernel,get_kernel_stat,find_common
+from draw_1 import truncate_kernel,get_kernel_stat,find_common,filter_res
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(
@@ -254,10 +254,17 @@ if __name__ == "__main__":
     parser.add_argument("--draw-subcore", action="store_true", help="draw subcore if have")
     
     parser.add_argument("--seperate-dir", action="store_true", help="draw app in sperate folder, useful when draw single")
+    parser.add_argument("--not-seperate-dir-by-bench", dest='seperate_dir_by_bench', action="store_false", help="not draw app in sperate bench folder")
     parser.add_argument("--subplot-s2s", action="store_true", help="draw subplot side by side, used when two stack figure have different labels")
     parser.add_argument("--subdir", default='cpi_warp', help="draw single cpi stack, we store in subdir to distinguish")
     
     args = parser.parse_args()
+    
+    from common import *
+    apps = gen_apps_from_suite_list()
+    app_and_arg_list = get_app_arg_list(apps)
+    app_arg_filtered_list = filter_app_list(app_and_arg_list, args.app_filter)
+    print(f"app_arg_filtered_list: {app_arg_filtered_list}")
     
     if not os.path.exists(args.output_dir):
         os.makedirs(args.output_dir)
@@ -274,7 +281,10 @@ if __name__ == "__main__":
         sim_res2 = truncate_kernel(sim_res2, args.limit_kernel_num)
         print("\nsim res2 info:")
         check_app_kernel_num(sim_res2, print_num=False)
-
+    
+    sim_res = filter_res(sim_res, app_arg_filtered_list)
+    sim_res2 = filter_res(sim_res2, app_arg_filtered_list)
+    
     print("\nDraw:")
     run_dir = os.getcwd()
     os.chdir(args.output_dir)
@@ -290,11 +300,22 @@ if __name__ == "__main__":
             exit(1)
 
         for i,app_arg in enumerate(app_list):
+            if args.seperate_dir_by_bench:
+                try:
+                    bench = suite_info['map'][app_arg][0]
+                except:
+                    print(f"Warning: {app_arg} not found in suite_info, skip")
+                    continue
+                os.chdir(args.output_dir)
+                sep_dir = f"cpi_s2s_{bench}"
+                os.makedirs(sep_dir, exist_ok=True)
+                os.chdir(sep_dir)
+            
             if args.seperate_dir:
                 os.chdir(args.output_dir)
                 os.makedirs(app_arg, exist_ok=True)
                 os.chdir(app_arg)
-
+                
             app_name_safe = app_arg.replace('/', '_')
             if args.subplot_s2s:
                 draw_cpi_stack_subplot_s2s(f"cpi_s2s_detail/cpi_s2s_{i}_{app_name_safe}.png", app_list=app_arg)
