@@ -14,7 +14,7 @@ parser = argparse.ArgumentParser(
 )
 parser.add_argument("-B", "--benchmark_list",
                  help="a comma seperated list of benchmark suites to run. See apps/define-*.yml for the benchmark suite names.",
-                 default="rodinia_2.0-ft")
+                default="")
 parser.add_argument("--apps",
                     nargs="*",
                     help="only update specific apps data")
@@ -44,7 +44,7 @@ from common import *
 
 # defined_apps = {}
 # parse_app_definition_yaml(args.benchmarks_yaml, defined_apps)
-apps = gen_apps_from_suite_list(args.benchmark_list.split(","), defined_apps)
+apps = gen_apps_from_suite_list(args.benchmark_list)
 app_and_arg_list = get_app_arg_list(apps)
 # args.apps = process_args_apps(args.apps, defined_apps)
 args.apps = filter_app_list(app_and_arg_list, args.app_filter)
@@ -134,6 +134,7 @@ def get_average_csv(profiling_file_list):
 
 collect_data = {}
 
+print("Start get hw result")
 # when get single app, load old data
 if args.apps:
     if os.path.exists(args.output):

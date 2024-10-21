@@ -25,7 +25,7 @@ def parse_app_definition_yaml(def_yml):
             args_list = list(exe.values())[0]
             count = 0
             for runparms in args_list:
-                args = runparms["args"]
+                args = runparms["args"] if runparms["args"] else ""
                 if "accel-sim-mem" not in runparms:
                     runparms["accel-sim-mem"] = "4G"
                 apps[suite + ":" + exe_name + ":" + str(count) ] = []
@@ -42,7 +42,13 @@ def parse_app_definition_yaml(def_yml):
                                  exe_name, args_list ) )
     return apps
 
-def gen_apps_from_suite_list( suite_list, defined_apps):
+def gen_apps_from_suite_list(suite_list=""):
+    global suite_info
+    if suite_list == "all" or suite_list == "":
+        suite_list = suite_info['suites']
+    else:
+        suite_list = suite_list.split('|')
+    
     apps = []
     for suite in suite_list:
         apps += defined_apps[suite]
@@ -68,6 +74,7 @@ def get_suite_info(def_yml):
     info['map'] = {}
     
     for suite in benchmark_yaml:
+        info['suites'].append(suite)
         for exe in benchmark_yaml[suite]['execs']:
             exe_name = list(exe.keys())[0]  # dict has only one key (exe name) and one value (list of args dict)
             args_list = list(exe.values())[0]
@@ -145,3 +152,7 @@ def filter_app_list(all_app_list, app_filter):
 
 defined_apps = parse_app_definition_yaml(os.environ['apps_yaml'])
 suite_info = get_suite_info(os.environ['apps_yaml'])
+
+from datetime import datetime
+def now_timestamp():
+    return datetime.now().strftime('%Y-%m-%d %H:%M:%S')

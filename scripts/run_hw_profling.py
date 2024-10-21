@@ -9,7 +9,7 @@ parser = argparse.ArgumentParser(
 )
 parser.add_argument("-B", "--benchmark_list",
                     help="a comma seperated list of benchmark suites to run. See apps/define-*.yml for the benchmark suite names.",
-                    default="rodinia_2.0-ft")
+                    default="")
 parser.add_argument("--apps",
                     nargs="*",
                     help="only run specific apps")
@@ -44,7 +44,7 @@ from common import *
 
 # defined_apps = {}
 # parse_app_definition_yaml(args.benchmarks_yaml, defined_apps)
-apps = gen_apps_from_suite_list(args.benchmark_list.split(","), defined_apps)
+apps = gen_apps_from_suite_list(args.benchmark_list)
 app_and_arg_list = get_app_arg_list(apps)
 # args.apps = process_args_apps(args.apps, defined_apps)
 args.apps = filter_app_list(app_and_arg_list, args.app_filter)
@@ -60,7 +60,7 @@ for loop in range(args.loop_cnt):
         exec_dir = os.path.expandvars(exec_dir)
         data_dir = os.path.expandvars(data_dir)
         for argpair in args_list:
-            argstr = argpair["args"]
+            argstr = "" if argpair["args"]==None else argpair["args"]
             mem_usage = argpair["accel-sim-mem"]
             app_and_arg = os.path.join( exe_name, get_argfoldername( argstr ) )  # backprop-rodinia-2.0-ft/4096___data_result_4096_txt
             exec_path = os.path.join(exec_dir, exe_name)
@@ -111,6 +111,7 @@ for loop in range(args.loop_cnt):
                     failed_list.append(exe_name)
                     logging(f"{datetime.now().strftime('%Y-%m-%d %H:%M:%S')}: {exe_name} failed")
                 os.chdir(saved_dir)
+logging(f"{datetime.now().strftime('%Y-%m-%d %H:%M:%S')}: END")
 logging(f"failed list: {failed_list}")
 print(f"failed list: {failed_list}")
 log_file.close()

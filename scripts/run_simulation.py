@@ -14,7 +14,7 @@ parser = argparse.ArgumentParser(
 )
 parser.add_argument("-B", "--benchmark_list",
                  help="a comma seperated list of benchmark suites to run. See apps/define-*.yml for the benchmark suite names.",
-                 default="rodinia_2.0-ft")
+                default="")
 parser.add_argument("--apps",
                     nargs="*",
                     help="only run specific apps")
@@ -51,13 +51,14 @@ from common import *
 
 # defined_apps = {}
 # parse_app_definition_yaml(args.benchmarks_yaml, defined_apps)
-apps = gen_apps_from_suite_list(args.benchmark_list.split(","), defined_apps)
+apps = gen_apps_from_suite_list(args.benchmark_list)
 app_and_arg_list = get_app_arg_list(apps)
 # args.apps = process_args_apps(args.apps, defined_apps)
 args.apps = filter_app_list(app_and_arg_list, args.app_filter)
 
 log_file = open(args.log_file, "a")
 def logging(*args, **kwargs):
+    args = (f"({now_timestamp()}: ", ) + args
     print(*args, **kwargs, file=log_file, flush=True)
 
 def run_cmd(cmd):
@@ -84,7 +85,7 @@ for app_and_arg in app_and_arg_list:
         logging(f"{app_and_arg} already simulated")
         continue
 
-    logging(f"{datetime.now().strftime('%Y-%m-%d %H:%M:%S')}: {app_and_arg}")
+    logging(f"run {app_and_arg}")
     hw_res_option_str = f"--hw-res {args.hw_res}" if args.hw_res else ""
     if args.mpi_run != "":
         cmd = f"{args.mpi_run} python ppt.py --mpi --app {app_trace_dir} --sass --config {args.hw_config} --granularity {args.granularity} {hw_res_option_str} --report-output-dir {args.report_output_dir}"
@@ -105,5 +106,5 @@ for app_and_arg in app_and_arg_list:
         exit(0)
 print(f"failed list: {failed_list}")
 logging(f"failed list: {failed_list}")
-logging(f"{datetime.now().strftime('%Y-%m-%d %H:%M:%S')}: End")
+logging(f"End")
 log_file.close()
