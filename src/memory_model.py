@@ -21,10 +21,11 @@ from joblib import Parallel, delayed
 from .helper_methods import *
 
 
-def interleave_trace(smi_trace, max_block_len):
+def interleave_trace(smi_trace):
     '''
     return warp level interleaved trace
     '''
+    max_block_len = len(max(smi_trace, key=len))
     interleaved_trace = []
     for i in range(max_block_len):
         for j in range(len(smi_trace)):
@@ -38,15 +39,25 @@ def get_line_adresses(addresses, l1_cache_line_size):
     '''
     coalescing the addresses of the warp
     '''
-    line_address = {}
-    final_address = []
-    for warp_address in addresses:
-        if warp_address:
-            shifted_address = int(warp_address, base=16) >> int(math.log(l1_cache_line_size,2))
-            if shifted_address not in line_address:
-                line_address[shifted_address] = 1
-                final_address.append(shifted_address)
-    return final_address
+    line_idx = int(math.log(l1_cache_line_size,2))
+    sector_size = 32
+    sector_idx = int(math.log(sector_size,2))
+    line_mask = ~(2**line_idx - 1)
+    sector_mask = ~(2**sector_idx - 1)
+    
+    cache_line_set = set()
+    sector_set = set()  # count sector number
+    
+    for addr in addresses:
+        # 排除 0 ？
+        if addr:
+            addr = int(addr, base=16)
+            cache_line = addr >> line_idx
+            cache_line_set.add(cache_line)
+            sector = addr >> sector_idx
+            sector_set.add(sector)
+    
+    return list(cache_line_set), list(sector_set)
 
 
 def preprocess_private_trace(interleaved_trace, SMi_trans_file, l1_cache_line_size):
@@ -54,19 +65,20 @@ def preprocess_private_trace(interleaved_trace, SMi_trans_file, l1_cache_line_si
     preprocess the SM addresses
     '''
     tracefile = open(SMi_trans_file, "w+")
+    S = {}
     shared_trace = []
-    gmem_ld_reqs = 0
-    gmem_st_reqs = 0
-    gmem_ld_trans = 0
-    gmem_st_trans = 0
-    lmem_num_ld_reqs = 0
-    lmem_num_st_reqs = 0
-    lmem_ld_trans = 0
-    lmem_st_trans = 0
-    lmem_used = False
-    atom_reqs = 0
-    red_reqs = 0
-    atom_red_trans = 0
+    S["gmem_ld_reqs"] = 0
+    S["gmem_st_reqs"] = 0
+    S["gmem_ld_trans"] = 0
+    S["gmem_st_trans"] = 0
+    S["lmem_ld_reqs"] = 0
+    S["lmem_st_reqs"] = 0
+    S["lmem_ld_trans"] = 0
+    S["lmem_st_trans"] = 0
+    S["lmem_used"] = False
+    S["atom_reqs"] = 0
+    S["red_reqs"] = 0
+    S["atom_red_trans"] = 0
 
     warp_id = 0 ## warp counter for l2 inclusion
     inst_id = 0 ## LD=0 - ST=1
@@ -76,18 +88,18 @@ def preprocess_private_trace(interleaved_trace, SMi_trans_file, l1_cache_line_si
         addrs = items.split(" ")
         access_type = addrs[0]
         addrs.pop(0)
-        line_addrs = get_line_adresses(addrs, l1_cache_line_size)
+        line_addrs, sector_addrs = get_line_adresses(addrs, l1_cache_line_size)
 
         ## global reduction operations
         if "RED" in access_type:
-            red_reqs += 1
-            atom_red_trans += len(line_addrs)
+            S["red_reqs"] += 1
+            S["atom_red_trans"] += len(line_addrs)
             continue
 
         ## global atomic operations
         if "ATOM" in access_type:
-            atom_reqs += 1
-            atom_red_trans += len(line_addrs)
+            S["atom_reqs"] += 1
+            S["atom_red_trans"] += len(line_addrs)
             continue
 
         warp_id += 1
@@ -96,25 +108,25 @@ def preprocess_private_trace(interleaved_trace, SMi_trans_file, l1_cache_line_si
             mem_id = 0
             if "LDG" in access_type:
                 inst_id = 0
-                gmem_ld_reqs += 1
-                gmem_ld_trans += len(line_addrs)
+                S["gmem_ld_reqs"] += 1
+                S["gmem_ld_trans"] += len(line_addrs)
             elif "STG" in access_type:
                 inst_id = 1
-                gmem_st_reqs += 1
-                gmem_st_trans += len(line_addrs)
+                S["gmem_st_reqs"] += 1
+                S["gmem_st_trans"] += len(line_addrs)
         
         ## local memory access
         elif "LDL" in access_type or "STL" in access_type:
             mem_id = 1
-            lmem_used = True
+            S["lmem_used"] = True
             if "LDL" in access_type:
                 inst_id = 0
-                lmem_num_ld_reqs += 1
-                lmem_ld_trans += len(line_addrs)
+                S["lmem_ld_reqs"] += 1
+                S["lmem_ld_trans"] += len(line_addrs)
             elif "STL" in access_type:
                 inst_id = 1
-                lmem_num_st_reqs += 1
-                lmem_st_trans += len(line_addrs)
+                S["lmem_st_reqs"] += 1
+                S["lmem_st_trans"] += len(line_addrs)
 
         for individual_addrs in line_addrs:
             ####
@@ -123,9 +135,7 @@ def preprocess_private_trace(interleaved_trace, SMi_trans_file, l1_cache_line_si
         
         shared_trace.append(line_addrs)
 
-    return gmem_ld_reqs, gmem_st_reqs, gmem_ld_trans, gmem_st_trans,\
-           lmem_num_ld_reqs, lmem_num_st_reqs, lmem_ld_trans, lmem_st_trans, lmem_used,\
-           atom_reqs, red_reqs, atom_red_trans, shared_trace
+    return S, shared_trace
 
 
 def preprocess_shared_trace(interleaved_trace, kernel_id, mem_trace_dir_path):
@@ -179,7 +189,6 @@ def private_SM_computation(SM_id, kernel_id, grid_size, num_SMs, mem_trace_dir_p
     SM_stats = {}
     smi_trace = []
     shared_trace = []
-    SM_max_block_len = 0
     count_blocks = 0
     for block_id in range(grid_size):
         if count_blocks > max_blocks_per_SM:
@@ -191,7 +200,6 @@ def private_SM_computation(SM_id, kernel_id, grid_size, num_SMs, mem_trace_dir_p
                 trace_file = mem_trace_dir_path+"/kernel_"+str(kernel_id)+"_block_"+str(block_id)+".mem"
                 block_trace = open(trace_file,'r').read().strip().split("\n=====\n")
                 smi_trace.append(block_trace)
-                SM_max_block_len = max(SM_max_block_len, len(block_trace))
             except:
                 # print("\n[Warning]\n"+trace_file+" not found\n")
                 continue
@@ -203,37 +211,23 @@ def private_SM_computation(SM_id, kernel_id, grid_size, num_SMs, mem_trace_dir_p
         gmem_rpi_file = mem_trace_dir_path+"/K"+str(kernel_id)+"_GMEM_SM"+str(SM_id)+".rp"
         lmem_rpi_file = mem_trace_dir_path+"/K"+str(kernel_id)+"_LMEM_SM"+str(SM_id)+".rp"
 
-        interleaved_trace = interleave_trace(smi_trace, SM_max_block_len)
+        # interleaved_trace = []
+        # assert len(smi_trace)==20
+        # concurrent_blocks = 2
+        # for i in range(0, len(smi_trace), concurrent_blocks):
+        #     current_blocks = smi_trace[i:i+concurrent_blocks]
+        #     current_interleave_trace = interleave_trace(current_blocks)
+        #     interleaved_trace += current_interleave_trace
+        interleaved_trace = interleave_trace(smi_trace)
 
-        temp_gmem_ld_reqs, temp_gmem_st_reqs, temp_gmem_ld_trans, temp_gmem_st_trans,\
-        temp_lmem_ld_reqs, temp_lmem_st_reqs, temp_lmem_ld_trans, temp_lmem_st_trans, lmem_used,\
-        temp_atom_reqs, temp_red_reqs, temp_atom_red_trans,\
-        shared_trace = preprocess_private_trace(interleaved_trace, SMi_trans_file, l1_cache_line_size)
+        memory_stats, shared_trace = preprocess_private_trace(interleaved_trace, SMi_trans_file, l1_cache_line_size)
+        SM_stats.update(memory_stats)
+        lmem_used = SM_stats["lmem_used"]
 
-        SM_stats["lmem_used"] = lmem_used
-
-        gmem_num_lines = temp_gmem_ld_trans + temp_gmem_st_trans
-
-        SM_stats["gmem_ld_reqs"] = temp_gmem_ld_reqs
-        SM_stats["gmem_st_reqs"] = temp_gmem_st_reqs
-        
-        SM_stats["gmem_ld_trans"] = temp_gmem_ld_trans
-        SM_stats["gmem_st_trans"] = temp_gmem_st_trans
-
-        lmem_num_lines = temp_lmem_ld_trans + temp_lmem_st_trans
-
-        SM_stats["lmem_ld_reqs"] = temp_lmem_ld_reqs
-        SM_stats["lmem_st_reqs"] = temp_lmem_st_reqs
-
-        SM_stats["lmem_ld_trans"] = temp_lmem_ld_trans
-        SM_stats["lmem_st_trans"] = temp_lmem_st_trans
-
-        SM_stats["atom_reqs"] = temp_atom_reqs
-        SM_stats["red_reqs"] = temp_red_reqs
-        SM_stats["atom_red_trans"] = temp_atom_red_trans
-
+        gmem_num_lines = SM_stats["gmem_ld_trans"] + SM_stats["gmem_st_trans"]
+        lmem_num_lines = SM_stats["lmem_ld_trans"] + SM_stats["lmem_st_trans"]
         umem_num_lines_tot = gmem_num_lines + lmem_num_lines
-        umem_num_lines_lds = temp_gmem_ld_trans + temp_lmem_ld_trans 
+        umem_num_lines_lds = SM_stats["gmem_ld_trans"] + SM_stats["lmem_ld_trans"] 
 
         ## call PARDA executable file to compute the RD & RP
         umem_hit_rate = 0.0
@@ -297,8 +291,8 @@ def get_memory_perf(kernel_id, mem_trace_dir_path, grid_size, num_SMs, l1_cache_
     gmem_ld_trans_list = []
     gmem_st_trans_list = []
     lmem_hit_rates_list = []
-    lmem_num_ld_reqs_list = []
-    lmem_num_st_reqs_list = []
+    lmem_ld_reqs_list = []
+    lmem_st_reqs_list = []
     lmem_ld_trans_list = []
     lmem_st_trans_list = []
     atom_reqs_list = []
@@ -375,8 +369,8 @@ def get_memory_perf(kernel_id, mem_trace_dir_path, grid_size, num_SMs, l1_cache_
             gmem_st_reqs_list.append(SMi_stats["gmem_st_reqs"])
             gmem_ld_trans_list.append(SMi_stats["gmem_ld_trans"])
             gmem_st_trans_list.append(SMi_stats["gmem_st_trans"])
-            lmem_num_ld_reqs_list.append(SMi_stats["lmem_ld_reqs"])
-            lmem_num_st_reqs_list.append(SMi_stats["lmem_ld_reqs"])
+            lmem_ld_reqs_list.append(SMi_stats["lmem_ld_reqs"])
+            lmem_st_reqs_list.append(SMi_stats["lmem_ld_reqs"])
             lmem_ld_trans_list.append(SMi_stats["lmem_ld_trans"])
             lmem_st_trans_list.append(SMi_stats["lmem_ld_trans"])
             atom_reqs_list.append(SMi_stats["atom_reqs"])
@@ -387,13 +381,13 @@ def get_memory_perf(kernel_id, mem_trace_dir_path, grid_size, num_SMs, l1_cache_
             gmem_hit_rates_list.append(SMi_stats["gmem_hit_rate"])
             lmem_hit_rates_list.append(SMi_stats["lmem_hit_rate"])
             shared_trace.append(SMi_stats["shared_trace"])
-            shared_trace_max_block_len = max(shared_trace_max_block_len, len(SMi_stats["shared_trace"]))
+            # shared_trace_max_block_len = max(shared_trace_max_block_len, len(SMi_stats["shared_trace"]))
         
 
     if cache_ref_data:
         memory_stats["hit_rate_l2"] = cache_ref_data['l2_hit_rate']
     else:
-        shared_interleaved_trace = interleave_trace(shared_trace, shared_trace_max_block_len)
+        shared_interleaved_trace = interleave_trace(shared_trace)
         shared_num_lines, shared_trace_file = preprocess_shared_trace(shared_interleaved_trace, kernel_id, mem_trace_dir_path)
 
         ## call reuse_distance_tool to compute the RD & RP
