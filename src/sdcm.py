@@ -22,6 +22,44 @@ def timeit(func):
     return wrapper
 
 @timeit
+def get_cache_line_access_from_raw_trace(trace_file, l1_cache_line_size):
+    def get_line_adresses(addresses, l1_cache_line_size):
+        '''
+        coalescing the addresses of the warp
+        '''
+        line_idx = int(math.log(l1_cache_line_size,2))
+        sector_size = 32
+        sector_idx = int(math.log(sector_size,2))
+        line_mask = ~(2**line_idx - 1)
+        sector_mask = ~(2**sector_idx - 1)
+        
+        cache_line_set = set()
+        sector_set = set()  # count sector number
+        
+        for addr in addresses:
+            # 排除 0 ？
+            if addr:
+                addr = int(addr, base=16)
+                cache_line = addr >> line_idx
+                cache_line_set.add(cache_line)
+                sector = addr >> sector_idx
+                sector_set.add(sector)
+        
+        return list(cache_line_set), list(sector_set)
+
+    cache_line_access = []
+    block_trace = open(trace_file,'r').read().strip().split("\n=====\n")
+    for trace_line in block_trace:
+        trace_line_splited = trace_line.split(' ')
+        inst = trace_line_splited[0]
+        addrs = trace_line_splited[1:]
+        line_addrs, sector_addrs = get_line_adresses(addrs, l1_cache_line_size)
+        
+        for individual_addrs in line_addrs:
+            cache_line_access.append([0, 0, 0, individual_addrs])
+    return cache_line_access
+
+@timeit
 def get_cache_line_access_from_file(file_path):
     cache_line_access = []
     with open(file_path, 'r') as f:
@@ -196,6 +234,8 @@ if __name__ == "__main__":
                         required=True )
     parser.add_argument("-o", "--output-dir", default="draw")
     parser.add_argument("-a", "--approx", action="store_true")
+    parser.add_argument("-r", "--raw-trace", action="store_true")
+    parser.add_argument("-d", "--debug", action="store_true")
     args = parser.parse_args()
 
     SD_list = []
@@ -203,6 +243,9 @@ if __name__ == "__main__":
     csdd_list = []
     labels = args.labels
     draw_cmp = True if len(args.trace_files) > 1 else False
+    cache_size = 32*1024
+    cache_line_size = 32
+    cache_associativity = 64
     
     if len(labels) != len(args.trace_files):
         print("The number of labels must be equal to the number of trace files")
@@ -212,7 +255,7 @@ if __name__ == "__main__":
         os.makedirs(args.output_dir)
     
     debug = {}
-    if os.path.exists('debug.json'):
+    if args.debug and os.path.exists('debug.json'):
         with open('debug.json') as f:
             debug = json.load(f)
             SD_list = debug['SD_list']
@@ -221,7 +264,10 @@ if __name__ == "__main__":
             labels = debug['labels']
     else:
         for trace_file in args.trace_files:
-            cache_line_access = get_cache_line_access_from_file(trace_file)
+            if args.raw_trace:
+                cache_line_access = get_cache_line_access_from_raw_trace(trace_file, cache_line_size)
+            else:
+                cache_line_access = get_cache_line_access_from_file(trace_file)
             SD = get_stack_distance(cache_line_access)
             sdd, csdd = get_csdd(SD)
             sdd_list.append(sdd)
@@ -235,9 +281,6 @@ if __name__ == "__main__":
     with open('debug.json', 'w') as f:
         json.dump(debug, f)
     
-    cache_size = 32*1024
-    cache_line_size = 32
-    cache_associativity = 64
     for i, sdd in enumerate(sdd_list):
         # check sdd
         accum = 0
@@ -248,11 +291,11 @@ if __name__ == "__main__":
         hit_rate = sdcm(sdd, cache_line_size, cache_size, cache_associativity, use_approx=args.approx)
         print(f"label: {labels[i]}, hit rate: {hit_rate}")
     
-    # for i, csdd in enumerate(csdd_list):
-    #     print(labels[i], csdd[-1])
-    #     sdd = sdd_list[i]
-    #     draw_sdd(sdd, os.path.join(args.output_dir, f"{labels[i]}_sdd.png"))
-    #     draw_csdd(csdd,  os.path.join(args.output_dir, f"{labels[i]}_csdd.png"))
+    for i, csdd in enumerate(csdd_list):
+        print(labels[i], csdd[-1])
+        sdd = sdd_list[i]
+        draw_sdd(sdd, os.path.join(args.output_dir, f"{labels[i]}_sdd.png"))
+        draw_csdd(csdd,  os.path.join(args.output_dir, f"{labels[i]}_csdd.png"))
     
-    # if draw_cmp:
-    #     draw_csdd_list(csdd_list, labels, os.path.join(args.output_dir, f"{'-'.join(labels)}_csdd_cmp.png"))
+    if draw_cmp:
+        draw_csdd_list(csdd_list, labels, os.path.join(args.output_dir, f"{'-'.join(labels)}_csdd_cmp.png"))

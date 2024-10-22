@@ -48,6 +48,7 @@ map<int, string> id_to_opcode_map;
 
 
 typedef unordered_map<int, int> int_int_map;
+unordered_map<long long, ofstream*> mem_trace_map;
 
 // int_int_map bb_map;
 int kernel_id = 1;
@@ -90,7 +91,8 @@ void nvbit_at_init() {
     if (mkdir("memory_traces", S_IRWXU | S_IRWXG | S_IROTH | S_IXOTH) == -1){
         if( errno == EEXIST ) {
         // alredy exists
-        system("rm memory_traces/*");
+        // system("rm memory_traces/*");
+        ;
         } else {
         // something else
             cout << "cannot create memory_traces directory error:" << strerror(errno) << std::endl;
@@ -102,7 +104,8 @@ void nvbit_at_init() {
     if (mkdir("sass_traces", S_IRWXU | S_IRWXG | S_IROTH | S_IXOTH) == -1){
         if( errno == EEXIST ) {
         // alredy exists
-        system("rm sass_traces/*");
+        // system("rm sass_traces/*");
+        ;
         } else {
         // something else
             std::cout << "cannot create sass_traces directory error:" << strerror(errno) << std::endl;
@@ -416,6 +419,11 @@ void nvbit_at_cuda_event(CUcontext ctx, int is_exit, nvbit_api_cuda_t cbid,
                 reg_dependency_map.clear();
                 pred_dependency_map.clear();
                 insts_trace_fp.close();
+
+                // close all trace file
+                for (auto it = mem_trace_map.begin(); it != mem_trace_map.end(); ++it){
+                    it->second->close();
+                }
                 
                 pthread_mutex_unlock(&mutex);
             }
@@ -480,31 +488,36 @@ void *recv_thread_fun(void *) {
                 }
 
                 if (ia->is_mem_inst == 1){
-
-                    ofstream mem_trace_fp;
+                    ofstream *mem_trace_fp;
 
                     /* calculate an index for the block the current mem reference belong to */
                     int index = ia->cta_id_z * kernel_gridY * kernel_gridX + kernel_gridX * ia->cta_id_y  + ia->cta_id_x;
 
-                    string file_name = "./memory_traces/kernel_"+ to_string(kernel_id) + "_block_"+to_string(index)+".mem";
-                    mem_trace_fp.open(file_name, ios::app);
+                    long long mem_map_key = (long long)kernel_id<<32 | index;
+                    if(mem_trace_map.count(mem_map_key) == 0){
+                        string file_name = "./memory_traces/kernel_"+ to_string(kernel_id) + "_block_"+to_string(index)+".mem";
+                        mem_trace_fp = new ofstream();
+                        mem_trace_fp->open(file_name, ios::out);
+                        mem_trace_map[mem_map_key] = mem_trace_fp;
+                    }else{
+                        mem_trace_fp = mem_trace_map[mem_map_key];
+                    }
                     
-                    mem_trace_fp << "\n=====\n";
-                    mem_trace_fp << id_to_opcode_map[ia->opcode_id];
-                    mem_trace_fp << " ";
+                    *mem_trace_fp << "\n=====\n";
+                    *mem_trace_fp << id_to_opcode_map[ia->opcode_id];
+                    *mem_trace_fp << " ";
                     for (int m = 0; m < 32; m++) {
                         if(ia->mem_addrs1[m]!=0){
-                            mem_trace_fp<<"0x"<<hex<<ia->mem_addrs1[m]<<" ";
+                            *mem_trace_fp<<"0x"<<hex<<ia->mem_addrs1[m]<<" ";
                         } 
                     }
                     if (ia->mref_id == 2){
                         for (int m = 0; m < 32; m++) {
                             if(ia->mem_addrs2[m]!=0){
-                                mem_trace_fp<<"0x"<<hex<<ia->mem_addrs2[m]<<" ";
-                            } 
+                                *mem_trace_fp<<"0x"<<hex<<ia->mem_addrs2[m]<<" ";
+                            }
                         }
                     }
-                    mem_trace_fp.close();
                 }
                 
                 num_processed_bytes += sizeof(inst_access_t);
