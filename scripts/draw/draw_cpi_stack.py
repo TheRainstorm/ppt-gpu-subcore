@@ -260,11 +260,13 @@ if __name__ == "__main__":
     
     args = parser.parse_args()
     
+    print("Start draw cpi stack py")
+    
     from common import *
     apps = gen_apps_from_suite_list()
     app_and_arg_list = get_app_arg_list(apps)
     app_arg_filtered_list = filter_app_list(app_and_arg_list, args.app_filter)
-    print(f"app_arg_filtered_list: {app_arg_filtered_list}")
+    # print(f"app_arg_filtered_list: {app_arg_filtered_list}")
     
     if not os.path.exists(args.output_dir):
         os.makedirs(args.output_dir)

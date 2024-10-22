@@ -208,7 +208,7 @@ def draw_side2side(stat, save_img, draw_kernel=False, sim_res_func=None, avg=Tru
         _, y2 = get_kernel_stat(sim_res, stat, app_filter=app_filter, func=sim_res_func)
     
     corr = np.corrcoef(y1, y2)[0, 1]
-    MAE = np.mean(np.abs(np.array(y2) - np.array(y1)))
+    MAE = np.mean(np.abs(np.array(y2) - np.array(y1))/np.array(y1))
     t = np.array(y2) - np.array(y1)
     RMSE = np.sqrt(np.mean(t**2))
     NRMSE = RMSE/np.mean(np.abs(y1))
@@ -286,11 +286,13 @@ if __name__ == "__main__":
 
     args = parser.parse_args()
     
+    print("Start draw_1")
+    
     from common import *
     apps = gen_apps_from_suite_list()
     app_and_arg_list = get_app_arg_list(apps)
     app_arg_filtered_list = filter_app_list(app_and_arg_list, args.app_filter)
-    print(f"app_arg_filtered_list: {app_arg_filtered_list}")
+    # print(f"app_arg_filtered_list: {app_arg_filtered_list}")
     
     if not os.path.exists(args.output_dir):
         os.makedirs(args.output_dir)
@@ -310,6 +312,7 @@ if __name__ == "__main__":
     os.chdir(args.output_dir)
     
     if args.command=="app":
+        print(f"\ncommand: {args.command}:")
         overwrite = True
         app_filter = args.app_filter
         args.dir_name = args.dir_name if args.dir_name else args.command
@@ -365,7 +368,7 @@ if __name__ == "__main__":
         os.makedirs(args.dir_name, exist_ok=True)  # save image in seperate dir
         os.chdir(args.dir_name)
         
-        print(f"\n{args.command}:")
+        print(f"\ncommand: {args.command}:")
         # get all bench
         app_list_all = sim_res.keys()
         benchs = set()
@@ -382,6 +385,7 @@ if __name__ == "__main__":
             draw_side2side("my_gpu_active_cycle_max", f"{bench}_bar_4_my_gpu_active_cycle_max.png")
     
     elif args.command == 'kernel':
+        print(f"\ncommand: {args.command}:")
         args.dir_name = args.dir_name if args.dir_name else args.command
         os.makedirs(args.dir_name, exist_ok=True)  # save image in seperate dir
         os.chdir(args.dir_name)
@@ -391,6 +395,7 @@ if __name__ == "__main__":
         draw_error("my_gpu_active_cycle_max", "error_4_my_gpu_active_cycle_max.png", draw_kernel=True)
         draw_side2side("my_gpu_active_cycle_max", f"bar_4_my_gpu_active_cycle_max.png", draw_kernel=True)
     elif args.command == 'kernel_by_app':
+        print(f"\ncommand: {args.command}:")
         args.dir_name = args.dir_name if args.dir_name else args.command
         os.makedirs(args.dir_name, exist_ok=True)  # save image in seperate dir
         os.chdir(args.dir_name)
@@ -406,6 +411,7 @@ if __name__ == "__main__":
             draw_error("warp_inst_executed", f"error_{app_name_safe}_1_warp_inst_executed.png", draw_kernel=True)
             draw_side2side("warp_inst_executed", f"bar_{app_name_safe}_1_my_warp_inst_executed.png", draw_kernel=True)
     elif args.command == 'single':
+        print(f"\ncommand: {args.command}:")
         overwrite = True
         app_list_all = sim_res.keys()
         app_list = filter_app_list(app_list_all, args.app_filter)  # convert coord filter to app_and_arg filter
