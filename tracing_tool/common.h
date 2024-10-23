@@ -3,8 +3,10 @@
 /* information collected in the instrumentation function and passed
  * on the channel from the GPU to the CPU */
 typedef struct {
-    int pred_inst;
-    int pred_active_threads;
+    uint64_t mem_addrs1[32];
+    uint64_t mem_addrs2[32];
+
+    // 14 x 4 Byte
     int pred_num;
     int sm_id;
     int cta_id_x;
@@ -13,14 +15,19 @@ typedef struct {
     int warp_id;
     int opcode_id;
     int pc;
-    int is_mem_inst;
-    int mref_id;
-    uint64_t mem_addrs1[32];
-    uint64_t mem_addrs2[32];
     int dst_oprnd;
-    int dst_oprnd_type;
     int src_oprnds[5];
-    int src_oprnds_type[5];
+
+    // 10 x 1 Byte
+    // 0, 1
+    char pred_inst;
+    char is_mem_inst;
+    char mref_id;  // 1, 2
+
+    char pred_active_threads;  // [0, 32]
+    char dst_oprnd_type;    // [1, 3]
+    char src_oprnds_type[5];
+
 } inst_access_t;
 
 

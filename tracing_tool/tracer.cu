@@ -179,19 +179,20 @@ void instrument_function_if_needed(CUcontext ctx, CUfunction func) {
                 continue;
             }
 
-            if (opcode_to_id_map.find(instr->getOpcode()) == opcode_to_id_map.end()) {
+            string opcode(instr->getOpcode());
+            if (opcode_to_id_map.count(opcode) == 0) {
                 int opcode_id = opcode_to_id_map.size();
-                opcode_to_id_map[instr->getOpcode()] = opcode_id;
-                id_to_opcode_map[opcode_id] = string(instr->getOpcode());
+                opcode_to_id_map[opcode] = opcode_id;
+                id_to_opcode_map[opcode_id] = opcode;
             }
-            int opcode_id = opcode_to_id_map[instr->getOpcode()];
+            int opcode_id = opcode_to_id_map[opcode];
             int is_glob_loc = 0;
             int pred_num = -1;
             int mref_id = 0;
             int dst_oprnd = -1;
             int dst_oprnd_type = -1;
             int src_oprnds[5] = {-1};
-            int src_oprnds_type[5] = {-1};     
+            int src_oprnds_type[5] = {-1};
             /*
             operands types:
                 1 = REG & UREG
@@ -223,9 +224,9 @@ void instrument_function_if_needed(CUcontext ctx, CUfunction func) {
             /* opcode id */
             nvbit_add_call_arg_const_val32(instr, opcode_id);
             /* global or local mem. instruction? */
-            nvbit_add_call_arg_const_val32(instr, is_glob_loc);
+            nvbit_add_call_arg_const_val32(instr, is_glob_loc);   //实际用作：is_mem_inst
             /* memory reference 64 bit address */
-            nvbit_add_call_arg_mref_addr64(instr, mref_id);
+            nvbit_add_call_arg_mref_addr64(instr, mref_id); //addr1
 
             for (int i = 0; i < instr->getNumOperands(); i++) {
                 const InstrType::operand_t *op = instr->getOperand(i);
@@ -277,9 +278,10 @@ void instrument_function_if_needed(CUcontext ctx, CUfunction func) {
             nvbit_add_call_arg_const_val32(instr, mref_id);
             /* handle LDGSTS instruction with 2 memory references */
             if(mref_id == 2){
-                nvbit_add_call_arg_mref_addr64(instr, 1);
+                nvbit_add_call_arg_mref_addr64(instr, 1);   // addr2
             }else{
-                nvbit_add_call_arg_mref_addr64(instr, 0);
+                // nvbit_add_call_arg_mref_addr64(instr, 0);   // 感觉用于占位，使用下面应该也行
+                nvbit_add_call_arg_const_val64(instr, 0);
             }
 
             /* destination operand */
@@ -490,12 +492,12 @@ void *recv_thread_fun(void *) {
                 if (ia->is_mem_inst == 1){
                     ofstream *mem_trace_fp;
 
-                    /* calculate an index for the block the current mem reference belong to */
-                    int index = ia->cta_id_z * kernel_gridY * kernel_gridX + kernel_gridX * ia->cta_id_y  + ia->cta_id_x;
+                    /* calculate an block_id for the block the current mem reference belong to */
+                    int block_id = ia->cta_id_z * kernel_gridY * kernel_gridX + kernel_gridX * ia->cta_id_y  + ia->cta_id_x;
 
-                    long long mem_map_key = (long long)kernel_id<<32 | index;
+                    long long mem_map_key = (long long)kernel_id<<32 | block_id;
                     if(mem_trace_map.count(mem_map_key) == 0){
-                        string file_name = "./memory_traces/kernel_"+ to_string(kernel_id) + "_block_"+to_string(index)+".mem";
+                        string file_name = "./memory_traces/kernel_"+ to_string(kernel_id) + "_block_"+to_string(block_id)+".mem";
                         mem_trace_fp = new ofstream();
                         mem_trace_fp->open(file_name, ios::out);
                         mem_trace_map[mem_map_key] = mem_trace_fp;
