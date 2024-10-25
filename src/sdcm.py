@@ -110,7 +110,7 @@ def get_csdd(SD):
     sd_histogram = sorted(sd_counter.items())
     
     # get sdd
-    sdd = [(sd, count/T) for sd, count in sd_histogram]
+    sdd = [(sd, count, count/T) for sd, count in sd_histogram]
     
     csdd = []
     accum = 0
@@ -158,20 +158,29 @@ def sdcm(sdd, cache_line_size, cache_size, associativity, use_approx=False):
     A = associativity
     
     hit_rate = 0
-    for sd, p_sd in sdd:
+    for sd, _, p_sd in sdd:
         if sd==0:
             p_hit = 1
         elif sd==-1:
             p_hit = 0
         else:
-            if use_approx:
-                p_hit = calculate_p_hit_approx(A, B, sd)
-            else:
-                p_hit = calculate_p_hit(A, B, sd)
+            try:
+                if use_approx:
+                    p_hit = calculate_p_hit_approx(A, B, sd)
+                else:
+                    p_hit = calculate_p_hit(A, B, sd)
+            except:
+                print(f"[ERROR]: A: {A}, B: {B}, sd: {sd}")
+                exit(-1)
         hit_rate += p_hit * p_sd
     return hit_rate
 
-@timeit
+def model(cache_line_access, cache_parameter):
+    SD = get_stack_distance(cache_line_access)
+    sdd, csdd = get_csdd(SD)
+    hit_rate = sdcm(sdd, cache_parameter['cache_line_size'], cache_parameter['capacity'], cache_parameter['associativity'], use_approx=False)
+    print(f"hit rate: {hit_rate}")
+    
 def draw_csdd(csdd, img_path):
     import matplotlib.pyplot as plt
     
@@ -188,7 +197,6 @@ def draw_csdd(csdd, img_path):
     fig.savefig(img_path)
     plt.close(fig)
 
-@timeit
 def draw_csdd_list(csdd_list, labels, img_path):
     fig, ax = plt.subplots()
     
@@ -211,10 +219,9 @@ def draw_csdd_list(csdd_list, labels, img_path):
     fig.savefig(img_path)
     plt.close(fig)
 
-@timeit
 def draw_sdd(sdd, img_path):
-    x = [sd for sd, _ in sdd]
-    y = [count for _, count in sdd]
+    x = [sd for sd, _, _ in sdd]
+    y = [count for _, _, count in sdd]
     
     fig, ax = plt.subplots()
 
@@ -222,7 +229,21 @@ def draw_sdd(sdd, img_path):
     
     # add some text for labels, title and axes ticks
     ax.set_xlabel("Stack Distance")
-    ax.set_ylabel("SDD")
+    ax.set_ylabel("percentage")
+    fig.savefig(img_path)
+    plt.close(fig)
+
+def draw_SD(sdd, img_path):
+    x = [sd for sd, _, _ in sdd]
+    y = [count for _, _, count in sdd]
+    
+    fig, ax = plt.subplots()
+
+    ax.hist(x, weights=y, alpha=0.7, color='blue', edgecolor='black')
+    
+    # add some text for labels, title and axes ticks
+    ax.set_xlabel("Stack Distance")
+    ax.set_ylabel("percentage")
     fig.savefig(img_path)
     plt.close(fig)
     
@@ -271,8 +292,10 @@ if __name__ == "__main__":
                 cache_line_access = get_cache_line_access_from_raw_trace(trace_file, cache_line_size)
             else:
                 cache_line_access = get_cache_line_access_from_file(trace_file)
+            
             SD = get_stack_distance(cache_line_access)
             sdd, csdd = get_csdd(SD)
+            SD_list.append(SD)
             sdd_list.append(sdd)
             csdd_list.append(csdd)
         
@@ -282,21 +305,22 @@ if __name__ == "__main__":
         debug['labels'] = labels
     
     with open('debug.json', 'w') as f:
-        json.dump(debug, f)
+        json.dump(debug, f, indent=4)
     
     for i, sdd in enumerate(sdd_list):
         # check sdd
         accum = 0
-        for sd, prop in sdd:
+        for sd, _, prop in sdd:
             accum += prop
-        print(f"label: {labels[i]}, accum: {accum}")
+        print(f"[INFO]: {labels[i]}: total request: {len(SD_list[i])}, distinct sd: {len(sdd)}")
+        print(f"[INFO]: {labels[i]}: accum: {accum}")
         
         hit_rate = sdcm(sdd, cache_line_size, cache_size, cache_associativity, use_approx=args.approx)
-        print(f"label: {labels[i]}, hit rate: {hit_rate}")
+        print(f"[INFO]: {labels[i]}: hit rate: {hit_rate}")
     
     for i, csdd in enumerate(csdd_list):
-        print(labels[i], csdd[-1])
         sdd = sdd_list[i]
+        draw_SD(sdd, os.path.join(args.output_dir, f"{labels[i]}_SD.png"))
         draw_sdd(sdd, os.path.join(args.output_dir, f"{labels[i]}_sdd.png"))
         draw_csdd(csdd,  os.path.join(args.output_dir, f"{labels[i]}_csdd.png"))
     
