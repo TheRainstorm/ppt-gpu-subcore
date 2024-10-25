@@ -48,15 +48,18 @@ def get_cache_line_access_from_raw_trace(trace_file, l1_cache_line_size):
         return list(cache_line_set), list(sector_set)
 
     cache_line_access = []
-    block_trace = open(trace_file,'r').read().strip().split("\n=====\n")
+    # block_trace = open(trace_file,'r').read().strip().split("\n=====\n")
+    block_trace = open(trace_file,'r').readlines()
     for trace_line in block_trace:
-        trace_line_splited = trace_line.split(' ')
+        trace_line_splited = trace_line.strip().split(' ')
         inst = trace_line_splited[0]
         addrs = trace_line_splited[1:]
         line_addrs, sector_addrs = get_line_adresses(addrs, l1_cache_line_size)
         
         for individual_addrs in line_addrs:
             cache_line_access.append([0, 0, 0, individual_addrs])
+    
+    print(f"[INFO]: {trace_file} req,warp_inst,ratio: {len(cache_line_access)},{len(block_trace)},{len(cache_line_access)/len(block_trace)}")
     return cache_line_access
 
 @timeit

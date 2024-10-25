@@ -19,6 +19,11 @@
 using namespace std;
 
 #define MAX_KERNELS 300
+#define BIT_BLOCK_LEVEL 1
+#define BIT_SM_LEVEL 2
+#define BIT_WARP_ID 4
+
+int ENV_TRACING_LEVEL;
 
 /* channel used to communicate from GPU to CPU receiving thread */
 #define CHANNEL_SIZE (1l << 20)
@@ -48,7 +53,7 @@ map<int, string> id_to_opcode_map;
 
 
 typedef unordered_map<int, int> int_int_map;
-unordered_map<long long, ofstream*> mem_trace_map;
+unordered_map<string, ofstream*> mem_trace_map;
 
 // int_int_map bb_map;
 int kernel_id = 1;
@@ -83,6 +88,12 @@ void nvbit_at_init() {
     GET_VAR_INT(
         instr_end_interval, "INSTR_END", UINT32_MAX,
         "End of the instruction interval where to apply instrumentation");
+    GET_VAR_INT(
+        ENV_TRACING_LEVEL, "ENV_TRACING_LEVEL", BIT_BLOCK_LEVEL,
+        "Tracing level(mem) bitmask: 1 for block level, 2 for SM level, 4 keep warp_id in block level trace");
+    printf(ENV_TRACING_LEVEL&BIT_BLOCK_LEVEL?"Block level tracing is enabled\n":"Block level tracing is disabled\n");
+    printf(ENV_TRACING_LEVEL&BIT_SM_LEVEL?"SM level tracing is enabled\n":"SM level tracing is disabled\n");
+    printf(ENV_TRACING_LEVEL&BIT_WARP_ID?"Warp_id in block level tracing is enabled\n":"Warp_id in block level tracing is disabled\n");
     string pad(100, '-');
     printf("%s\n", pad.c_str());
 
@@ -489,39 +500,69 @@ void *recv_thread_fun(void *) {
                         insts_trace_fp<<"\n";     
                 }
 
-                if (ia->is_mem_inst == 1){
+                /* calculate an block_id for the block the current mem reference belong to */
+                int block_id = ia->cta_id_z * kernel_gridY * kernel_gridX + kernel_gridX * ia->cta_id_y  + ia->cta_id_x;
+                int sm_id = ia->sm_id;
+
+                if (ia->is_mem_inst == 1 && (ENV_TRACING_LEVEL & BIT_BLOCK_LEVEL)){
                     ofstream *mem_trace_fp;
 
-                    /* calculate an block_id for the block the current mem reference belong to */
-                    int block_id = ia->cta_id_z * kernel_gridY * kernel_gridX + kernel_gridX * ia->cta_id_y  + ia->cta_id_x;
-
-                    long long mem_map_key = (long long)kernel_id<<32 | block_id;
-                    if(mem_trace_map.count(mem_map_key) == 0){
-                        string file_name = "./memory_traces/kernel_"+ to_string(kernel_id) + "_block_"+to_string(block_id)+".mem";
+                    string file_name = "./memory_traces/kernel_"+ to_string(kernel_id) + "_block_"+to_string(block_id)+".mem";
+                    if(mem_trace_map.count(file_name) == 0){
                         mem_trace_fp = new ofstream();
                         mem_trace_fp->open(file_name, ios::out);
-                        mem_trace_map[mem_map_key] = mem_trace_fp;
+                        mem_trace_map[file_name] = mem_trace_fp;
                     }else{
-                        mem_trace_fp = mem_trace_map[mem_map_key];
+                        mem_trace_fp = mem_trace_map[file_name];
                     }
                     
-                    *mem_trace_fp << "\n=====\n";
+                    *mem_trace_fp << id_to_opcode_map[ia->opcode_id];
+                    *mem_trace_fp << " ";
+                    if(ENV_TRACING_LEVEL & BIT_WARP_ID){
+                        *mem_trace_fp << ia->warp_id << " ";
+                    }
+                    for (int m = 0; m < 32; m++) {
+                        if(ia->mem_addrs1[m]!=0){
+                            *mem_trace_fp<<hex<<ia->mem_addrs1[m]<<" ";
+                        }
+                    }
+                    if (ia->mref_id == 2){
+                        for (int m = 0; m < 32; m++) {
+                            if(ia->mem_addrs2[m]!=0){
+                                *mem_trace_fp<<hex<<ia->mem_addrs2[m]<<" ";
+                            }
+                        }
+                    }
+                    *mem_trace_fp << endl;
+                }
+                
+                if (ia->is_mem_inst == 1 && (ENV_TRACING_LEVEL & BIT_SM_LEVEL)){
+                    ofstream *mem_trace_fp;
+                    string file_name = "./memory_traces/kernel_"+ to_string(kernel_id) + "_sm_"+to_string(sm_id)+".mem";
+                    if(mem_trace_map.count(file_name) == 0){
+                        mem_trace_fp = new ofstream();
+                        mem_trace_fp->open(file_name, ios::out);
+                        mem_trace_map[file_name] = mem_trace_fp;
+                    }else{
+                        mem_trace_fp = mem_trace_map[file_name];
+                    }
+
                     *mem_trace_fp << id_to_opcode_map[ia->opcode_id];
                     *mem_trace_fp << " ";
                     for (int m = 0; m < 32; m++) {
                         if(ia->mem_addrs1[m]!=0){
-                            *mem_trace_fp<<"0x"<<hex<<ia->mem_addrs1[m]<<" ";
+                            *mem_trace_fp<<hex<<ia->mem_addrs1[m]<<" ";
                         } 
                     }
                     if (ia->mref_id == 2){
                         for (int m = 0; m < 32; m++) {
                             if(ia->mem_addrs2[m]!=0){
-                                *mem_trace_fp<<"0x"<<hex<<ia->mem_addrs2[m]<<" ";
+                                *mem_trace_fp<<hex<<ia->mem_addrs2[m]<<" ";
                             }
                         }
                     }
+                    *mem_trace_fp << endl;
                 }
-                
                 num_processed_bytes += sizeof(inst_access_t);
             }  
         } 
