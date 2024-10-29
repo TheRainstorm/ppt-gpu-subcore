@@ -85,7 +85,7 @@ def preprocess_private_trace(interleaved_trace, SMi_trans_file, l1_cache_line_si
     mem_id = 2  ## Global=0 - Local=1
 
     for items in interleaved_trace:
-        addrs = items.split(" ")
+        addrs = items.strip().split(" ")
         access_type = addrs[0]
         addrs.pop(0)
         line_addrs, sector_addrs = get_line_adresses(addrs, l1_cache_line_size)
@@ -198,7 +198,8 @@ def private_SM_computation(SM_id, kernel_id, grid_size, num_SMs, mem_trace_dir_p
             try:
                 count_blocks += 1
                 trace_file = mem_trace_dir_path+"/kernel_"+str(kernel_id)+"_block_"+str(block_id)+".mem"
-                block_trace = open(trace_file,'r').read().strip().split("\n=====\n")
+                # block_trace = open(trace_file,'r').read().strip().split("\n=====\n")
+                block_trace = open(trace_file,'r').readlines()
                 smi_trace.append(block_trace)
             except:
                 # print("\n[Warning]\n"+trace_file+" not found\n")
@@ -404,6 +405,7 @@ def get_memory_perf(kernel_id, mem_trace_dir_path, grid_size, num_SMs, l1_cache_
         os.system(cmd)
 
     ## ---- unified (l1/tex/local) memory ---- ##
+    memory_stats["umem_hit_rate_list"] = umem_hit_rates_list
     memory_stats["umem_hit_rate"] = sum(umem_hit_rates_list) / len(umem_hit_rates_list)
     memory_stats["gmem_hit_rate_lds"] = sum(gmem_hit_rates_lds_list) / len(gmem_hit_rates_lds_list)
 
