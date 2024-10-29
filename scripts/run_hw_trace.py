@@ -97,12 +97,18 @@ for app in apps:
             saved_dir = os.getcwd()
             os.chdir(run_dir)
 
-            if subprocess.call(["bash", args.run_script]) != 0:
-                logging(f"Error invoking nvbit in {app_and_arg}")
-                print(f"Error invoking nvbit in {app_and_arg}")
+            try:
+                result = subprocess.run(["bash", args.run_script], timeout=3*60*60)
+                if result.returncode != 0:
+                    logging(f"Error invoking nvbit in {app_and_arg}")
+                    print(f"Error invoking nvbit in {app_and_arg}")
+                    failed_list.append(app_and_arg)
+                else:
+                    logging(f"{now_timestamp()}: {app_and_arg} finished")
+            except subprocess.TimeoutExpired:
+                logging(f"Timeout in {app_and_arg}")
+                print(f"Timeout in {app_and_arg}")
                 failed_list.append(app_and_arg)
-            else:
-                logging(f"{now_timestamp()}: {app_and_arg} finished")
             os.chdir(saved_dir)
 logging(f"{now_timestamp()}: END")
 logging(f"Failed list: {failed_list}")
