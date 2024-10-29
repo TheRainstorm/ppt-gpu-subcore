@@ -20,12 +20,12 @@ def parse_app_definition_yaml(def_yml):
     benchmark_yaml = yaml.load(open(def_yml), Loader=yaml.FullLoader)
     for suite in benchmark_yaml:
         apps[suite] = []
-        data_dirs = benchmark_yaml[suite].get('data_dirs', "")
         for exec in benchmark_yaml[suite]['execs']:
             exe_name = list(exec.keys())[0]  # dict has only one key (exe name) and one value (list of args dict)
             args_list = list(exec.values())[0]
             count = 0
             
+            data_dirs = benchmark_yaml[suite].get('data_dirs', "")
             if 'data_subdir' in exec:
                 data_dirs = os.path.join(data_dirs, exec['data_subdir'])
             else:
