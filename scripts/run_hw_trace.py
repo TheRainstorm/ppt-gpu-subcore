@@ -77,7 +77,7 @@ for app in apps:
         curr_data_dir = os.path.join(run_dir, "data")
         if os.path.lexists(curr_data_dir):
             os.remove(curr_data_dir)
-        os.symlink(os.path.join(data_dir, exe_name, 'data'), curr_data_dir)
+        os.symlink(data_dir, curr_data_dir)
         
         sh_contents = ""
         if args.kernel_number > 0:

@@ -20,25 +20,32 @@ def parse_app_definition_yaml(def_yml):
     benchmark_yaml = yaml.load(open(def_yml), Loader=yaml.FullLoader)
     for suite in benchmark_yaml:
         apps[suite] = []
-        for exe in benchmark_yaml[suite]['execs']:
-            exe_name = list(exe.keys())[0]  # dict has only one key (exe name) and one value (list of args dict)
-            args_list = list(exe.values())[0]
+        data_dirs = benchmark_yaml[suite].get('data_dirs', "")
+        for exec in benchmark_yaml[suite]['execs']:
+            exe_name = list(exec.keys())[0]  # dict has only one key (exe name) and one value (list of args dict)
+            args_list = list(exec.values())[0]
             count = 0
+            
+            if 'data_subdir' in exec:
+                data_dirs = os.path.join(data_dirs, exec['data_subdir'])
+            else:
+                data_dirs = os.path.join(data_dirs, exe_name)
+            
             for runparms in args_list:
                 args = runparms["args"] if runparms["args"] else ""
                 if "accel-sim-mem" not in runparms:
                     runparms["accel-sim-mem"] = "4G"
                 apps[suite + ":" + exe_name + ":" + str(count) ] = []
                 apps[suite + ":" + exe_name + ":" + str(count) ].append( ( benchmark_yaml[suite]['exec_dir'],
-                                    benchmark_yaml[suite]['data_dirs'],
+                                    data_dirs,
                                     exe_name, [runparms]) )
                 count += 1
             apps[suite].append(( benchmark_yaml[suite]['exec_dir'],
-                                 benchmark_yaml[suite]['data_dirs'],
+                                 data_dirs,
                                  exe_name, args_list ))
             apps[suite + ":" + exe_name] = []
             apps[suite + ":" + exe_name].append( ( benchmark_yaml[suite]['exec_dir'],
-                                 benchmark_yaml[suite]['data_dirs'],
+                                 data_dirs,
                                  exe_name, args_list ) )
     return apps
 

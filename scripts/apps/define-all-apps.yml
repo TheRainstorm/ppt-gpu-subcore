@@ -599,20 +599,26 @@ deepbench:
 
 Tango:
   exec_dir: "$GPGPU_WORKLOADS_ROOT/bin/$CUDA_VERSION/release/"
-  data_dirs: "$GPGPU_WORKLOADS_ROOT/data_dirs/"
+  data_dirs: "$GPGPU_WORKLOADS_ROOT/data_dirs/Tango"
   execs:
     - AN:
       - args: 1
+      data_subdir: AlexNet
     - CN:
       - args: 1
+      data_subdir: CifarNet
     - GRU:
       - args: 
+      data_subdir: GRU
     - LSTM:
       - args: 1
+      data_subdir: LSTM
     - RN:
       - args: 1
+      data_subdir: ResNet
     - SN:
       - args: 1
+      data_subdir: SqueezeNet
 
 parboil:
   exec_dir: "$GPUAPPS_ROOT/bin/$CUDA_VERSION/release/"
