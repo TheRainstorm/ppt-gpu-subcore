@@ -280,6 +280,9 @@ if __name__ == "__main__":
                         type=int,
                         default=300,
                         help="PPT-GPU only trace max 300 kernel, the hw trace we also truncate first 300 kernel. So GIMT also should truncate")
+    parser.add_argument("-B", "--benchmark_list",
+                        help="a comma seperated list of benchmark suites to run. See apps/define-*.yml for the benchmark suite names.",
+                        default="")
     parser.add_argument("-F", "--app-filter", default="", help="filter apps. e.g. regex:.*-rodinia-2.0-ft, [suite]:[exec]:[count]")
     parser.add_argument('-d', '--dir-name', default='', help='dir name to save image, default "app" and "kernel"')
     parser.add_argument("command", choices=["app", "kernel", "kernel_by_app", "app_by_bench", "single"], help="draw app or kernel. app: to get overview error of cycle, memory performance and etc. at granurality of apps. kernel: draw all error bar in granurality of kernel. single: draw seperate app in single dir, it's useful when we want to get single app info mation")
@@ -289,7 +292,7 @@ if __name__ == "__main__":
     print("Start draw_1")
     
     from common import *
-    apps = gen_apps_from_suite_list()
+    apps = gen_apps_from_suite_list(args.benchmark_list)
     app_and_arg_list = get_app_arg_list(apps)
     app_arg_filtered_list = filter_app_list(app_and_arg_list, args.app_filter)
     # print(f"app_arg_filtered_list: {app_arg_filtered_list}")

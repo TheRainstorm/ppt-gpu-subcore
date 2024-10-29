@@ -242,6 +242,9 @@ if __name__ == "__main__":
                         help="hw result, used to caculate error")
     parser.add_argument("-o", "--output_dir",
                         default="tmp/draw_cpi_stack/")
+    parser.add_argument("-B", "--benchmark_list",
+                        help="a comma seperated list of benchmark suites to run. See apps/define-*.yml for the benchmark suite names.",
+                        default="")
     parser.add_argument("-F", "--app-filter", default="", help="filter apps. e.g. regex:.*-rodinia-2.0-ft, [suite]:[exec]:[count]")
     parser.add_argument("-c", "--limit_kernel_num",
                         type=int,
@@ -263,7 +266,7 @@ if __name__ == "__main__":
     print("Start draw cpi stack py")
     
     from common import *
-    apps = gen_apps_from_suite_list()
+    apps = gen_apps_from_suite_list(args.benchmark_list)
     app_and_arg_list = get_app_arg_list(apps)
     app_arg_filtered_list = filter_app_list(app_and_arg_list, args.app_filter)
     # print(f"app_arg_filtered_list: {app_arg_filtered_list}")

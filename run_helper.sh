@@ -2,7 +2,7 @@
 
 run_trace(){
 # trace
-python ${ppt_gpu_dir}/scripts/run_hw_trace.py -B ${benchmarks} -F ${filter_app} -T ${trace_dir} -D ${GPU} --trace_tool ${ppt_gpu_dir}/tracing_tool/tracer.so
+python ${ppt_gpu_dir}/scripts/run_hw_trace.py -B ${benchmarks} -F ${filter_app} -T ${trace_dir} -D ${GPU} --trace_tool ${ppt_gpu_dir}/tracing_tool/tracer.so -l run_hw_trace_gpu${GPU}.log
 }
 
 run_hw(){
@@ -11,7 +11,7 @@ run_hw(){
 # python ${ppt_gpu_dir}/scripts/get_stat_hw.py -B ${benchmarks} -F ${filter_app} -T ${trace_dir} -o ${res_hw_nvprof_json}
 # cp ${res_hw_nvprof_json} ${res_hw_json}
 
-python ${ppt_gpu_dir}/scripts/run_hw_profling.py -B ${benchmarks} -F ${filter_app} -T ${trace_dir} -D ${GPU} --select ncu --loop_cnt 3
+python ${ppt_gpu_dir}/scripts/run_hw_profling.py -B ${benchmarks} -F ${filter_app} -T ${trace_dir} -D ${GPU} -l run_hw_profiling_gpu${GPU}.log --select ncu --loop_cnt 3
 python ${ppt_gpu_dir}/scripts/get_stat_hw.py -B ${benchmarks} -F ${filter_app} -T ${trace_dir} --select ncu -o ${res_hw_ncu_json} --loop 3
 python ${ppt_gpu_dir}/scripts/convert_hw_metrics.py -i ${res_hw_ncu_json} -o ${res_hw_json}
 }
@@ -44,17 +44,17 @@ draw(){
 # python ${ppt_gpu_dir}/scripts/draw/draw_1.py -F ${filter_app} -S ${res_sim_json} -H ${res_hw_json} -o ${draw_output} app
 # python ${ppt_gpu_dir}/scripts/draw/draw_1.py -F "rodinia-2.0-ft|rodinia-3.1" -S ${res_sim_json} -H ${res_hw_json} -o ${draw_output} -d app_rodinia23 app
 # python ${ppt_gpu_dir}/scripts/draw/draw_1.py -F "GPU_Microbenchmark" -S ${res_sim_json} -H ${res_hw_json} -o ${draw_output} -d app_GPU_Microbenchmark app
-python ${ppt_gpu_dir}/scripts/draw/draw_1.py -F ${filter_app} -S ${res_sim_json} -H ${res_hw_json} -o ${draw_output} -d app_${filter_app} app
+python ${ppt_gpu_dir}/scripts/draw/draw_1.py -F ${filter_app} -B ${benchmarks} -S ${res_sim_json} -H ${res_hw_json} -o ${draw_output} -d app_${filter_app} app
 # python ${ppt_gpu_dir}/scripts/draw/draw_1.py -S ${res_sim_json} -H ${res_hw_json} -o ${draw_output} app_by_bench
-python ${ppt_gpu_dir}/scripts/draw/draw_1.py -F ${filter_app} -S ${res_sim_json} -H ${res_hw_json} -o ${draw_output} app_by_bench
-python ${ppt_gpu_dir}/scripts/draw/draw_1.py -S ${res_sim_json} -H ${res_hw_json} -o ${draw_output} kernel_by_app
-python ${ppt_gpu_dir}/scripts/draw/draw_1.py -F ${filter_app} -S ${res_sim_json} -H ${res_hw_json} -o ${draw_output} -d kernel_${filter_app} kernel
+python ${ppt_gpu_dir}/scripts/draw/draw_1.py -F ${filter_app} -B ${benchmarks} -S ${res_sim_json} -H ${res_hw_json} -o ${draw_output} app_by_bench
+python ${ppt_gpu_dir}/scripts/draw/draw_1.py -S ${res_sim_json} -B ${benchmarks} -H ${res_hw_json} -o ${draw_output} kernel_by_app
+python ${ppt_gpu_dir}/scripts/draw/draw_1.py -F ${filter_app} -B ${benchmarks} -S ${res_sim_json} -H ${res_hw_json} -o ${draw_output} -d kernel_${filter_app} kernel
 # python ${ppt_gpu_dir}/scripts/draw/draw_1.py -F rodinia-2.0-ft -S ${res_sim_json} -H ${res_hw_json} -o ${draw_output} -d kernel_rodinia2 kernel
 
 ##  python ${ppt_gpu_dir}/scripts/draw/draw_cpi_stack.py -S ${res_sim_cpi_json} -o ${draw_output} --subdir cpi_warp
 ##  python ${ppt_gpu_dir}/scripts/draw/draw_cpi_stack.py -S ${res_sim_cpi_json} -R ${res_hw_cpi_json} -o ${draw_output} --s2s --draw-subcore
 # python ${ppt_gpu_dir}/scripts/draw/draw_cpi_stack.py -S ${res_sim_cpi_json} -R ${res_hw_cpi_json} -o ${draw_output} --s2s
-python ${ppt_gpu_dir}/scripts/draw/draw_cpi_stack.py -F ${filter_app} -S ${res_sim_cpi_json} -R ${res_hw_cpi_json} -o ${draw_output} --s2s
+# python ${ppt_gpu_dir}/scripts/draw/draw_cpi_stack.py -F ${filter_app} -S ${res_sim_cpi_json} -R ${res_hw_cpi_json} -o ${draw_output} --s2s
 
 cp ${res_hw_json} ${draw_output}
 cp ${res_hw_ncu_json} ${draw_output}
