@@ -1,12 +1,20 @@
 my_home=/staff/fyyuan/
 ppt_gpu_dir=$my_home/repo/PPT-GPU
 cuda_version=11.0
-GPU=1
-benchmarks="rodinia-2.0-ft|rodinia-3.1-base|rodinia-3.1-extra|polybench|GPU_Microbenchmark"
+GPU=0
+# benchmarks="rodinia-2.0-ft|rodinia-3.1-base|rodinia-3.1-extra|polybench|GPU_Microbenchmark"
+benchmarks="rodinia-3.1-PPT-GPU|polybench-PPT-GPU|GPU_Microbenchmark|deepbench|Tango"
+# benchmarks="rodinia-3.1-full|polybench-full|GPU_Microbenchmark"
 # benchmarks=GPU_Microbenchmark
 filter_app="rodinia-3.1-base|rodinia-3.1-extra"
 filter_app="polybench"
-filter_app="GPU_Microbenchmark"
+filter_app="rodinia-3.1-PPT-GPU"
+# filter_app="polybench-PPT-GPU"
+# filter_app=rodinia-3.1-full
+# filter_app=polybench-full
+# filter_app=GPU_Microbenchmark
+filter_app="deepbench"
+filter_app="Tango"
 
 model=ppt-gpu
 gpu=titanv
@@ -15,11 +23,13 @@ run_name=dev
 export CUDA_VERSION=$cuda_version
 export GPUAPPS_ROOT=$my_home/repo/accel-sim-framework/gpu-app-collection
 export UBENCH_ROOT=$my_home/repo/GPU_Microbenchmark
+export GPGPU_WORKLOADS_ROOT=$my_home/repo/GPGPUs-Workloads
 export apps_yaml=${ppt_gpu_dir}/scripts/apps/define-all-apps.yml
 
 # trace_dir=$my_home/repo/accel-sim-framework/hw_run/traces/${model}-${gpu}/${cuda_version}
-trace_dir=/extra/hw_trace/${model}-${gpu}/${cuda_version}
+# trace_dir=/extra/hw_trace/${model}-${gpu}/${cuda_version}
 # trace_dir=$my_home/hw_trace/${model}-${gpu}/${cuda_version}
+trace_dir=$my_home/hw_trace2/${model}-${gpu}/${cuda_version}
 
 # run hw
 res_hw_json=${ppt_gpu_dir}/tmp/res_hw_${gpu}.json
@@ -47,6 +57,8 @@ single_app="rodinia-3.1:b+tree-rodinia-3.1|rodinia-3.1:hotspot-rodinia-3.1:0"
 # single_app=rodinia-3.1:hotspot-rodinia-3.1:0
 single_app=rodinia-3.1:gaussian-rodinia-3.1:0
 single_app=rodinia-3.1:particlefilter_naive-rodinia-3.1
+single_app=GPU_Microbenchmark:l2_bw_32f:0
+single_app=GPU_Microbenchmark:l1_bw_32f:0
 
 # keep model report and draw output in the same dir
 single_report_dir=${report_dir}

@@ -96,6 +96,7 @@ rodinia-2.0-ft:
 
 # PPT-GPU tested
 rodinia-3.1-base:
+  suite: rodinia-3.1-accelsim
   exec_dir: "$GPUAPPS_ROOT/bin/$CUDA_VERSION/release/"
   data_dirs: "$GPUAPPS_ROOT/data_dirs/cuda/rodinia/3.1/"
   execs:
@@ -145,6 +146,7 @@ rodinia-3.1-base:
           accel-sim-mem: 4G
 
 rodinia-3.1-extra:
+  suite: rodinia-3.1-accelsim
   exec_dir: "$GPUAPPS_ROOT/bin/$CUDA_VERSION/release/"
   data_dirs: "$GPUAPPS_ROOT/data_dirs/cuda/rodinia/3.1/"
   execs:
@@ -218,37 +220,198 @@ rodinia-3.1-extra:
     # - mummergpu-rodinia-3.1:
     #     - args: ./data/NC_003997.fna ./data/NC_003997_q100bp.fna > NC_00399.out
 
-polybench:
-  exec_dir: "$GPUAPPS_ROOT/bin/$CUDA_VERSION/release/"
-  data_dirs: "$GPUAPPS_ROOT/data_dirs/"
+# don't test reason
+# (1): too slow
+# (2): Prohibitively large trace
+# (3): error when tracing
+# (4): outdated: 
+#   - Uses legacy texture cache instructions, it is unclear if it still makes sense to support
+rodinia-3.1-full:
+  suite: rodinia-3.1
+  exec_dir: "$GPGPU_WORKLOADS_ROOT/bin/$CUDA_VERSION/release/"
+  data_dirs: "$GPGPU_WORKLOADS_ROOT/data_dirs/rodinia-3.1/"
   execs:
-    - polybench-2DConvolution:
-        - args:   # 1
+    - b+tree-rodinia-3.1:
+        - args: file ./data/mil.txt command ./data/command.txt # 2
           accel-sim-mem: 1G
-    - polybench-3DConvolution:
-        - args: # 254
+    - backprop-rodinia-3.1:
+        - args: 65536 # 2
           accel-sim-mem: 1G
-    - polybench-3mm:
-        - args: # 3
+    - bfs-rodinia-3.1:
+        - args: ./data/graph4096.txt # 16
+          accel-sim-mem: 1G
+        - args: ./data/graph65536.txt # 20
+          accel-sim-mem: 1G
+        - args: ./data/graph1MW_6.txt # 24
+          accel-sim-mem: 1G
+    - cfd-rodinia-3.1: # (2)
+        - args: ./data/fvcorr.domn.097K
+          accel-sim-mem: 1G
+        # - args: ./data/fvcorr.domn.193K
+        #   accel-sim-mem: 1G
+        # - args: ./data/missile.domn.0.2M
+        #   accel-sim-mem: 4G
+    - dwt2d-rodinia-3.1:
+        - args: ./data/192.bmp -d 192x192 -f -5 -l 3 # 10
+          accel-sim-mem: 1G
+        - args: ./data/rgb.bmp -d 1024x1024 -f -5 -l 3 # 10
+          accel-sim-mem: 1G
+    - gaussian-rodinia-3.1:
+        - args: -f ./data/matrix4.txt # 6
+          accel-sim-mem: 1G
+        - args: -s 16 # 30
+          accel-sim-mem: 1G
+        - args: -f ./data/matrix208.txt #300
+          accel-sim-mem: 1G
+        - args: -s 64 # 126
+          accel-sim-mem: 1G
+        - args: -s 256 #300
+          accel-sim-mem: 1G
+    - heartwall-rodinia-3.1:
+        - args: ./data/test.avi 1 # 1
+        # - args: ./data/test.avi 20
+    - hotspot-rodinia-3.1:
+        - args: 512 2 2 ./data/temp_512 ./data/power_512 output.out # 1
+          accel-sim-mem: 1G
+        - args: 1024 2 2 ./data/temp_1024 ./data/power_1024 output.out # 1
+          accel-sim-mem: 1G
+    # - hotspot3D-rodinia-3.1: # (2)
+    #     - args:  512 8 100 ./data/power_512x8 ./data/temp_512x8 output.out
+    #       accel-sim-mem: 4G
+    # - huffman-rodinia-3.1: # (2)
+    #     - args: ./data/huffman/test1024_H2.206587175259.in
+    # - hybridsort-rodinia-3.1: # (3)
+    #     - args: r
+    #       accel-sim-mem: 5G
+    #     - args: ./data/500000.txt
+    #       accel-sim-mem: 1G
+    # - kmeans-rodinia-3.1: # (4, 3)
+    #     - args:  -o -i ./data/100
+    #       accel-sim-mem: 2G
+    #     # - args:  -o -i ./data/28k_4x_features.txt
+    #     #   accel-sim-mem: 1G
+    #     - args:  -o -i ./data/kdd_cup
+    #       accel-sim-mem: 2G
+    #     # - args:  -o -i ./data/819200.txt
+    #     #   accel-sim-mem: 2G
+    - lavaMD-rodinia-3.1:
+        - args: -boxes1d 10 # 1
+          accel-sim-mem: 32G
+    # - leukocyte-rodinia-3.1: # (2)
+    #     - args: ./data/testfile.avi 5
+    - lud-rodinia-3.1:
+        - args: -s 256 -v # 46
+          accel-sim-mem: 1G
+        - args: -i ./data/512.dat # 94
+          accel-sim-mem: 1G
+    # - mummergpu-rodinia-3.1: # (run segmentfault)
+    #     - args: ./data/NC_003997.fna ./data/NC_003997_q100bp.fna > NC_00399.out
+    - myocyte-rodinia-3.1: # (3)
+        - args:  100 1 0
           accel-sim-mem: 4G
+    - nn-rodinia-3.1:
+        - args: ./data/filelist_4 -r 5 -lat 30 -lng 90 # 1
+          accel-sim-mem: 4G
+    - nw-rodinia-3.1:
+        - args: 2048 10 # 255
+          accel-sim-mem: 1G
+    # - particlefilter_float-rodinia-3.1: (1)
+    #     - args:  -x 128 -y 128 -z 10 -np 1000
+    #       accel-sim-mem: 1G
+    # - particlefilter_naive-rodinia-3.1:
+    #     - args: -x 128 -y 128 -z 10 -np 1000 # 9
+    #       accel-sim-mem: 1G
+    - pathfinder-rodinia-3.1:
+        - args: 100000 100 20 > result.txt # 5
+          accel-sim-mem: 1G
+    - srad_v1-rodinia-3.1:
+        - args: 100 0.5 502 458 # 400
+          accel-sim-mem: 1G
+    # - srad_v2-rodinia-3.1: #(2)
+    #     - args:  2048 2048 0 127 0 127 0.5 2
+    - streamcluster-rodinia-3.1:
+        - args: 3 6 16 65536 65536 1000 none output.txt 1 output.txt # 224
+        # - args: 10 20 256 65536 65536 1000 none output.txt 1 # 1611 kernel
+
+rodinia-3.1-PPT-GPU:
+  suite: rodinia-3.1
+  exec_dir: "$GPGPU_WORKLOADS_ROOT/bin/$CUDA_VERSION/release/"
+  data_dirs: "$GPGPU_WORKLOADS_ROOT/data_dirs/rodinia-3.1/"
+  execs:
+    - backprop-rodinia-3.1:
+        - args: 65536 # 2
+          accel-sim-mem: 1G
+    - bfs-rodinia-3.1:
+        - args: ./data/graph4096.txt # 16
+          accel-sim-mem: 1G
+        - args: ./data/graph65536.txt # 20
+          accel-sim-mem: 1G
+        - args: ./data/graph1MW_6.txt # 24
+          accel-sim-mem: 1G
+    - cfd-rodinia-3.1:
+        - args: ./data/fvcorr.domn.097K
+          accel-sim-mem: 1G
+    #     - args: ./data/fvcorr.domn.193K
+    #       accel-sim-mem: 1G
+    #     - args: ./data/missile.domn.0.2M
+    #       accel-sim-mem: 4G
+    - dwt2d-rodinia-3.1:
+        - args: ./data/192.bmp -d 192x192 -f -5 -l 3 # 10
+          accel-sim-mem: 1G
+        - args: ./data/rgb.bmp -d 1024x1024 -f -5 -l 3 # 10
+          accel-sim-mem: 1G
+    - heartwall-rodinia-3.1:
+        - args: ./data/test.avi 1 # 1
+        # - args: ./data/test.avi 20
+    - hotspot-rodinia-3.1:
+        - args: 512 2 2 ./data/temp_512 ./data/power_512 output.out # 1
+          accel-sim-mem: 1G
+        - args: 1024 2 2 ./data/temp_1024 ./data/power_1024 output.out # 1
+          accel-sim-mem: 1G
+    - lud-rodinia-3.1:
+        - args: -s 256 -v # 46
+          accel-sim-mem: 1G
+        - args: -i ./data/512.dat # 94
+          accel-sim-mem: 1G
+    - nn-rodinia-3.1:
+        - args: ./data/filelist_4 -r 5 -lat 30 -lng 90 # 1
+          accel-sim-mem: 4G
+
+polybench-full:
+  suite: polybench
+  exec_dir: "$GPGPU_WORKLOADS_ROOT/bin/$CUDA_VERSION/release/"
+  data_dirs: "$GPGPU_WORKLOADS_ROOT/data_dirs/"
+  execs:
+    # linear algebra
+    - polybench-2mm: # (1)
+        - args: # 2
+          accel-sim-mem: 13G
+    # - polybench-3mm:
+    #     - args:
+    #       accel-sim-mem: 13G
     - polybench-atax:
         - args: # 2
           accel-sim-mem: 2G
     - polybench-bicg:
         - args: # 2
           accel-sim-mem: 2G
-    # - polybench-fdtd2d:
-    #     - args: # >300
-    #       accel-sim-mem: 1G
+    - polybench-doitgen:
+        - args:
+          accel-sim-mem: 2G
     - polybench-gemm:
         - args: # 1
           accel-sim-mem: 4G
+    - polybench-gemver:
+        - args:
     - polybench-gesummv:
         - args: # 1
           accel-sim-mem: 2G
-    # - polybench-gramschmidt:
-    #     - args: # >300
-    #       accel-sim-mem: 3G
+    - polybench-gramschmidt:
+        - args: # >300
+          accel-sim-mem: 3G
+    - polybench-lu:
+        - args:
+          accel-sim-mem: 2G
     - polybench-mvt:
         - args: # 2
           accel-sim-mem: 2G
@@ -258,16 +421,69 @@ polybench:
     # - polybench-syr2k:
     #     - args: # 1, 179.7G
     #       accel-sim-mem: 25G
-    # - polybench-correlation:
-    #     - args: # 4
-    #       accel-sim-mem: 160G
-    # - polybench-covariance:
-    #     - args: # 3
-    #       accel-sim-mem: 160G
-    # # me: PPT-GPU trace stuck
-    # - polybench-2mm:
-    #     - args: # 2
-    #       accel-sim-mem: 13G
+    
+    # stencil
+    - polybench-adi:
+        - args:
+          accel-sim-mem: 2G
+    - polybench-convolution2D:
+        - args:   # 1
+          accel-sim-mem: 1G
+    - polybench-convolution3D:
+        - args: # 254
+          accel-sim-mem: 1G
+    - polybench-fdtd2D:
+        - args:
+    - polybench-jacobi1D:
+        - args:
+    - polybench-jacobi2D:
+        - args:
+    
+    # datamining
+    - polybench-correlation: # (2)
+        - args: # 4
+          accel-sim-mem: 160G
+    - polybench-covariance: # (2)
+        - args: # 3
+          accel-sim-mem: 160G
+
+polybench-PPT-GPU:
+  suite: polybench
+  exec_dir: "$GPGPU_WORKLOADS_ROOT/bin/$CUDA_VERSION/release/"
+  data_dirs: "$GPGPU_WORKLOADS_ROOT/data_dirs/"
+  execs:
+    # linear algebra
+    - polybench-2mm: # (1)
+        - args: # 2
+          accel-sim-mem: 13G
+    - polybench-atax:
+        - args: # 2
+          accel-sim-mem: 2G
+    - polybench-bicg:
+        - args: # 2
+          accel-sim-mem: 2G
+    - polybench-doitgen:
+        - args:
+          accel-sim-mem: 2G
+    - polybench-gemm:
+        - args: # 1
+          accel-sim-mem: 4G
+    - polybench-gesummv:
+        - args: # 1
+          accel-sim-mem: 2G
+    - polybench-lu:
+        - args:
+          accel-sim-mem: 2G
+    - polybench-mvt:
+        - args: # 2
+          accel-sim-mem: 2G
+    # stencil
+    - polybench-adi:
+        - args:
+          accel-sim-mem: 2G
+    - polybench-convolution2D:
+        - args:   # 1
+          accel-sim-mem: 1G
 
 sdk-4.2-scaled:
   exec_dir: "$GPUAPPS_ROOT/bin/$CUDA_VERSION/release/"
@@ -311,8 +527,8 @@ sdk-4.2-scaled:
           accel-sim-mem: 1G
 
 GPU_Microbenchmark:
-  exec_dir: "$GPUAPPS_ROOT/bin/$CUDA_VERSION/release/"
-  data_dirs: "$GPUAPPS_ROOT/data_dirs/"
+  exec_dir: "$GPGPU_WORKLOADS_ROOT/bin/$CUDA_VERSION/release/"
+  data_dirs: "$GPGPU_WORKLOADS_ROOT/data_dirs/"
   execs:
     # all 1 kernel
     - l1_bw_32f:
@@ -364,6 +580,39 @@ GPU_Microbenchmark:
     - l1_bw_32f_unroll_large:
         - args:
           accel-sim-mem: 1G
+
+deepbench:
+  exec_dir: "$GPGPU_WORKLOADS_ROOT/bin/$CUDA_VERSION/release/"
+  data_dirs: "$GPGPU_WORKLOADS_ROOT/data_dirs/"
+  execs:
+    - gemm_bench-tensor:
+        - args: inference half 35 1500 2560 0 0
+    - conv_bench-tensor:
+        - args: train half 7 7 512 8 512 1 1 0 0 1 1
+        # - args: inference half 700 161 1 1 32 20 5 0 0 2 2
+        # - args: inference half 700 161 1 2 32 20 5 0 0 2 2
+        - args: inference half 480 48 1 1 16 3 3 1 1 1 1
+    - gemm_bench:
+        - args: inference half 35 1500 2560 0 0
+    - conv_bench:
+        - args: inference half 480 48 1 1 16 3 3 1 1 1 1
+
+Tango:
+  exec_dir: "$GPGPU_WORKLOADS_ROOT/bin/$CUDA_VERSION/release/"
+  data_dirs: "$GPGPU_WORKLOADS_ROOT/data_dirs/"
+  execs:
+    - AN:
+      - args: 1
+    - CN:
+      - args: 1
+    - GRU:
+      - args: 
+    - LSTM:
+      - args: 1
+    - RN:
+      - args: 1
+    - SN:
+      - args: 1
 
 parboil:
   exec_dir: "$GPUAPPS_ROOT/bin/$CUDA_VERSION/release/"

@@ -82,7 +82,9 @@ def get_suite_info(def_yml):
             for runparms in args_list:
                 args = runparms["args"]
                 app_and_arg = os.path.join( exe_name, get_argfoldername( args ) )
-                info['map'][app_and_arg] = ( suite, exe_name, str(count) )
+                
+                true_suite = benchmark_yaml[suite].get('suite', suite)
+                info['map'][app_and_arg] = ( true_suite, exe_name, str(count) )
                 count += 1
     return info
 
@@ -101,7 +103,7 @@ def filter_app_list_coord(app_arg_list, coord_str):
             return (parts[0], parts[1], parts[2])
     def contain_in(c1, c2):
         for i in range(len(c1)):
-            if c2[i] and c1[i] != c2[i]:
+            if c2[i] and c1[i] not in c2[i]:
                 return False
         return True
     
