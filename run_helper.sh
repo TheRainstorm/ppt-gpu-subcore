@@ -31,6 +31,7 @@ python ${ppt_gpu_dir}/scripts/run_simulation.py -M "mpiexec -n 2" -F ${filter_ap
 
 # get stat
 python ${ppt_gpu_dir}/scripts/get_stat_sim.py -B ${benchmarks} -F ${filter_app} -T ${report_dir} -o ${res_sim_json}
+python ${ppt_gpu_dir}/scripts/get_stat_sim.py -B ${benchmarks} -F ${filter_app} -T ${report_dir} --not-full -o ${res_sim_lite_json}
 
 # convert to cpi stack
 python ${ppt_gpu_dir}/scripts/draw/convert_cpi_stack.py -i ${res_sim_json} -I "ppt_gpu" -o ${res_sim_cpi_json}
@@ -39,22 +40,17 @@ python ${ppt_gpu_dir}/scripts/draw/convert_cpi_stack.py -i ${res_sim_json} -I "p
 
 draw(){
 # draw
-# rm -rf ${draw_output} 
-## python ${ppt_gpu_dir}/scripts/draw/draw_1.py -F ${filter_app} -S ${res_sim_json} -H ${res_hw_nvprof_json} -o ${draw_output} -d app_nvprof app
-# python ${ppt_gpu_dir}/scripts/draw/draw_1.py -F ${filter_app} -S ${res_sim_json} -H ${res_hw_json} -o ${draw_output} app
-# python ${ppt_gpu_dir}/scripts/draw/draw_1.py -F "rodinia-2.0-ft|rodinia-3.1" -S ${res_sim_json} -H ${res_hw_json} -o ${draw_output} -d app_rodinia23 app
-# python ${ppt_gpu_dir}/scripts/draw/draw_1.py -F "GPU_Microbenchmark" -S ${res_sim_json} -H ${res_hw_json} -o ${draw_output} -d app_GPU_Microbenchmark app
+# rm -rf ${draw_output}
 python ${ppt_gpu_dir}/scripts/draw/draw_1.py -F ${filter_app} -B ${benchmarks} -S ${res_sim_json} -H ${res_hw_json} -o ${draw_output} -d app_${filter_app} app
-# python ${ppt_gpu_dir}/scripts/draw/draw_1.py -S ${res_sim_json} -H ${res_hw_json} -o ${draw_output} app_by_bench
 python ${ppt_gpu_dir}/scripts/draw/draw_1.py -F ${filter_app} -B ${benchmarks} -S ${res_sim_json} -H ${res_hw_json} -o ${draw_output} app_by_bench
-python ${ppt_gpu_dir}/scripts/draw/draw_1.py -S ${res_sim_json} -B ${benchmarks} -H ${res_hw_json} -o ${draw_output} kernel_by_app
-python ${ppt_gpu_dir}/scripts/draw/draw_1.py -F ${filter_app} -B ${benchmarks} -S ${res_sim_json} -H ${res_hw_json} -o ${draw_output} -d kernel_${filter_app} kernel
-# python ${ppt_gpu_dir}/scripts/draw/draw_1.py -F rodinia-2.0-ft -S ${res_sim_json} -H ${res_hw_json} -o ${draw_output} -d kernel_rodinia2 kernel
+# python ${ppt_gpu_dir}/scripts/draw/draw_1.py -F ${filter_app} -B ${benchmarks} -S ${res_sim_json} -H ${res_hw_json} -o ${draw_output} kernel_by_app
+# python ${ppt_gpu_dir}/scripts/draw/draw_1.py -F ${filter_app} -B ${benchmarks} -S ${res_sim_json} -H ${res_hw_json} -o ${draw_output} -d kernel_${filter_app} kernel
 
-##  python ${ppt_gpu_dir}/scripts/draw/draw_cpi_stack.py -S ${res_sim_cpi_json} -o ${draw_output} --subdir cpi_warp
-##  python ${ppt_gpu_dir}/scripts/draw/draw_cpi_stack.py -S ${res_sim_cpi_json} -R ${res_hw_cpi_json} -o ${draw_output} --s2s --draw-subcore
-# python ${ppt_gpu_dir}/scripts/draw/draw_cpi_stack.py -S ${res_sim_cpi_json} -R ${res_hw_cpi_json} -o ${draw_output} --s2s
-# python ${ppt_gpu_dir}/scripts/draw/draw_cpi_stack.py -F ${filter_app} -S ${res_sim_cpi_json} -R ${res_hw_cpi_json} -o ${draw_output} --s2s
+python ${ppt_gpu_dir}/scripts/draw/draw_cpi_stack.py -F ${filter_app} -S ${res_sim_cpi_json} -R ${res_hw_cpi_json} -o ${draw_output} --s2s
+# draw only sim cpi, no hw cpi
+# python ${ppt_gpu_dir}/scripts/draw/draw_cpi_stack.py -S ${res_sim_cpi_json} -o ${draw_output} --subdir cpi_warp
+# draw subcore cpi in one figure
+# python ${ppt_gpu_dir}/scripts/draw/draw_cpi_stack.py -F ${filter_app} -S ${res_sim_cpi_json} -R ${res_hw_cpi_json} -o ${draw_output} --s2s --draw-subcore
 
 cp ${res_hw_json} ${draw_output}
 cp ${res_hw_ncu_json} ${draw_output}

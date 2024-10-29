@@ -22,6 +22,9 @@ parser.add_argument("-F", "--app-filter", default="", help="filter apps. e.g. re
 parser.add_argument("-T", "--trace_dir",
                     required=True,
                     help="The root of all the trace file")
+parser.add_argument("--not-full", dest="full",
+                 action="store_false",
+                 help="get full sim result")
 parser.add_argument("-o", "--output",
                  default="sim_res.json")
 args = parser.parse_args()
@@ -110,46 +113,51 @@ def parse_kernel_log(file_path):
         kernel_res[k] = float(v)
     return kernel_res
 
-def parse_kernel_json(file_path):
+def parse_kernel_json(file_path, full=True):
     with open(file_path, 'r') as f:
         data_json = json.load(f)
     
+    if full:
+        data_json_new = data_json
+    else:
+        data_json_new = {}
+    
     # rename
-    # data_json["achieved_occupancy"] = data_json["placeholder"]
-    data_json['warp_inst_executed'] = data_json['tot_warps_instructions_executed']
-    # data_json["gpu_active_cycle_min"] = data_json["placeholder"]
-    # data_json["gpu_active_cycle_max"] = data_json["placeholder"]
-    data_json["sm_active_cycles_sum"] = data_json["sm_act_cycles.sum"]
-    data_json["sm_elapsed_cycles_sum"] = data_json["sm_elp_cycles.sum"]
-    data_json["my_gpu_active_cycle_max"] = data_json["my_gpu_act_cycles_max"]
+    # data_json_new["achieved_occupancy"] = data_json["placeholder"]
+    data_json_new['warp_inst_executed'] = data_json['tot_warps_instructions_executed']
+    # data_json_new["gpu_active_cycle_min"] = data_json["placeholder"]
+    # data_json_new["gpu_active_cycle_max"] = data_json["placeholder"]
+    data_json_new["sm_active_cycles_sum"] = data_json["sm_act_cycles.sum"]
+    data_json_new["sm_elapsed_cycles_sum"] = data_json["sm_elp_cycles.sum"]
+    data_json_new["my_gpu_active_cycle_max"] = data_json["my_gpu_act_cycles_max"]
     
     ## select other result
     # result = data_json["result"]
     kernel_detail = data_json["kernel_detail"]
     # kernel_lat = kernel_detail['kernel_lat']
-    # data_json["my_gpu_active_cycle_max"] = result['ours_smsp_max'] + kernel_lat
-    # data_json["my_gpu_active_cycle_max"] = result['ours_smsp_avg'] + kernel_lat
-    # data_json["my_gpu_active_cycle_max"] = result['ours_smsp_avg_tail'] + kernel_lat
-    # data_json["my_gpu_active_cycle_max"] = result['ours_smsp_avg_LI'] + kernel_lat
-    # data_json["my_gpu_active_cycle_max"] = result['ours_smsp_avg_tail_LI'] + kernel_lat
-    # data_json["my_gpu_active_cycle_max"] = result['ours_smsp_avg_scale2'] + kernel_lat
-    # data_json["my_gpu_active_cycle_max"] = result['ours_smsp_avg_tail_scale2'] + kernel_lat
-    # data_json["my_gpu_active_cycle_max"] = result['ours_smsp_avg_tail_scale2_LI'] + kernel_lat
+    # data_json_new["my_gpu_active_cycle_max"] = result['ours_smsp_max'] + kernel_lat
+    # data_json_new["my_gpu_active_cycle_max"] = result['ours_smsp_avg'] + kernel_lat
+    # data_json_new["my_gpu_active_cycle_max"] = result['ours_smsp_avg_tail'] + kernel_lat
+    # data_json_new["my_gpu_active_cycle_max"] = result['ours_smsp_avg_LI'] + kernel_lat
+    # data_json_new["my_gpu_active_cycle_max"] = result['ours_smsp_avg_tail_LI'] + kernel_lat
+    # data_json_new["my_gpu_active_cycle_max"] = result['ours_smsp_avg_scale2'] + kernel_lat
+    # data_json_new["my_gpu_active_cycle_max"] = result['ours_smsp_avg_tail_scale2'] + kernel_lat
+    # data_json_new["my_gpu_active_cycle_max"] = result['ours_smsp_avg_tail_scale2_LI'] + kernel_lat
     
-    data_json["my_sm_active_cycles_sum"] = data_json["my_sm_act_cycles.sum"]
-    data_json["my_sm_elapsed_cycles_sum"] = data_json["my_sm_elp_cycles.sum"]
-    data_json["ipc"] = data_json["my_tot_ipc"]
-    data_json["l1_hit_rate"] = data_json["memory_stats"]["umem_hit_rate"]*100
-    data_json["l2_hit_rate"] = data_json["memory_stats"]["hit_rate_l2"]*100
-    data_json["gmem_read_requests"] = data_json["memory_stats"]["gmem_ld_reqs"]
-    data_json["gmem_write_requests"] = data_json["memory_stats"]["gmem_st_reqs"]
-    data_json["gmem_read_trans"] = data_json["memory_stats"]["gmem_ld_trans"]
-    data_json["gmem_write_trans"] = data_json["memory_stats"]["gmem_st_trans"]
-    data_json["l2_read_trans"] = data_json["memory_stats"]["l2_ld_trans_gmem"]
-    data_json["l2_write_trans"] = data_json["memory_stats"]["l2_st_trans_gmem"]
-    data_json["dram_total_trans"] = data_json["memory_stats"]["dram_tot_trans_gmem"]
+    data_json_new["my_sm_active_cycles_sum"] = data_json["my_sm_act_cycles.sum"]
+    data_json_new["my_sm_elapsed_cycles_sum"] = data_json["my_sm_elp_cycles.sum"]
+    data_json_new["ipc"] = data_json["my_tot_ipc"]
+    data_json_new["l1_hit_rate"] = data_json["memory_stats"]["umem_hit_rate"]*100
+    data_json_new["l2_hit_rate"] = data_json["memory_stats"]["hit_rate_l2"]*100
+    data_json_new["gmem_read_requests"] = data_json["memory_stats"]["gmem_ld_reqs"]
+    data_json_new["gmem_write_requests"] = data_json["memory_stats"]["gmem_st_reqs"]
+    data_json_new["gmem_read_trans"] = data_json["memory_stats"]["gmem_ld_trans"]
+    data_json_new["gmem_write_trans"] = data_json["memory_stats"]["gmem_st_trans"]
+    data_json_new["l2_read_trans"] = data_json["memory_stats"]["l2_ld_trans_gmem"]
+    data_json_new["l2_write_trans"] = data_json["memory_stats"]["l2_st_trans_gmem"]
+    data_json_new["dram_total_trans"] = data_json["memory_stats"]["dram_tot_trans_gmem"]
     
-    return data_json
+    return data_json_new
 
 print("Start get sim result")
 collect_data = {}
@@ -187,7 +195,7 @@ for app_and_arg in app_and_arg_list:
     app_res = [ {} for i in range(len(file_list)) ]
     try:
         for kernel_id, file_path in file_list:
-            app_res[kernel_id-1] = parse_kernel_json(file_path)
+            app_res[kernel_id-1] = parse_kernel_json(file_path, args.full)
     except Exception as e:
         print(f"Error in {app_and_arg}")
         print(f"{kernel_id}/{len(file_list)} {file_path}")
