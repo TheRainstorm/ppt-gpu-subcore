@@ -5,8 +5,6 @@ NVBIT does not require application source code, any pre-compiled GPU application
 
 ## Usage
 
-* Please see our docker [wiki](https://github.com/NMSU-PEARL/PPT-GPU/wiki/Docker-Images-and-Usage) page for how to build the tracing tool and extract the traces using docker.
-
 *  Setup the **MAX_KERNELS** variable in ***tracer.cu*** to define the limit on the number of kernels you want to instrument in the application 
 
 * For stanalone building and running of the tracing_tool (no docker), please see below: 
@@ -33,3 +31,7 @@ export ENV_TRACING_LEVEL=1  # Block level tracing (default) --> memory_traces/ke
 export ENV_TRACING_LEVEL=2  # SM level tracing   --> memory_traces/kernel_1_sm_0.mem 
 export ENV_TRACING_LEVEL=5  # block level + warp id recorded
 ```
+
+### Different nvbit version
+
+The NVBit tool updates alongside CUDA versions, and different CUDA environments may require different NVBit versions. Currently, the trace tool is implemented based on NVBit version 1.5.5, with potential for additional NVBit versions to be supported in the future.

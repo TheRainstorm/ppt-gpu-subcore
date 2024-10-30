@@ -28,7 +28,6 @@
 #pragma once
 
 #include <inttypes.h>
-#include <unordered_map>
 
 namespace InstrType {
 
@@ -36,7 +35,7 @@ namespace InstrType {
 constexpr const int RZ = 255;
 /* the always true predicate is indicated as "7" on all the archs */
 constexpr const int PT = 7;
-/* the entire predicate register is ecoded as "8" */
+/* the entire predicate register is encoded as "8" */
 constexpr const int PR = 8;
 constexpr const int URZ = 63;
 constexpr const int UPT = 7;  // uniform predicate true
@@ -54,10 +53,12 @@ enum class MemorySpace {
     SHARED,            // shared memory operation
     CONSTANT,          // constant memory operation
     GLOBAL_TO_SHARED,  // read from global memory then write to shared memory
+    SURFACE,   // surface memory operation
+    TEXTURE,   // texture memory operation
 };
 constexpr const char* MemorySpaceStr[] = {
     "NONE", "LOCAL", "GENERIC", "GLOBAL", "SHARED", "CONSTANT",
-    "GLOBAL_TO_SHARED",
+    "GLOBAL_TO_SHARED", "SURFACE", "TEXTURE",
 };
 
 enum class OperandType {
@@ -77,6 +78,7 @@ constexpr const char* OperandTypeStr[] = {
     "UPRED",      "CBANK",      "MREF", "GENERIC"};
 
 enum class RegModifierType {
+    NO_MOD = 0,
     /* stride modifiers */
     X1,
     X4,
@@ -85,16 +87,15 @@ enum class RegModifierType {
     /* size modifiers */
     U32,
     U64,
-    NO_MOD
 };
 constexpr const char* RegModifierTypeStr[] = {
-    "X1", "X4", "X8", "X16", "U32", /* no U */ "64", "NO_MOD"};
+    "NO_MOD", "X1", "X4", "X8", "X16", "U32", /* no U */ "64"};
 
 typedef struct {
     /* operand type */
     OperandType type;
     /* operand string */
-    std::string str;
+    char str[MAX_CHARS];
     /* is negative */
     bool is_neg;
     /* is not */
@@ -137,6 +138,7 @@ typedef struct {
             RegModifierType ra_mod;
             bool has_ur;
             int ur_num;
+            RegModifierType ur_mod;
             bool has_imm;
             int imm;
         } mref;

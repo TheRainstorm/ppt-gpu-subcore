@@ -41,7 +41,7 @@
 #include "cuda.h"
 #include "generated_cuda_meta.h"
 
-#define NVBIT_VERSION "1.5.1"
+#define NVBIT_VERSION "1.5.5"
 
 /* Instruction class returned by the NVBit inspection API nvbit_get_instrs */
 class Instr {
@@ -188,6 +188,9 @@ uint64_t nvbit_get_func_addr(CUfunction func);
 
 /* Returns true if function is a kernel (i.e. __global__ ) */
 bool nvbit_is_func_kernel(CUcontext ctx, CUfunction func);
+
+/* Returns a vector with the sizes (in bytes) of each function argument. */
+std::vector<int> nvbit_get_kernel_argument_sizes(CUfunction func);
 
 /* Allows to get shmem base address from CUcontext
  * shmem range is [shmem_base_addr, shmem_base_addr+16MB) and

@@ -99,10 +99,28 @@ typedef struct cuDeviceGetUuid_params_st {
     CUdevice dev;
 } cuDeviceGetUuid_params;
 
+typedef struct cuDeviceGetUuid_v2_params_st {
+    CUuuid *uuid;
+    CUdevice dev;
+} cuDeviceGetUuid_v2_params;
+
+typedef struct cuDeviceGetLuid_params_st {
+    char *luid;
+    unsigned int *deviceNodeMask;
+    CUdevice dev;
+} cuDeviceGetLuid_params;
+
 typedef struct cuDeviceTotalMem_v2_params_st {
     size_t *bytes;
     CUdevice dev;
 } cuDeviceTotalMem_v2_params;
+
+typedef struct cuDeviceGetTexture1DLinearMaxWidth_params_st {
+    size_t *maxWidthInElements;
+    CUarray_format format;
+    unsigned numChannels;
+    CUdevice dev;
+} cuDeviceGetTexture1DLinearMaxWidth_params;
 
 typedef struct cuDeviceGetAttribute_params_st {
     int *pi;
@@ -115,6 +133,26 @@ typedef struct cuDeviceGetNvSciSyncAttributes_params_st {
     CUdevice dev;
     int flags;
 } cuDeviceGetNvSciSyncAttributes_params;
+
+typedef struct cuDeviceSetMemPool_params_st {
+    CUdevice dev;
+    CUmemoryPool pool;
+} cuDeviceSetMemPool_params;
+
+typedef struct cuDeviceGetMemPool_params_st {
+    CUmemoryPool *pool;
+    CUdevice dev;
+} cuDeviceGetMemPool_params;
+
+typedef struct cuDeviceGetDefaultMemPool_params_st {
+    CUmemoryPool *pool_out;
+    CUdevice dev;
+} cuDeviceGetDefaultMemPool_params;
+
+typedef struct cuFlushGPUDirectRDMAWrites_params_st {
+    CUflushGPUDirectRDMAWritesTarget target;
+    CUflushGPUDirectRDMAWritesScope scope;
+} cuFlushGPUDirectRDMAWrites_params;
 
 typedef struct cuDeviceGetProperties_params_st {
     CUdevprop *prop;
@@ -151,11 +189,25 @@ typedef struct cuDevicePrimaryCtxReset_v2_params_st {
     CUdevice dev;
 } cuDevicePrimaryCtxReset_v2_params;
 
+typedef struct cuDeviceGetExecAffinitySupport_params_st {
+    int *pi;
+    CUexecAffinityType type;
+    CUdevice dev;
+} cuDeviceGetExecAffinitySupport_params;
+
 typedef struct cuCtxCreate_v2_params_st {
     CUcontext *pctx;
     unsigned int flags;
     CUdevice dev;
 } cuCtxCreate_v2_params;
+
+typedef struct cuCtxCreate_v3_params_st {
+    CUcontext *pctx;
+    CUexecAffinityParam *paramsArray;
+    int numParams;
+    unsigned int flags;
+    CUdevice dev;
+} cuCtxCreate_v3_params;
 
 typedef struct cuCtxDestroy_v2_params_st {
     CUcontext ctx;
@@ -220,6 +272,11 @@ typedef struct cuCtxGetStreamPriorityRange_params_st {
     int *leastPriority;
     int *greatestPriority;
 } cuCtxGetStreamPriorityRange_params;
+
+typedef struct cuCtxGetExecAffinity_params_st {
+    CUexecAffinityParam *pExecAffinity;
+    CUexecAffinityType type;
+} cuCtxGetExecAffinity_params;
 
 typedef struct cuCtxAttach_params_st {
     CUcontext *pctx;
@@ -677,6 +734,22 @@ typedef struct cuArrayGetDescriptor_v2_params_st {
     CUarray hArray;
 } cuArrayGetDescriptor_v2_params;
 
+typedef struct cuArrayGetSparseProperties_params_st {
+    CUDA_ARRAY_SPARSE_PROPERTIES *sparseProperties;
+    CUarray array;
+} cuArrayGetSparseProperties_params;
+
+typedef struct cuMipmappedArrayGetSparseProperties_params_st {
+    CUDA_ARRAY_SPARSE_PROPERTIES *sparseProperties;
+    CUmipmappedArray mipmap;
+} cuMipmappedArrayGetSparseProperties_params;
+
+typedef struct cuArrayGetPlane_params_st {
+    CUarray *pPlaneArray;
+    CUarray hArray;
+    unsigned int planeIdx;
+} cuArrayGetPlane_params;
+
 typedef struct cuArrayDestroy_params_st {
     CUarray hArray;
 } cuArrayDestroy_params;
@@ -739,6 +812,12 @@ typedef struct cuMemMap_params_st {
     unsigned long long flags;
 } cuMemMap_params;
 
+typedef struct cuMemMapArrayAsync_ptsz_params_st {
+    CUarrayMapInfo *mapInfoList;
+    unsigned int count;
+    CUstream hStream;
+} cuMemMapArrayAsync_ptsz_params;
+
 typedef struct cuMemUnmap_params_st {
     CUdeviceptr ptr;
     size_t size;
@@ -785,6 +864,87 @@ typedef struct cuMemRetainAllocationHandle_params_st {
     CUmemGenericAllocationHandle *handle;
     void *addr;
 } cuMemRetainAllocationHandle_params;
+
+typedef struct cuMemFreeAsync_ptsz_params_st {
+    CUdeviceptr dptr;
+    CUstream hStream;
+} cuMemFreeAsync_ptsz_params;
+
+typedef struct cuMemAllocAsync_ptsz_params_st {
+    CUdeviceptr *dptr;
+    size_t bytesize;
+    CUstream hStream;
+} cuMemAllocAsync_ptsz_params;
+
+typedef struct cuMemPoolTrimTo_params_st {
+    CUmemoryPool pool;
+    size_t minBytesToKeep;
+} cuMemPoolTrimTo_params;
+
+typedef struct cuMemPoolSetAttribute_params_st {
+    CUmemoryPool pool;
+    CUmemPool_attribute attr;
+    void *value;
+} cuMemPoolSetAttribute_params;
+
+typedef struct cuMemPoolGetAttribute_params_st {
+    CUmemoryPool pool;
+    CUmemPool_attribute attr;
+    void *value;
+} cuMemPoolGetAttribute_params;
+
+typedef struct cuMemPoolSetAccess_params_st {
+    CUmemoryPool pool;
+    const CUmemAccessDesc *map;
+    size_t count;
+} cuMemPoolSetAccess_params;
+
+typedef struct cuMemPoolGetAccess_params_st {
+    CUmemAccess_flags *flags;
+    CUmemoryPool memPool;
+    CUmemLocation *location;
+} cuMemPoolGetAccess_params;
+
+typedef struct cuMemPoolCreate_params_st {
+    CUmemoryPool *pool;
+    const CUmemPoolProps *poolProps;
+} cuMemPoolCreate_params;
+
+typedef struct cuMemPoolDestroy_params_st {
+    CUmemoryPool pool;
+} cuMemPoolDestroy_params;
+
+typedef struct cuMemAllocFromPoolAsync_ptsz_params_st {
+    CUdeviceptr *dptr;
+    size_t bytesize;
+    CUmemoryPool pool;
+    CUstream hStream;
+} cuMemAllocFromPoolAsync_ptsz_params;
+
+typedef struct cuMemPoolExportToShareableHandle_params_st {
+    void *handle_out;
+    CUmemoryPool pool;
+    CUmemAllocationHandleType handleType;
+    unsigned long long flags;
+} cuMemPoolExportToShareableHandle_params;
+
+typedef struct cuMemPoolImportFromShareableHandle_params_st {
+    CUmemoryPool *pool_out;
+    void *handle;
+    CUmemAllocationHandleType handleType;
+    unsigned long long flags;
+} cuMemPoolImportFromShareableHandle_params;
+
+typedef struct cuMemPoolExportPointer_params_st {
+    CUmemPoolPtrExportData *shareData_out;
+    CUdeviceptr ptr;
+} cuMemPoolExportPointer_params;
+
+typedef struct cuMemPoolImportPointer_params_st {
+    CUdeviceptr *ptr_out;
+    CUmemoryPool pool;
+    CUmemPoolPtrExportData *shareData;
+} cuMemPoolImportPointer_params;
 
 typedef struct cuPointerGetAttribute_params_st {
     void *data;
@@ -896,9 +1056,25 @@ typedef struct cuStreamIsCapturing_ptsz_params_st {
 
 typedef struct cuStreamGetCaptureInfo_ptsz_params_st {
     CUstream hStream;
-    CUstreamCaptureStatus *captureStatus;
-    cuuint64_t *id;
+    CUstreamCaptureStatus *captureStatus_out;
+    cuuint64_t *id_out;
 } cuStreamGetCaptureInfo_ptsz_params;
+
+typedef struct cuStreamGetCaptureInfo_v2_ptsz_params_st {
+    CUstream hStream;
+    CUstreamCaptureStatus *captureStatus_out;
+    cuuint64_t *id_out;
+    CUgraph *graph_out;
+    const CUgraphNode **dependencies_out;
+    size_t *numDependencies_out;
+} cuStreamGetCaptureInfo_v2_ptsz_params;
+
+typedef struct cuStreamUpdateCaptureDependencies_ptsz_params_st {
+    CUstream hStream;
+    CUgraphNode *dependencies;
+    size_t numDependencies;
+    unsigned int flags;
+} cuStreamUpdateCaptureDependencies_ptsz_params;
 
 typedef struct cuStreamAttachMemAsync_ptsz_params_st {
     CUstream hStream;
@@ -945,6 +1121,12 @@ typedef struct cuEventRecord_ptsz_params_st {
     CUevent hEvent;
     CUstream hStream;
 } cuEventRecord_ptsz_params;
+
+typedef struct cuEventRecordWithFlags_ptsz_params_st {
+    CUevent hEvent;
+    CUstream hStream;
+    unsigned int flags;
+} cuEventRecordWithFlags_ptsz_params;
 
 typedef struct cuEventQuery_params_st {
     CUevent hEvent;
@@ -1064,6 +1246,11 @@ typedef struct cuFuncSetSharedMemConfig_params_st {
     CUfunction hfunc;
     CUsharedconfig config;
 } cuFuncSetSharedMemConfig_params;
+
+typedef struct cuFuncGetModule_params_st {
+    CUmodule *hmod;
+    CUfunction hfunc;
+} cuFuncGetModule_params;
 
 typedef struct cuLaunchKernel_ptsz_params_st {
     CUfunction f;
@@ -1262,6 +1449,120 @@ typedef struct cuGraphAddEmptyNode_params_st {
     size_t numDependencies;
 } cuGraphAddEmptyNode_params;
 
+typedef struct cuGraphAddEventRecordNode_params_st {
+    CUgraphNode *phGraphNode;
+    CUgraph hGraph;
+    const CUgraphNode *dependencies;
+    size_t numDependencies;
+    CUevent event;
+} cuGraphAddEventRecordNode_params;
+
+typedef struct cuGraphEventRecordNodeGetEvent_params_st {
+    CUgraphNode hNode;
+    CUevent *event_out;
+} cuGraphEventRecordNodeGetEvent_params;
+
+typedef struct cuGraphEventRecordNodeSetEvent_params_st {
+    CUgraphNode hNode;
+    CUevent event;
+} cuGraphEventRecordNodeSetEvent_params;
+
+typedef struct cuGraphAddEventWaitNode_params_st {
+    CUgraphNode *phGraphNode;
+    CUgraph hGraph;
+    const CUgraphNode *dependencies;
+    size_t numDependencies;
+    CUevent event;
+} cuGraphAddEventWaitNode_params;
+
+typedef struct cuGraphEventWaitNodeGetEvent_params_st {
+    CUgraphNode hNode;
+    CUevent *event_out;
+} cuGraphEventWaitNodeGetEvent_params;
+
+typedef struct cuGraphEventWaitNodeSetEvent_params_st {
+    CUgraphNode hNode;
+    CUevent event;
+} cuGraphEventWaitNodeSetEvent_params;
+
+typedef struct cuGraphAddExternalSemaphoresSignalNode_params_st {
+    CUgraphNode *phGraphNode;
+    CUgraph hGraph;
+    const CUgraphNode *dependencies;
+    size_t numDependencies;
+    const CUDA_EXT_SEM_SIGNAL_NODE_PARAMS *nodeParams;
+} cuGraphAddExternalSemaphoresSignalNode_params;
+
+typedef struct cuGraphExternalSemaphoresSignalNodeGetParams_params_st {
+    CUgraphNode hNode;
+    CUDA_EXT_SEM_SIGNAL_NODE_PARAMS *params_out;
+} cuGraphExternalSemaphoresSignalNodeGetParams_params;
+
+typedef struct cuGraphExternalSemaphoresSignalNodeSetParams_params_st {
+    CUgraphNode hNode;
+    const CUDA_EXT_SEM_SIGNAL_NODE_PARAMS *nodeParams;
+} cuGraphExternalSemaphoresSignalNodeSetParams_params;
+
+typedef struct cuGraphAddExternalSemaphoresWaitNode_params_st {
+    CUgraphNode *phGraphNode;
+    CUgraph hGraph;
+    const CUgraphNode *dependencies;
+    size_t numDependencies;
+    const CUDA_EXT_SEM_WAIT_NODE_PARAMS *nodeParams;
+} cuGraphAddExternalSemaphoresWaitNode_params;
+
+typedef struct cuGraphExternalSemaphoresWaitNodeGetParams_params_st {
+    CUgraphNode hNode;
+    CUDA_EXT_SEM_WAIT_NODE_PARAMS *params_out;
+} cuGraphExternalSemaphoresWaitNodeGetParams_params;
+
+typedef struct cuGraphExternalSemaphoresWaitNodeSetParams_params_st {
+    CUgraphNode hNode;
+    const CUDA_EXT_SEM_WAIT_NODE_PARAMS *nodeParams;
+} cuGraphExternalSemaphoresWaitNodeSetParams_params;
+
+typedef struct cuGraphAddMemAllocNode_params_st {
+    CUgraphNode *phGraphNode;
+    CUgraph hGraph;
+    const CUgraphNode *dependencies;
+    size_t numDependencies;
+    CUDA_MEM_ALLOC_NODE_PARAMS *nodeParams;
+} cuGraphAddMemAllocNode_params;
+
+typedef struct cuGraphMemAllocNodeGetParams_params_st {
+    CUgraphNode hNode;
+    CUDA_MEM_ALLOC_NODE_PARAMS *params_out;
+} cuGraphMemAllocNodeGetParams_params;
+
+typedef struct cuGraphAddMemFreeNode_params_st {
+    CUgraphNode *phGraphNode;
+    CUgraph hGraph;
+    const CUgraphNode *dependencies;
+    size_t numDependencies;
+    CUdeviceptr dptr;
+} cuGraphAddMemFreeNode_params;
+
+typedef struct cuGraphMemFreeNodeGetParams_params_st {
+    CUgraphNode hNode;
+    CUdeviceptr *dptr_out;
+} cuGraphMemFreeNodeGetParams_params;
+
+typedef struct cuDeviceGraphMemTrim_params_st {
+    CUdevice device;
+} cuDeviceGraphMemTrim_params;
+
+typedef struct cuDeviceGetGraphMemAttribute_params_st {
+    CUdevice device;
+    CUgraphMem_attribute attr;
+    void *value;
+} cuDeviceGetGraphMemAttribute_params;
+
+typedef struct cuDeviceSetGraphMemAttribute_params_st {
+    CUdevice device;
+    CUgraphMem_attribute attr;
+    void *value;
+} cuDeviceSetGraphMemAttribute_params;
+
 typedef struct cuGraphClone_params_st {
     CUgraph *phGraphClone;
     CUgraph originalGraph;
@@ -1335,6 +1636,12 @@ typedef struct cuGraphInstantiate_v2_params_st {
     size_t bufferSize;
 } cuGraphInstantiate_v2_params;
 
+typedef struct cuGraphInstantiateWithFlags_params_st {
+    CUgraphExec *phGraphExec;
+    CUgraph hGraph;
+    unsigned long long flags;
+} cuGraphInstantiateWithFlags_params;
+
 typedef struct cuGraphExecKernelNodeSetParams_params_st {
     CUgraphExec hGraphExec;
     CUgraphNode hNode;
@@ -1360,6 +1667,41 @@ typedef struct cuGraphExecHostNodeSetParams_params_st {
     CUgraphNode hNode;
     const CUDA_HOST_NODE_PARAMS *nodeParams;
 } cuGraphExecHostNodeSetParams_params;
+
+typedef struct cuGraphExecChildGraphNodeSetParams_params_st {
+    CUgraphExec hGraphExec;
+    CUgraphNode hNode;
+    CUgraph childGraph;
+} cuGraphExecChildGraphNodeSetParams_params;
+
+typedef struct cuGraphExecEventRecordNodeSetEvent_params_st {
+    CUgraphExec hGraphExec;
+    CUgraphNode hNode;
+    CUevent event;
+} cuGraphExecEventRecordNodeSetEvent_params;
+
+typedef struct cuGraphExecEventWaitNodeSetEvent_params_st {
+    CUgraphExec hGraphExec;
+    CUgraphNode hNode;
+    CUevent event;
+} cuGraphExecEventWaitNodeSetEvent_params;
+
+typedef struct cuGraphExecExternalSemaphoresSignalNodeSetParams_params_st {
+    CUgraphExec hGraphExec;
+    CUgraphNode hNode;
+    const CUDA_EXT_SEM_SIGNAL_NODE_PARAMS *nodeParams;
+} cuGraphExecExternalSemaphoresSignalNodeSetParams_params;
+
+typedef struct cuGraphExecExternalSemaphoresWaitNodeSetParams_params_st {
+    CUgraphExec hGraphExec;
+    CUgraphNode hNode;
+    const CUDA_EXT_SEM_WAIT_NODE_PARAMS *nodeParams;
+} cuGraphExecExternalSemaphoresWaitNodeSetParams_params;
+
+typedef struct cuGraphUpload_ptsz_params_st {
+    CUgraphExec hGraphExec;
+    CUstream hStream;
+} cuGraphUpload_ptsz_params;
 
 typedef struct cuGraphLaunch_ptsz_params_st {
     CUgraphExec hGraphExec;
@@ -1397,6 +1739,43 @@ typedef struct cuGraphKernelNodeSetAttribute_params_st {
     CUkernelNodeAttrID attr;
     const CUkernelNodeAttrValue *value;
 } cuGraphKernelNodeSetAttribute_params;
+
+typedef struct cuGraphDebugDotPrint_params_st {
+    CUgraph hGraph;
+    const char *path;
+    unsigned int flags;
+} cuGraphDebugDotPrint_params;
+
+typedef struct cuUserObjectCreate_params_st {
+    CUuserObject *object_out;
+    void *ptr;
+    CUhostFn destroy;
+    unsigned int initialRefcount;
+    unsigned int flags;
+} cuUserObjectCreate_params;
+
+typedef struct cuUserObjectRetain_params_st {
+    CUuserObject object;
+    unsigned int count;
+} cuUserObjectRetain_params;
+
+typedef struct cuUserObjectRelease_params_st {
+    CUuserObject object;
+    unsigned int count;
+} cuUserObjectRelease_params;
+
+typedef struct cuGraphRetainUserObject_params_st {
+    CUgraph graph;
+    CUuserObject object;
+    unsigned int count;
+    unsigned int flags;
+} cuGraphRetainUserObject_params;
+
+typedef struct cuGraphReleaseUserObject_params_st {
+    CUgraph graph;
+    CUuserObject object;
+    unsigned int count;
+} cuGraphReleaseUserObject_params;
 
 typedef struct cuOccupancyMaxActiveBlocksPerMultiprocessor_params_st {
     int *numBlocks;
@@ -1696,15 +2075,17 @@ typedef struct cuGraphicsUnmapResources_ptsz_params_st {
     CUstream hStream;
 } cuGraphicsUnmapResources_ptsz_params;
 
+typedef struct cuGetProcAddress_params_st {
+    const char *symbol;
+    void **pfn;
+    int cudaVersion;
+    cuuint64_t flags;
+} cuGetProcAddress_params;
+
 typedef struct cuGetExportTable_params_st {
     const void **ppExportTable;
     const CUuuid *pExportTableId;
 } cuGetExportTable_params;
-
-typedef struct cuFuncGetModule_params_st {
-    CUmodule *hmod;
-    CUfunction hfunc;
-} cuFuncGetModule_params;
 
 typedef struct cuMemHostRegister_params_st {
     void *p;
@@ -2331,6 +2712,12 @@ typedef struct cuEventRecord_params_st {
     CUstream hStream;
 } cuEventRecord_params;
 
+typedef struct cuEventRecordWithFlags_params_st {
+    CUevent hEvent;
+    CUstream hStream;
+    unsigned int flags;
+} cuEventRecordWithFlags_params;
+
 typedef struct cuLaunchKernel_params_st {
     CUfunction f;
     unsigned int gridDimX;
@@ -2457,9 +2844,23 @@ typedef struct cuStreamIsCapturing_params_st {
 
 typedef struct cuStreamGetCaptureInfo_params_st {
     CUstream hStream;
-    CUstreamCaptureStatus *captureStatus;
-    cuuint64_t *id;
+    CUstreamCaptureStatus *captureStatus_out;
+    cuuint64_t *id_out;
 } cuStreamGetCaptureInfo_params;
+
+typedef struct cuStreamGetCaptureInfo_v2_params_st {
+    CUstream hStream;
+    CUstreamCaptureStatus *captureStatus_out;
+    cuuint64_t *id_out;
+    CUgraph *graph_out;
+    const CUgraphNode **dependencies_out;
+    size_t *numDependencies_out;
+} cuStreamGetCaptureInfo_v2_params;
+
+typedef struct cuGraphUpload_params_st {
+    CUgraphExec hGraph;
+    CUstream hStream;
+} cuGraphUpload_params;
 
 typedef struct cuGraphLaunch_params_st {
     CUgraphExec hGraph;
@@ -2496,5 +2897,36 @@ typedef struct cuGraphInstantiate_params_st {
     char *logBuffer;
     size_t bufferSize;
 } cuGraphInstantiate_params;
+
+typedef struct cuMemMapArrayAsync_params_st {
+    CUarrayMapInfo *mapInfoList;
+    unsigned int count;
+    CUstream hStream;
+} cuMemMapArrayAsync_params;
+
+typedef struct cuMemFreeAsync_params_st {
+    CUdeviceptr dptr;
+    CUstream hStream;
+} cuMemFreeAsync_params;
+
+typedef struct cuMemAllocAsync_params_st {
+    CUdeviceptr *dptr;
+    size_t bytesize;
+    CUstream hStream;
+} cuMemAllocAsync_params;
+
+typedef struct cuMemAllocFromPoolAsync_params_st {
+    CUdeviceptr *dptr;
+    size_t bytesize;
+    CUmemoryPool pool;
+    CUstream hStream;
+} cuMemAllocFromPoolAsync_params;
+
+typedef struct cuStreamUpdateCaptureDependencies_params_st {
+    CUstream hStream;
+    CUgraphNode *dependencies;
+    size_t numDependencies;
+    unsigned int flags;
+} cuStreamUpdateCaptureDependencies_params;
 
 #endif  // file guard

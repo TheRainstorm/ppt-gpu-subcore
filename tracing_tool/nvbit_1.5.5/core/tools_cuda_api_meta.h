@@ -610,6 +610,77 @@
     ACTION( cuda,        576,   cuStreamSetAttribute,                          0)        \
     ACTION( cuda,        577,   cuStreamSetAttribute_ptsz,                     0)        \
     ACTION( cuda,        578,   cuGraphInstantiate_v2,                         0)        \
+    ACTION( cuda,        579,   cuDeviceGetTexture1DLinearMaxWidth,            0)        \
+    ACTION( cuda,        580,   cuGraphUpload,                                 0)        \
+    ACTION( cuda,        581,   cuGraphUpload_ptsz,                            0)        \
+    ACTION( cuda,        582,   cuArrayGetSparseProperties,                    0)        \
+    ACTION( cuda,        583,   cuMipmappedArrayGetSparseProperties,           0)        \
+    ACTION( cuda,        584,   cuMemMapArrayAsync,                            0)        \
+    ACTION( cuda,        585,   cuMemMapArrayAsync_ptsz,                       0)        \
+    ACTION( cuda,        586,   cuGraphExecChildGraphNodeSetParams,            0)        \
+    ACTION( cuda,        587,   cuEventRecordWithFlags,                        0)        \
+    ACTION( cuda,        588,   cuEventRecordWithFlags_ptsz,                   0)        \
+    ACTION( cuda,        589,   cuGraphAddEventRecordNode,                     0)        \
+    ACTION( cuda,        590,   cuGraphAddEventWaitNode,                       0)        \
+    ACTION( cuda,        591,   cuGraphEventRecordNodeGetEvent,                0)        \
+    ACTION( cuda,        592,   cuGraphEventWaitNodeGetEvent,                  0)        \
+    ACTION( cuda,        593,   cuGraphEventRecordNodeSetEvent,                0)        \
+    ACTION( cuda,        594,   cuGraphEventWaitNodeSetEvent,                  0)        \
+    ACTION( cuda,        595,   cuGraphExecEventRecordNodeSetEvent,            0)        \
+    ACTION( cuda,        596,   cuGraphExecEventWaitNodeSetEvent,              0)        \
+    ACTION( cuda,        597,   cuArrayGetPlane,                               0)        \
+    ACTION( cuda,        598,   cuMemAllocAsync,                               0)        \
+    ACTION( cuda,        599,   cuMemAllocAsync_ptsz,                          0)        \
+    ACTION( cuda,        600,   cuMemFreeAsync,                                0)        \
+    ACTION( cuda,        601,   cuMemFreeAsync_ptsz,                           0)        \
+    ACTION( cuda,        602,   cuMemPoolTrimTo,                               0)        \
+    ACTION( cuda,        603,   cuMemPoolSetAttribute,                         0)        \
+    ACTION( cuda,        604,   cuMemPoolGetAttribute,                         0)        \
+    ACTION( cuda,        605,   cuMemPoolSetAccess,                            0)        \
+    ACTION( cuda,        606,   cuDeviceGetDefaultMemPool,                     0)        \
+    ACTION( cuda,        607,   cuMemPoolCreate,                               0)        \
+    ACTION( cuda,        608,   cuMemPoolDestroy,                              0)        \
+    ACTION( cuda,        609,   cuDeviceSetMemPool,                            0)        \
+    ACTION( cuda,        610,   cuDeviceGetMemPool,                            0)        \
+    ACTION( cuda,        611,   cuMemAllocFromPoolAsync,                       0)        \
+    ACTION( cuda,        612,   cuMemAllocFromPoolAsync_ptsz,                  0)        \
+    ACTION( cuda,        613,   cuMemPoolExportToShareableHandle,              0)        \
+    ACTION( cuda,        614,   cuMemPoolImportFromShareableHandle,            0)        \
+    ACTION( cuda,        615,   cuMemPoolExportPointer,                        0)        \
+    ACTION( cuda,        616,   cuMemPoolImportPointer,                        0)        \
+    ACTION( cuda,        617,   cuMemPoolGetAccess,                            0)        \
+    ACTION( cuda,        618,   cuGraphAddExternalSemaphoresSignalNode,        0)        \
+    ACTION( cuda,        619,   cuGraphExternalSemaphoresSignalNodeGetParams,  0)        \
+    ACTION( cuda,        620,   cuGraphExternalSemaphoresSignalNodeSetParams,  0)        \
+    ACTION( cuda,        621,   cuGraphAddExternalSemaphoresWaitNode,          0)        \
+    ACTION( cuda,        622,   cuGraphExternalSemaphoresWaitNodeGetParams,    0)        \
+    ACTION( cuda,        623,   cuGraphExternalSemaphoresWaitNodeSetParams,    0)        \
+    ACTION( cuda,        624,   cuGraphExecExternalSemaphoresSignalNodeSetParams, 0)     \
+    ACTION( cuda,        625,   cuGraphExecExternalSemaphoresWaitNodeSetParams, 0)       \
+    ACTION( cuda,        626,   cuGetProcAddress,                              0)        \
+    ACTION( cuda,        627,   cuFlushGPUDirectRDMAWrites,                    0)        \
+    ACTION( cuda,        628,   cuGraphDebugDotPrint,                          0)        \
+    ACTION( cuda,        629,   cuStreamGetCaptureInfo_v2,                     0)        \
+    ACTION( cuda,        630,   cuStreamGetCaptureInfo_v2_ptsz,                0)        \
+    ACTION( cuda,        631,   cuStreamUpdateCaptureDependencies,             0)        \
+    ACTION( cuda,        632,   cuStreamUpdateCaptureDependencies_ptsz,        0)        \
+    ACTION( cuda,        633,   cuUserObjectCreate,                            0)        \
+    ACTION( cuda,        634,   cuUserObjectRetain,                            0)        \
+    ACTION( cuda,        635,   cuUserObjectRelease,                           0)        \
+    ACTION( cuda,        636,   cuGraphRetainUserObject,                       0)        \
+    ACTION( cuda,        637,   cuGraphReleaseUserObject,                      0)        \
+    ACTION( cuda,        638,   cuGraphAddMemAllocNode,                        0)        \
+    ACTION( cuda,        639,   cuGraphAddMemFreeNode,                         0)        \
+    ACTION( cuda,        640,   cuDeviceGraphMemTrim,                          0)        \
+    ACTION( cuda,        641,   cuDeviceGetGraphMemAttribute,                  0)        \
+    ACTION( cuda,        642,   cuDeviceSetGraphMemAttribute,                  0)        \
+    ACTION( cuda,        643,   cuGraphInstantiateWithFlags,                   0)        \
+    ACTION( cuda,        644,   cuDeviceGetExecAffinitySupport,                0)        \
+    ACTION( cuda,        645,   cuCtxCreate_v3,                                0)        \
+    ACTION( cuda,        646,   cuCtxGetExecAffinity,                          0)        \
+    ACTION( cuda,        647,   cuDeviceGetUuid_v2,                            0)        \
+    ACTION( cuda,        648,   cuGraphMemAllocNodeGetParams,                  0)        \
+    ACTION( cuda,        649,   cuGraphMemFreeNodeGetParams,                   0)        \
 
 #endif // file guard
 
