@@ -32,7 +32,7 @@ parser.add_argument("-c", "--limit_kernel_num",
                     help="trace tool only trace max 300 kernel, nvprof can't set trace limit(nsight-sys can)." \
                         "so we limit the kernel number when get stat")
 parser.add_argument("--select", default="nvprof",
-                 choices=["nvprof", "ncu", "ncu-cpi"],
+                 choices=["nvprof", "ncu", "ncu-cpi", "nvprof-cpi"],
                  help="get which tool's stat")
 parser.add_argument("--loop",
                  default=-1,
@@ -157,14 +157,14 @@ for app_and_arg in app_and_arg_list:
                 profiling_res[select] = []
             profiling_res[select].append(os.path.join(app_trace_dir, file))
     
-    # sort
+    # sort and only use pre loop cnt result
     for select, profiling_file_list in profiling_res.items():
         profiling_file_list.sort()
         if args.loop != -1:
             profiling_file_list = profiling_file_list[:args.loop]
     
-    if args.select == 'nvprof':
-        acc_res = get_average_csv(profiling_res['nvprof'])
+    if 'nvprof' in args.select:
+        acc_res = get_average_csv(profiling_res[args.select])
         
         # skip first empty kernel line
         acc_res = acc_res[1:]

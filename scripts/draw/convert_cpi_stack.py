@@ -37,6 +37,37 @@ def convert_ncu_to_gsi(data):
             res_json[app_arg].append(kernel_cpi_res)
     return res_json
 
+def convert_nvprof_to_gsi(data):
+    res_json = {}
+    nvprof_stalls = ['stall_constant_memory_dependency','stall_exec_dependency','stall_inst_fetch','stall_memory_dependency','stall_memory_throttle','stall_not_selected','stall_other','stall_pipe_busy','stall_sleeping','stall_sync','stall_texture']
+    for app_arg, app_res in data.items():
+        res_json[app_arg] = []
+        print(f"{app_arg}: {len(app_res)}")
+        for i, k in enumerate(app_res):
+            # print(f"{i}: {k['kernel_name']}")
+            for stall in nvprof_stalls:
+                if stall not in k:
+                    k[stall] = 0
+            kernel_cpi_res = {}
+            kernel_cpi_res['MemData'] = k['stall_constant_memory_dependency'] + k['stall_memory_dependency']
+            kernel_cpi_res['MemStruct'] = k['stall_memory_throttle'] + k['stall_texture']
+            kernel_cpi_res['CompData'] = k['stall_exec_dependency']
+            kernel_cpi_res['CompStruct'] = k['stall_pipe_busy']
+            kernel_cpi_res['NotSelect'] = k['stall_not_selected']
+            kernel_cpi_res['NoStall'] = 1
+            kernel_cpi_res['Sync'] = k['stall_sync']
+            kernel_cpi_res['Misc'] = k['stall_other'] + k['stall_sleeping'] + k['stall_inst_fetch']
+            # warpgroup_arrive
+            
+            kernel_cpi_res['Idle'] = 0
+            kernel_cpi_res['debug'] = {}
+            kernel_cpi_res['debug']['sum'] = kernel_cpi_res['MemData'] + kernel_cpi_res['CompData'] + kernel_cpi_res['MemStruct'] + kernel_cpi_res['CompStruct'] + kernel_cpi_res['NotSelect'] + kernel_cpi_res['NoStall'] + kernel_cpi_res['Sync'] + kernel_cpi_res['Misc']
+            
+            # sort by gsi stall list
+            kernel_cpi_res = {k: kernel_cpi_res[k] for k in gsi_stall_list}
+            res_json[app_arg].append(kernel_cpi_res)
+    return res_json
+
 def state_to_cpi(state_dict, set_debug=False):
     cpi_stack = {}
     total_cycle = sum(state_dict.values())
@@ -126,7 +157,7 @@ if __name__ == "__main__":
                         default="gsi",
                         help="classifiy model")
     parser.add_argument("-I", "--in-type",
-                        choices=["ncu", "ppt_gpu", "ppt_gpu_sched"],
+                        choices=["ncu", "ppt_gpu", "ppt_gpu_sched", "nvprof"],
                         help="input json format")
     args = parser.parse_args()
     
@@ -143,6 +174,8 @@ if __name__ == "__main__":
         output_json = convert_ppt_gpu_to_gsi(data, "warp", detail=detail)
     elif args.in_type == "ppt_gpu_sched":
         output_json = convert_ppt_gpu_to_gsi(data, "sched", detail=detail)
+    elif args.in_type == "nvprof":
+        output_json = convert_nvprof_to_gsi(data)
     else:
         raise NotImplementedError(f"Unknown input type: {args.in_type}")
     
