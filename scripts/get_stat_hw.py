@@ -34,7 +34,7 @@ parser.add_argument("-c", "--limit_kernel_num",
 parser.add_argument("--select", default="nvprof",
                  choices=["nvprof", "ncu", "ncu-cpi", "nvprof-cpi"],
                  help="get which tool's stat")
-parser.add_argument("--loop",
+parser.add_argument('-l', "--loop-cnt",
                  default=-1,
                  type=int,
                  help="limit only use specific loop result")
@@ -160,8 +160,8 @@ for app_and_arg in app_and_arg_list:
     # sort and only use pre loop cnt result
     for select, profiling_file_list in profiling_res.items():
         profiling_file_list.sort()
-        if args.loop != -1:
-            profiling_file_list = profiling_file_list[:args.loop]
+        if args.loop_cnt != -1:
+            profiling_file_list = profiling_file_list[:args.loop_cnt]
     
     if 'nvprof' in args.select:
         acc_res = get_average_csv(profiling_res[args.select])

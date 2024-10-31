@@ -1,5 +1,6 @@
 import argparse
 
+import signal
 import subprocess
 import os
 from datetime import datetime
@@ -25,7 +26,7 @@ parser.add_argument("-c", "--kernel_number",
                     type=int,
                     default=300,
                     help="Sets a hard limit to the number of traced limits")
-parser.add_argument("-t", "--loop_cnt",
+parser.add_argument("-l", "--loop-cnt",
                     type=int,
                     default=3,
                     help="run multiple times")
@@ -40,6 +41,10 @@ parser.add_argument("-r", "--run_script",
 parser.add_argument("--no-overwrite", dest="overwrite",
                     action="store_false",
                     help="if overwrite=False, then don't profile when cvs exist")
+parser.add_argument("-t", "--time-out",
+                    type=int,
+                    default=3*60*60, # 3h
+                    help="Set time out seconds, if app run longer than this, kill it")
 parser.add_argument("--select", default="nvprof",
                     choices=["nvprof", "ncu", "ncu-cpi", "nvprof-cpi"],
                     help="select which metrics to profile")
@@ -129,8 +134,10 @@ for loop in range(args.loop_cnt):
                 saved_dir = os.getcwd()
                 os.chdir(run_dir)
                 try:
-                    result = subprocess.run(["bash", run_script_path], timeout=0.5*60*60)
-                    if result.returncode != 0:
+                    p = subprocess.Popen(["bash", run_script_path], start_new_session=True)
+                    p.wait(timeout=args.time_out)
+                    
+                    if p.returncode != 0:
                         logging(f"{exe_name} failed")
                         failed_list.append(app_and_arg)
                     else:
@@ -138,6 +145,8 @@ for loop in range(args.loop_cnt):
                 except subprocess.TimeoutExpired:
                     logging(f"Timeout in {app_and_arg}")
                     failed_list.append(app_and_arg)
+                    os.killpg(os.getpgid(p.pid), signal.SIGTERM)
+                    logging(f"Killed {app_and_arg}")
                 os.chdir(saved_dir)
 logging(f"END")
 logging(f"failed list: {failed_list}")

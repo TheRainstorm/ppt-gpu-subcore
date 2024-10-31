@@ -1,5 +1,6 @@
 import argparse
 
+import signal
 import subprocess
 import os
 import datetime
@@ -25,9 +26,6 @@ parser.add_argument("-c", "--kernel_number",
                     type=int,
                     default=300,
                     help="Sets a hard limit to the number of traced limits")
-# parser.add_argument("-t", "--terminate_upon_limit",
-#                     action="store_true",
-#                     help="Once the kernel limit is reached, terminate the tracing process")
 parser.add_argument("--trace_tool",
                     help="nvbit trace tool .so file path")
 parser.add_argument("-l", "--log_file",
@@ -37,6 +35,10 @@ parser.add_argument("-n", "--norun",
 parser.add_argument("--no-overwrite", dest="overwrite",
                     action="store_false",
                     help="if memory_traces exists, then skip")
+parser.add_argument("-t", "--time-out",
+                    type=int,
+                    default=3*60*60, # 3h
+                    help="Set time out seconds, if app run longer than this, kill it")
 parser.add_argument("-r", "--run_script",
                  default="run_tracing.sh")
 args = parser.parse_args()
@@ -57,6 +59,7 @@ def logging(*args, **kwargs):
     print(*args, **kwargs, file=sys.stderr)
 
 logging(f"run hw trace {args.trace_tool}")
+print(f"filter: {args.apps}")
 logging(f"START")
 failed_list = []
 for app in apps:
@@ -108,15 +111,18 @@ for app in apps:
             os.chdir(run_dir)
 
             try:
-                result = subprocess.run(["bash", args.run_script], timeout=3*60*60)
-                if result.returncode != 0:
+                p = subprocess.Popen(["bash", args.run_script], start_new_session=True)
+                p.wait(timeout=args.time_out)
+                if p.returncode != 0:
                     logging(f"Error invoking nvbit in {app_and_arg}")
                     failed_list.append(app_and_arg)
                 else:
                     logging(f"{app_and_arg} finished")
-            except subprocess.TimeoutExpired:
+            except subprocess.TimeoutExpired as e:
                 logging(f"Timeout in {app_and_arg}")
                 failed_list.append(app_and_arg)
+                os.killpg(os.getpgid(p.pid), signal.SIGTERM)
+                logging(f"Killed {app_and_arg}")
             os.chdir(saved_dir)
 logging(f"END")
 logging(f"Failed list: {failed_list}")

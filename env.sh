@@ -10,7 +10,9 @@ run_name=${run_name:-"dev"}
 GPU="${GPU:-0}"
 nvbit_version=${nvbit_version:-"1.5.5"}
 loop=1  # hw profiling loop count
-
+# time_out=10800 # 3h
+# time_out=7200 # 2h
+time_out=3600 # 1h
 # detect gpu
 gpu_detect(){
     gpu_model=$(nvidia-smi --query-gpu=name --format=csv,noheader | head -n 1)

@@ -1,5 +1,6 @@
 import argparse
 
+import signal
 import subprocess
 import shlex
 import re
@@ -45,6 +46,10 @@ parser.add_argument("--hw-res",
 parser.add_argument("--no-overwrite", dest="overwrite",
                  action="store_false",
                  help="if overwrite=False, then don't simulate already have .out file app")
+parser.add_argument("-t", "--time-out",
+                    type=int,
+                    default=3*60*60, # 3h
+                    help="Set time out seconds, if app run longer than this, kill it")
 args = parser.parse_args()
 
 from common import *
@@ -90,8 +95,8 @@ for app_and_arg in app_and_arg_list:
         cmd = f"python ppt.py --app {app_trace_dir} --sass --config {args.hw_config} --granularity {args.granularity} {hw_res_option_str} --report-output-dir {args.report_output_dir}"
 
     try:
-        result = subprocess.run(cmd, shell=True, timeout=3*60*60)
-        if result.returncode != 0:
+        p = subprocess.Popen(shlex.split(cmd), start_new_session=True)
+        if p.returncode != 0:
             logging(f"{app_and_arg} failed")
             failed_list.append(app_and_arg)
         else:
@@ -99,6 +104,8 @@ for app_and_arg in app_and_arg_list:
     except subprocess.TimeoutExpired:
         logging(f"Timeout in {app_and_arg}")
         failed_list.append(app_and_arg)
+        os.killpg(os.getpgid(p.pid), signal.SIGTERM)
+        logging(f"Killed {app_and_arg}")
     except KeyboardInterrupt:
         log_file.close()
         exit(0)
