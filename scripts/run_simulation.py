@@ -58,17 +58,14 @@ args.apps = filter_app_list(app_and_arg_list, args.app_filter)
 
 log_file = open(args.log_file, "a")
 def logging(*args, **kwargs):
-    args = (f"({now_timestamp()}: ", ) + args
+    args = (f"{now_timestamp()}: ", ) + args
     print(*args, **kwargs, file=log_file, flush=True)
+    print(*args, **kwargs)
 
-def run_cmd(cmd):
-    res = subprocess.run(cmd, shell=True)
-    return res.returncode
-
-logging(f"Start")
 failed_list = []
 logging(f"CMD: {' '.join(sys.argv)}")
 print(f"filter apps: {args.apps}")
+logging(f"START")
 for app_and_arg in app_and_arg_list:
     app = app_and_arg.split('/')[0]
     app_trace_dir = os.path.join(args.trace_dir, app_and_arg)
@@ -85,26 +82,27 @@ for app_and_arg in app_and_arg_list:
         logging(f"{app_and_arg} already simulated")
         continue
 
-    logging(f"run {app_and_arg}")
+    logging(f"{app_and_arg} start")
     hw_res_option_str = f"--hw-res {args.hw_res}" if args.hw_res else ""
     if args.mpi_run != "":
         cmd = f"{args.mpi_run} python ppt.py --mpi --app {app_trace_dir} --sass --config {args.hw_config} --granularity {args.granularity} {hw_res_option_str} --report-output-dir {args.report_output_dir}"
     else:
         cmd = f"python ppt.py --app {app_trace_dir} --sass --config {args.hw_config} --granularity {args.granularity} {hw_res_option_str} --report-output-dir {args.report_output_dir}"
-    # logging(cmd)
-    # print(cmd)
+
     try:
-        exit_status = run_cmd(cmd)
-        if exit_status!=0:
-            logging(f"{app} failed")
+        result = subprocess.run(cmd, shell=True, timeout=3*60*60)
+        if result.returncode != 0:
+            logging(f"{app_and_arg} failed")
             failed_list.append(app_and_arg)
-            print(f"{app} failed")
         else:
-            logging(f"{app} success")
+            logging(f"{app_and_arg} finished")
+    except subprocess.TimeoutExpired:
+        logging(f"Timeout in {app_and_arg}")
+        failed_list.append(app_and_arg)
     except KeyboardInterrupt:
         log_file.close()
         exit(0)
-print(f"failed list: {failed_list}")
+    
 logging(f"failed list: {failed_list}")
 logging(f"End")
 log_file.close()

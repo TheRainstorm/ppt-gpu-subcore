@@ -33,6 +33,9 @@ parser.add_argument("-l", "--log_file",
                     default="run_hw_trace.log")
 parser.add_argument("-n", "--norun",
                  action="store_true")
+parser.add_argument("--no-overwrite", dest="overwrite",
+                    action="store_false",
+                    help="if memory_traces exists, then skip")
 parser.add_argument("-r", "--run_script",
                  default="run_tracing.sh")
 args = parser.parse_args()
@@ -48,9 +51,12 @@ args.apps = filter_app_list(app_and_arg_list, args.app_filter)
 
 log_file = open(args.log_file, "a")
 def logging(*args, **kwargs):
+    args = (f"{now_timestamp()}: ", ) + args
     print(*args, **kwargs, file=log_file, flush=True)
+    print(*args, **kwargs)
 
-logging(f"{now_timestamp()}: Start")
+logging(f"run hw trace {args.trace_tool}")
+logging(f"START")
 failed_list = []
 for app in apps:
     exec_dir, data_dir, exe_name, args_list = app
@@ -66,9 +72,7 @@ for app in apps:
         if args.apps and app_and_arg not in args.apps:
             continue
         
-        logging(f"{now_timestamp()}: tracing {app_and_arg}")
-        print(f"{now_timestamp()}: tracing {app_and_arg}")
-        
+        logging(f"{app_and_arg} start")
         # mkdir run_dir
         if not os.path.exists(run_dir):
             os.makedirs(run_dir)
@@ -86,13 +90,18 @@ for app in apps:
         
         sh_contents += f'\nexport CUDA_VISIBLE_DEVICES="{args.device_num}"'\
                 f'\nexport LD_PRELOAD={args.trace_tool}'\
-                f'\n{exec_path} {argstr}'
+                f'\n{exec_path} {argstr}\n'
         
         run_script_path = os.path.join(run_dir, args.run_script)
         open(run_script_path, "w").write(sh_contents)
         if subprocess.call(['chmod', 'u+x', run_script_path]) != 0:
             exit("Error chmod runfile")
 
+        memory_traces_dir = os.path.join(run_dir, "memory_traces")
+        if os.path.exists(memory_traces_dir) and not args.overwrite:
+                logging(f"{app_and_arg} exists, skip")
+                continue
+        
         if not args.norun:
             saved_dir = os.getcwd()
             os.chdir(run_dir)
@@ -101,16 +110,13 @@ for app in apps:
                 result = subprocess.run(["bash", args.run_script], timeout=3*60*60)
                 if result.returncode != 0:
                     logging(f"Error invoking nvbit in {app_and_arg}")
-                    print(f"Error invoking nvbit in {app_and_arg}")
                     failed_list.append(app_and_arg)
                 else:
-                    logging(f"{now_timestamp()}: {app_and_arg} finished")
+                    logging(f"{app_and_arg} finished")
             except subprocess.TimeoutExpired:
                 logging(f"Timeout in {app_and_arg}")
-                print(f"Timeout in {app_and_arg}")
                 failed_list.append(app_and_arg)
             os.chdir(saved_dir)
-logging(f"{now_timestamp()}: END")
+logging(f"END")
 logging(f"Failed list: {failed_list}")
-print(f"Failed list: {failed_list}")
 log_file.close()

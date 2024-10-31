@@ -58,6 +58,9 @@ def gen_apps_from_suite_list(suite_list=""):
     
     apps = []
     for suite in suite_list:
+        if suite not in defined_apps:
+            print(f"Warning: suite {suite} not found in defined apps")
+            continue
         apps += defined_apps[suite]
     return apps
 

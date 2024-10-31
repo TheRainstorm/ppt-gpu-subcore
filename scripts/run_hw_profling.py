@@ -51,10 +51,14 @@ args.apps = filter_app_list(app_and_arg_list, args.app_filter)
 
 log_file = open(args.log_file, "a")
 def logging(*args, **kwargs):
+    args = (f"{now_timestamp()}: ", ) + args
     print(*args, **kwargs, file=log_file, flush=True)
+    print(*args, **kwargs)
 
+logging(f"run hw profiling {args.select}")
+logging(f"START")
 for loop in range(args.loop_cnt):
-    logging(f"{datetime.now().strftime('%Y-%m-%d %H:%M:%S')}: loop {loop}")
+    logging(f"loop {loop}")
     for app in apps:
         exec_dir, data_dir, exe_name, args_list = app
         exec_dir = os.path.expandvars(exec_dir)
@@ -75,10 +79,14 @@ for loop in range(args.loop_cnt):
             
             profiling_output = os.path.join(run_dir, f"profiling.{args.select}.{loop}.csv")
             if os.path.exists(profiling_output) and not args.overwrite:
-                logging(f"{datetime.now().strftime('%Y-%m-%d %H:%M:%S')}: {app_and_arg} exists, skip")
+                logging(f"{app_and_arg} exists, skip")
                 continue
             
-            logging(f"{datetime.now().strftime('%Y-%m-%d %H:%M:%S')}: {app_and_arg}")
+            logging(f"{app_and_arg} start")
+            run_sh_contents = f'export CUDA_VISIBLE_DEVICES="{args.device_num}";\n' \
+                        f'{exec_path} {argstr}\n'
+            with open(os.path.join(run_dir, "run.sh"), "w") as f:
+                f.write(run_sh_contents)
             sh_contents = ""
             # nvprof
             # --concurrent-kernels off 
@@ -112,11 +120,17 @@ for loop in range(args.loop_cnt):
             if not args.norun:
                 saved_dir = os.getcwd()
                 os.chdir(run_dir)
-                if subprocess.run(f"bash {run_script_path}", shell=True).returncode != 0:
-                    failed_list.append(exe_name)
-                    logging(f"{datetime.now().strftime('%Y-%m-%d %H:%M:%S')}: {exe_name} failed")
+                try:
+                    result = subprocess.run(["bash", run_script_path], timeout=0.5*60*60)
+                    if result.returncode != 0:
+                        logging(f"{exe_name} failed")
+                        failed_list.append(app_and_arg)
+                    else:
+                        logging(f"{app_and_arg} finished")
+                except subprocess.TimeoutExpired:
+                    logging(f"Timeout in {app_and_arg}")
+                    failed_list.append(app_and_arg)
                 os.chdir(saved_dir)
-logging(f"{datetime.now().strftime('%Y-%m-%d %H:%M:%S')}: END")
+logging(f"END")
 logging(f"failed list: {failed_list}")
-print(f"failed list: {failed_list}")
 log_file.close()
