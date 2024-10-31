@@ -21,8 +21,8 @@ gpu_detect(){
         "NVIDIA TITAN V")
             gpu="titanv"
             ;;
-        "NVIDIA A100-PCIE-100GB")
-            gpu="a100-100g"
+        "NVIDIA A100 80GB PCIe")
+            gpu="a100-80g"
             ;;
         "NVIDIA A100-PCIE-40GB")
             gpu="a100-40g"
@@ -49,9 +49,13 @@ if [ -z "$curr_cuda_version" ]; then
     echo "Error: CUDA version not found, nvibit trace need CUDA in PATH"
 fi
 
+hw_identifier="${gpu}-$GPU-${CUDA_VERSION}"
+sim_identifier="${gpu}-$GPU-${CUDA_VERSION}-${run_name}"
+
 ### Set File Path
 my_home=/staff/fyyuan
 ppt_gpu_dir=$my_home/repo/PPT-GPU
+trace_dir_base=${trace_dir_base:-$my_home/hw_trace3}
 
 # cuda_version_major=`nvcc --version | grep release | sed -re 's/.*release ([0-9]+)\..*/\1/'`;
 export GPUAPPS_ROOT=$my_home/repo/accel-sim-framework/gpu-app-collection
@@ -59,7 +63,7 @@ export UBENCH_ROOT=$my_home/repo/GPU_Microbenchmark
 export GPGPU_WORKLOADS_ROOT=$my_home/repo/GPGPUs-Workloads
 export apps_yaml=${ppt_gpu_dir}/scripts/apps/define-all-apps.yml
 
-trace_dir=$my_home/hw_trace3/${model}-${gpu}/${cuda_version}
+trace_dir=${trace_dir_base}/${model}-${gpu}/${cuda_version}
 
 # run hw
 res_hw_json=${ppt_gpu_dir}/tmp/res_hw_${gpu}_${cuda_version}.json
@@ -101,16 +105,29 @@ single_draw_output=${single_report_dir}
 
 . $ppt_gpu_dir/run_helper.sh
 
-echo "Summary:"
-echo "app cuda_version: $CUDA_VERSION"
-echo "nvcc cuda_version: $curr_cuda_version"
-echo "gpu: $gpu [${GPU}]"
-echo "run_name: $run_name"
-echo "apps_yaml: $apps_yaml"
-echo "benchmarks: $benchmarks"
-echo "filter_app: $filter_app"
-echo "trace_dir: $trace_dir"
-echo "res_hw_json: $res_hw_json"
-echo "res_sim_json: $res_sim_json"
-echo "report_dir: $report_dir"
-echo "draw_output: $draw_output"
+log_file=run_helper.log
+print_summary(){
+    date '+%Y-%m-%d %H:%M:%S'
+    echo "Summary:"
+    echo "app cuda_version: $CUDA_VERSION"
+    echo "nvcc cuda_version: $curr_cuda_version"
+    echo "gpu: $gpu [${GPU}]"
+    echo "run_name: $run_name"
+    echo "apps_yaml: $apps_yaml"
+    echo "benchmarks: $benchmarks"
+    echo "filter_app: $filter_app"
+    echo "trace_dir: $trace_dir"
+    echo "res_hw_json: $res_hw_json"
+    echo "res_sim_json: $res_sim_json"
+    echo "report_dir: $report_dir"
+    echo "draw_output: $draw_output"
+}
+
+unset_env(){
+    unset benchmarks filter_app cuda_version
+    unset run_name nvbit_version 
+    unset GPU gpu
+    unset trace_dir_base
+}
+
+print_summary

@@ -20,9 +20,12 @@ def caculate_delta(time1, time2):
     # 格式化输出
     return time_diff.total_seconds(), f"{int(hours)}h {int(minutes)}m {int(seconds)}s"
 
-def parse_run_time(file_path):
+def parse_run_time(file_path, sort=True):
     with open(file_path, 'r') as f:
         content = f.read()
+    
+    # get content between 'START' and 'END' which is also the last
+    content = content.split('START')[-1].split('END')[0]
     
     app_arg_times = re.findall(r'(?P<ts>\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2}): (?P<app_arg>.*) (?P<status>start|finished)', content)
     
@@ -30,7 +33,7 @@ def parse_run_time(file_path):
     res = {}
     start_ts = {}
     end_ts = {}
-    app_args = set()
+    app_args = []
     for app_arg_time in app_arg_times:
         ts = app_arg_time[0]
         app_arg = app_arg_time[1]
@@ -39,7 +42,8 @@ def parse_run_time(file_path):
             start_ts[app_arg] = ts
         else:
             end_ts[app_arg] = ts
-        app_args.add(app_arg)
+        if app_arg not in app_args:
+            app_args.append(app_arg)
     for app_arg in app_args:
         try:
             delta, delta_str = caculate_delta(start_ts[app_arg], end_ts[app_arg])
@@ -50,7 +54,10 @@ def parse_run_time(file_path):
             
             faild_app_args.append(app_arg)
     
-    sorted_res = sorted(res.items(), key=lambda x: x[1][0], reverse=True)
+    if sort:
+        sorted_res = sorted(res.items(), key=lambda x: x[1][0], reverse=True)
+    else:
+        sorted_res = res.items()
     return sorted_res, faild_app_args
 
 def print_run_time(run_time):
@@ -60,7 +67,8 @@ def print_run_time(run_time):
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()
     parser.add_argument('-f', '--file_path', type=str, required=True)
+    parser.add_argument('-s', '--sort', action='store_true')
     args = parser.parse_args()
-    run_time, faild = parse_run_time(args.file_path)
+    run_time, faild = parse_run_time(args.file_path, sort=args.sort)
     print_run_time(run_time)
     print(f"Faild: {faild}", file=sys.stderr)

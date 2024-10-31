@@ -3,6 +3,7 @@ import argparse
 import subprocess
 import os
 import datetime
+import sys
 
 parser = argparse.ArgumentParser(
     description='Simulate all app defined'
@@ -53,7 +54,7 @@ log_file = open(args.log_file, "a")
 def logging(*args, **kwargs):
     args = (f"{now_timestamp()}: ", ) + args
     print(*args, **kwargs, file=log_file, flush=True)
-    print(*args, **kwargs)
+    print(*args, **kwargs, file=sys.stderr)
 
 logging(f"run hw trace {args.trace_tool}")
 logging(f"START")

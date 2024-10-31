@@ -60,7 +60,7 @@ log_file = open(args.log_file, "a")
 def logging(*args, **kwargs):
     args = (f"{now_timestamp()}: ", ) + args
     print(*args, **kwargs, file=log_file, flush=True)
-    print(*args, **kwargs)
+    print(*args, **kwargs, file=sys.stderr)
 
 failed_list = []
 logging(f"CMD: {' '.join(sys.argv)}")
