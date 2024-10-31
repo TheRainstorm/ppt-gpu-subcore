@@ -9,6 +9,18 @@
 #       ...
 # If you have a bunch of random benchmarks in random places, then a "suite" can be just one benchmark
 
+# don't test reason
+# (1): too slow
+#   (1.1): trace too slow
+#   (1.2): profile too slow
+#   (1.3): simulation too slow
+#   (1.4): too many kernels, usually lead to (1.2) and simulte all of these kernel is no meaning, better to only simulation one kernel (future work)
+# (2): Prohibitively large trace
+# (3): error when tracing. There is some problem with nvibit with changing CUDA version
+# (4): outdated app: 
+#   - Uses legacy texture cache instructions, it is unclear if it still makes sense to support
+#   - Compile error
+
 my_benchmark:
   exec_dir: "$GPUAPPS_ROOT/bin/$CUDA_VERSION/release/"
   data_dirs: "$GPUAPPS_ROOT/data_dirs/"
@@ -220,12 +232,6 @@ rodinia-3.1-extra:
     # - mummergpu-rodinia-3.1:
     #     - args: ./data/NC_003997.fna ./data/NC_003997_q100bp.fna > NC_00399.out
 
-# don't test reason
-# (1): too slow
-# (2): Prohibitively large trace
-# (3): error when tracing
-# (4): outdated: 
-#   - Uses legacy texture cache instructions, it is unclear if it still makes sense to support
 rodinia-3.1-full:
   suite: rodinia-3.1
   exec_dir: "$GPGPU_WORKLOADS_ROOT/bin/$CUDA_VERSION/release/"
@@ -297,7 +303,7 @@ rodinia-3.1-full:
     - lavaMD-rodinia-3.1:
         - args: -boxes1d 10 # 1
           accel-sim-mem: 32G
-    # - leukocyte-rodinia-3.1: # (2)
+    # - leukocyte-rodinia-3.1: # (4)
     #     - args: ./data/testfile.avi 5
     - lud-rodinia-3.1:
         - args: -s 256 -v # 46
@@ -383,59 +389,59 @@ polybench-full:
   data_dirs: "$GPGPU_WORKLOADS_ROOT/data_dirs/"
   execs:
     # linear algebra
-    - polybench-2mm: # (1)
+    - polybench-2mm:
         - args: # 2
           accel-sim-mem: 13G
-    # - polybench-3mm:
-    #     - args:
-    #       accel-sim-mem: 13G
+    - polybench-3mm:
+        - args: # 3
+          accel-sim-mem: 13G
     - polybench-atax:
         - args: # 2
           accel-sim-mem: 2G
     - polybench-bicg:
         - args: # 2
           accel-sim-mem: 2G
-    - polybench-doitgen:
-        - args:
-          accel-sim-mem: 2G
+    # - polybench-doitgen: # (1.4)
+    #     - args: # 128x2
+    #       accel-sim-mem: 2G
     - polybench-gemm:
         - args: # 1
           accel-sim-mem: 4G
     - polybench-gemver:
-        - args:
+        - args: # 3
     - polybench-gesummv:
         - args: # 1
           accel-sim-mem: 2G
-    - polybench-gramschmidt:
-        - args: # >300
-          accel-sim-mem: 3G
-    - polybench-lu:
-        - args:
-          accel-sim-mem: 2G
+    # - polybench-gramschmidt: # (1.4) kernel: 500x3
+    #     - args:
+    #       accel-sim-mem: 3G
+    # - polybench-lu:   # (1.4) kernel: 2047x2
+    #     - args:
+    #       accel-sim-mem: 2G
     - polybench-mvt:
         - args: # 2
           accel-sim-mem: 2G
     - polybench-syrk:
         - args: # 1
           accel-sim-mem: 8G
-    # - polybench-syr2k:
-    #     - args: # 1, 179.7G
+    # - polybench-syr2k: # ()
+    #     - args: # 1
     #       accel-sim-mem: 25G
     
     # stencil
-    - polybench-adi:
-        - args:
-          accel-sim-mem: 2G
+    # - polybench-adi: # (1.4) 1024x2
+    #     - args:
+    #       accel-sim-mem: 2G
     - polybench-convolution2D:
         - args:   # 1
           accel-sim-mem: 1G
-    - polybench-convolution3D:
-        - args: # 254
-          accel-sim-mem: 1G
-    - polybench-fdtd2D:
-        - args:
-    - polybench-jacobi1D:
-        - args:
+    # - polybench-convolution3D: # (1.4) 254
+    #     - args: # 254
+    #       accel-sim-mem: 1G
+    # - polybench-fdtd2D: # (1.4) 500x3
+    #     - args:
+    # - polybench-jacobi1D: # (1.4) 10000
+    #     - args: # 10000
     - polybench-jacobi2D:
         - args:
     
@@ -471,16 +477,16 @@ polybench-PPT-GPU:
     - polybench-gesummv:
         - args: # 1
           accel-sim-mem: 2G
-    - polybench-lu:
-        - args:
-          accel-sim-mem: 2G
+    # - polybench-lu:
+    #     - args:
+    #       accel-sim-mem: 2G
     - polybench-mvt:
         - args: # 2
           accel-sim-mem: 2G
     # stencil
-    - polybench-adi:
-        - args:
-          accel-sim-mem: 2G
+    # - polybench-adi:
+    #     - args:
+    #       accel-sim-mem: 2G
     - polybench-convolution2D:
         - args:   # 1
           accel-sim-mem: 1G
