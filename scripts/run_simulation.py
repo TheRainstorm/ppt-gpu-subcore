@@ -96,6 +96,7 @@ for app_and_arg in app_and_arg_list:
 
     try:
         p = subprocess.Popen(shlex.split(cmd), start_new_session=True)
+        p.wait(timeout=args.time_out)
         if p.returncode != 0:
             logging(f"{app_and_arg} failed")
             failed_list.append(app_and_arg)
@@ -107,8 +108,10 @@ for app_and_arg in app_and_arg_list:
         os.killpg(os.getpgid(p.pid), signal.SIGTERM)
         logging(f"Killed {app_and_arg}")
     except KeyboardInterrupt:
+        logging(f"Ctrl-C {app_and_arg}")
+        os.killpg(os.getpgid(p.pid), signal.SIGTERM)
         log_file.close()
-        exit(0)
+        exit(-1)
     
 logging(f"failed list: {failed_list}")
 logging(f"End")

@@ -123,6 +123,11 @@ for app in apps:
                 failed_list.append(app_and_arg)
                 os.killpg(os.getpgid(p.pid), signal.SIGTERM)
                 logging(f"Killed {app_and_arg}")
+            except KeyboardInterrupt:
+                logging(f"Ctrl-C {app_and_arg}")
+                os.killpg(os.getpgid(p.pid), signal.SIGTERM)
+                log_file.close()
+                exit(-1)
             os.chdir(saved_dir)
 logging(f"END")
 logging(f"Failed list: {failed_list}")
