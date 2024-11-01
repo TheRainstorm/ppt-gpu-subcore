@@ -24,6 +24,7 @@ class Accelerator(object):
         
         self.node =	 node # GPUNode
         self.id = id
+        self.cc = gpu_configs_cc
 
         try:
             self.compute_capabilty = gpu_configs["compute_capabilty"]
