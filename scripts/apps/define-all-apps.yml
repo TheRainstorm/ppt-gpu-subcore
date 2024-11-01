@@ -21,6 +21,14 @@
 #   - Uses legacy texture cache instructions, it is unclear if it still makes sense to support
 #   - Compile error
 
+# tempory ignore app run
+# - args:
+#   ignore: x
+# 0: not ignore
+# 1: too long trace
+# 2: too long profiling
+# 3: tooo long simulation
+
 my_benchmark:
   exec_dir: "$GPUAPPS_ROOT/bin/$CUDA_VERSION/release/"
   data_dirs: "$GPUAPPS_ROOT/data_dirs/"
@@ -449,9 +457,11 @@ polybench-full:
     - polybench-correlation: # (2)
         - args: # 4
           accel-sim-mem: 160G
+          ignore: 3
     - polybench-covariance: # (2)
         - args: # 3
           accel-sim-mem: 160G
+          ignore: 3
 
 polybench-PPT-GPU:
   suite: polybench
@@ -546,6 +556,7 @@ GPU_Microbenchmark:
     - l1_bw_128:
         - args:
           accel-sim-mem: 2G
+          ignore: 3
     - l1_lat:
         - args:
           accel-sim-mem: 1G
@@ -555,9 +566,11 @@ GPU_Microbenchmark:
     - l2_bw_64f:
         - args:
           accel-sim-mem: 6G
-    # - l2_bw_128:
-    #     - args:
-    #       accel-sim-mem: 1G
+          ignore: 3
+    - l2_bw_128:
+        - args:
+          accel-sim-mem: 1G
+          ignore: 3
     - l2_lat:
         - args:
           accel-sim-mem: 1G
@@ -580,12 +593,15 @@ GPU_Microbenchmark:
     - l1_shared_bw:
         - args:
           accel-sim-mem: 1G
+          ignore: 3
     - l1_bw_32f_unroll:
         - args:
           accel-sim-mem: 1G
+          ignore: 3
     - l1_bw_32f_unroll_large:
         - args:
           accel-sim-mem: 1G
+          ignore: 3
 
 deepbench:
   exec_dir: "$GPGPU_WORKLOADS_ROOT/bin/$CUDA_VERSION/release/"
@@ -612,6 +628,7 @@ Tango:
       data_subdir: AlexNet
     - CN:
       - args: 1
+        ignore: 3
       data_subdir: CifarNet
     - GRU:
       - args: 
@@ -621,9 +638,11 @@ Tango:
       data_subdir: LSTM
     - RN:
       - args: 1
+        ignore: 3
       data_subdir: ResNet
     - SN:
       - args: 1
+        ignore: 3
       data_subdir: SqueezeNet
 
 parboil:

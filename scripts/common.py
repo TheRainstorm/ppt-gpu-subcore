@@ -31,7 +31,11 @@ def parse_app_definition_yaml(def_yml):
             else:
                 data_dirs = os.path.join(data_dirs, exe_name)
             
+            args_list_not_ignore = []
             for runparms in args_list:
+                if 'ignore' in runparms and runparms['ignore']:
+                    continue
+                args_list_not_ignore.append(runparms)
                 args = runparms["args"] if runparms["args"] else ""
                 if "accel-sim-mem" not in runparms:
                     runparms["accel-sim-mem"] = "4G"
@@ -42,11 +46,11 @@ def parse_app_definition_yaml(def_yml):
                 count += 1
             apps[suite].append(( benchmark_yaml[suite]['exec_dir'],
                                  data_dirs,
-                                 exe_name, args_list ))
+                                 exe_name, args_list_not_ignore ))
             apps[suite + ":" + exe_name] = []
             apps[suite + ":" + exe_name].append( ( benchmark_yaml[suite]['exec_dir'],
                                  data_dirs,
-                                 exe_name, args_list ) )
+                                 exe_name, args_list_not_ignore ) )
     return apps
 
 def gen_apps_from_suite_list(suite_list=""):
