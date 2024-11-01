@@ -15,6 +15,9 @@
 ##############################################################################
 
 
+import sys
+
+
 class Warp(object):
     '''
     class that represents a warp inside a block being executed on an SM
@@ -77,7 +80,7 @@ class Warp(object):
             if self.syncing:
                 pass
             elif self.current_inst > len(self.tasklist):  # should not happend?
-                print("[ERROR] current instruction index out of range, which should not happend?")
+                print("[ERROR] current instruction index out of range, which should not happend?", file=sys.stderr)
                 self.active = False
                 exit(-1)
             else:
@@ -86,7 +89,7 @@ class Warp(object):
                 max_dep = float("-inf")
                 for i in inst[2:]:
                     if i >= len(self.completions):
-                        print("[ERROR]\n with instruction: ", inst, " dependency", i)
+                        print("[ERROR]\n with instruction: ", inst, " dependency", i, file=sys.stderr)
                     if self.completions[i] > max_dep:
                         max_dep_idx = i
                         max_dep = self.completions[i]
@@ -175,7 +178,7 @@ class Warp(object):
                         if not is_issued:
                             self.stall_type_keeped = 'Sync'
                     else:
-                        print("[ERROR] unknown instruction: ", inst)
+                        print("[ERROR] unknown instruction: ", inst, file=sys.stderr)
                         exit(-1)
 
                     if not is_issued:

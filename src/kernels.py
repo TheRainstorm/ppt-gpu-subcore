@@ -362,7 +362,7 @@ class Kernel():
                 subcore_warp_list[i % num_subcore].append(warp)
             # check not exceed max_warp_per_subcore
             if any([len(subcore_warp_list[i]) > max_warp_per_subcore for i in range(num_subcore)]):
-                print("Error: exceed max warp per subcore")
+                print("Error: exceed max warp per subcore", file=sys.stderr)
                 exit(1)
             # empty new warp list
             new_active_warp_list = deque()

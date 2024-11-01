@@ -15,6 +15,7 @@
 ##############################################################################
 
 import random
+import sys
 from .warps import Warp
 
 class Scheduler(object):
@@ -74,8 +75,8 @@ class Scheduler(object):
                     warp_executed_idx = i
                     break  # only one warp can be executed per cycle
             else:
-                print("Error: schedule warp that is not active")
-                print(i, len(warp_list), warp.current_inst, len(warp.tasklist), "subcore_id", subcore_id)
+                print("Error: schedule warp that is not active", file=sys.stderr)
+                print(i, len(warp_list), warp.current_inst, len(warp.tasklist), "subcore_id", subcore_id, file=sys.stderr)
                 exit(-1)
         if warps_executed == 1:
             # pop warp not active

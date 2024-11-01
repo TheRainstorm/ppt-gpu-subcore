@@ -289,7 +289,9 @@ if __name__ == "__main__":
 
     args = parser.parse_args()
     
+    print("=====================")
     print("Start draw_1")
+    print("=====================")
     
     from common import *
     apps = gen_apps_from_suite_list(args.benchmark_list)

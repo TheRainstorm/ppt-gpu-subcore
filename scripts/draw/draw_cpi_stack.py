@@ -263,7 +263,9 @@ if __name__ == "__main__":
     
     args = parser.parse_args()
     
-    print("Start draw cpi stack py")
+    print("=====================")
+    print("Start draw_cpi_stack.py")
+    print("=====================")
     
     from common import *
     apps = gen_apps_from_suite_list(args.benchmark_list)

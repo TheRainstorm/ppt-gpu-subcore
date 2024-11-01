@@ -241,10 +241,10 @@ def print_config_error(config_name, flag=0):
 def print_warning(arg1, arg2, flag=False):
 	if flag:
 		print("\n[Warning]\n\"" + arg1 + "\" is not defined in the config file "+\
-		"assuming L1 cache is "+ arg2 + "\n")
+		"assuming L1 cache is "+ arg2 + "\n", file=sys.stderr)
 	else:
 		print("\n[Warning]\n\"" + arg1 + "\" can't be more than " + arg2\
-		 	+" registers\n assuming \"" + arg1 + "\" = " + arg2 + "\n")
+		 	+" registers\n assuming \"" + arg1 + "\" = " + arg2 + "\n", file=sys.stderr)
 
 
 def ceil(x, s):
