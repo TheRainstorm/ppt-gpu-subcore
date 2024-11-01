@@ -70,7 +70,7 @@ def get_max_active_block_per_sm(cc, launch_data, num_SMs, shared_memory_per_sm):
     th_occupancy = (th_active_warps / max_warps_per_sm) * 100
     
     allocted_block_per_sm = ceil(launch_data['grid_size'] / num_SMs)
-    max_active_block_per_sm = min(max_active_block_per_sm, allocted_block_per_sm)
+    max_active_block_per_sm = min(th_max_active_block_per_sm, allocted_block_per_sm)
     
     occupancy_res = {
         'block_per_sm_limit_warps': block_per_sm_limit_warps,
@@ -89,7 +89,7 @@ def get_max_active_block_per_sm(cc, launch_data, num_SMs, shared_memory_per_sm):
     
 class Kernel():
 
-    def __init__(self, base_info, gpuNode, kernel_info):
+    def __init__(self, gpuNode, kernel_info):
         # super(Kernel, self).__init__(base_info)
         # print("kernel %s, %s inits on Entity %d, Rank %d" % (kernel_info['kernel_name'], self.name, self.num, self.engine.rank))
         # sys.stdout.flush()
@@ -204,7 +204,7 @@ class Kernel():
 
 
 
-    def kernel_call(self, data, name, num):
+    def kernel_call(self):
         
         pred_out = self.pred_out
 

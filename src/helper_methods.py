@@ -247,11 +247,11 @@ def print_warning(arg1, arg2, flag=False):
 		 	+" registers\n assuming \"" + arg1 + "\" = " + arg2 + "\n", file=sys.stderr)
 
 
-def ceil(x, s):
+def ceil(x, s=1):
 	return s * math.ceil(float(x)/s)
 
 
-def floor(x, s):
+def floor(x, s=1):
     return s * math.floor(float(x)/s)
 
 
