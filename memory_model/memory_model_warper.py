@@ -38,17 +38,20 @@ def sdcm_model_warpper(kernel_id, trace_dir,
                 ):
     grid_size = launch_params['grid_size']
     num_SMs = gpu_config['num_SMs']
+    active_sm = min(num_SMs, grid_size)
     # mapping block trace to SM
     sm_traces = []
-    for smi in range(num_SMs):
+    for smi in range(active_sm):
         smi_blocks = []
         for bidx in range(grid_size):
             if bidx % num_SMs == smi:
                 block_trace_path = os.path.join(trace_dir, 'memory_traces', f"kernel_{kernel_id}_block_{bidx}.mem")
-                with open(block_trace_path,'r') as f:
-                    block_trace = f.readlines()
-                # block_trace = get_cache_line_access_from_raw_trace(block_trace_path, gpu_config['l1_cache_line_size'])
-                smi_blocks.append(block_trace)
+                if not os.path.exists(block_trace_path):
+                    smi_blocks.append([])
+                else:
+                    with open(block_trace_path,'r') as f:
+                        block_trace = f.readlines()
+                    smi_blocks.append(block_trace)
                 if len(smi_blocks) >= max_blocks_per_sm:
                     break
         smi_blocks_interleave = interleave_trace(smi_blocks)  # interleave at warp level
@@ -57,18 +60,14 @@ def sdcm_model_warpper(kernel_id, trace_dir,
     
     # reuse distance model for L1
     l1_hit_rate_list = []
-    for smi in range(num_SMs):
-        # if smi==0 and kernel_id==1:
-        #     with open('sdcm_k1_l1_sm0_trace.txt', 'w') as f:
-        #         for line in sm_traces[smi]:
-        #             for x in line:
-        #                 f.write(f"{x} ")
-        #             f.write("\n")
+    for smi in range(active_sm):
         smi_trace = sm_traces[smi]
-        hit_rate = model(smi_trace, {'capacity': gpu_config['l1_cache_size'], 'cache_line_size': gpu_config['l1_cache_line_size'], 'associativity': gpu_config['l1_cache_associativity']})
+        if not smi_trace:
+            hit_rate = 0
+        else:
+            hit_rate = model(smi_trace, {'capacity': gpu_config['l1_cache_size'], 'cache_line_size': gpu_config['l1_cache_line_size'], 'associativity': gpu_config['l1_cache_associativity']})
         l1_hit_rate_list.append(hit_rate)
     
-    # active_sm = num_SMs
     # num_jobs = min(active_sm, multiprocessing.cpu_count())
     # # l1_hit_rate_list = Parallel(n_jobs=num_jobs, prefer="processes")(delayed(model)(smi_trace, {'capacity': gpu_config['l1_cache_size'], 'cache_line_size': gpu_config['l1_cache_line_size'], 'associativity': gpu_config['l1_cache_associativity']}) for i in range(active_sm))
     
@@ -77,16 +76,44 @@ def sdcm_model_warpper(kernel_id, trace_dir,
     #     for future in concurrent.futures.as_completed(futures):
     #         l1_hit_rate_list.append(future.result())
         
-    print(l1_hit_rate_list)
+    # print(l1_hit_rate_list)
     avg_l1_hit_rate = sum(l1_hit_rate_list) / len(l1_hit_rate_list)
     
     # reuse distance model for L2
     l2_trace = interleave_trace(sm_traces)
     l2_hit_rate = model(l2_trace, {'capacity': gpu_config['l2_cache_size'], 'cache_line_size': gpu_config['l2_cache_line_size'], 'associativity': gpu_config['l2_cache_associativity']})
-    print(l2_hit_rate)
+    # print(l2_hit_rate)
     
     return [avg_l1_hit_rate, l2_hit_rate]
 
+
+def memory_model_warpper(gpu_model, app_path, model, kernel_id=-1):
+    gpu_config = get_gpu_config(gpu_model).uarch
+    kernels_launch_params = get_kernels_launch_params(app_path)
+    
+    # select model
+    if model == 'ppt-gpu':
+        memory_model = ppt_gpu_model_warpper
+    elif model == 'sdcm':
+        memory_model = sdcm_model_warpper
+    else:
+        raise ValueError("Invalid model")
+    
+    app_res = []
+    
+    if kernel_id != -1:
+        kernels_launch_params = [kernels_launch_params[kernel_id-1]]
+    
+    for i in range(len(kernels_launch_params)):
+        occupancy_res = get_max_active_block_per_sm(gpu_config['cc_configs'], kernels_launch_params[i], gpu_config['num_SMs'], gpu_config['shared_mem_size'])
+        
+        print(f"kernel {i+1} start")
+        l1_hit_rate, l2_hit_rate = memory_model(i+1, app_path, kernels_launch_params[i], occupancy_res['max_active_block_per_sm'], gpu_config)
+        
+        app_res.append({"l1_hit_rate": l1_hit_rate*100, "l2_hit_rate": l2_hit_rate*100})
+    
+    return app_res
+    
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(
         description='ppt-gpu memory model'
@@ -101,7 +128,7 @@ if __name__ == "__main__":
                     default="2",
                     choices=["1", "2", "3"],
                     help='1=One Thread Block per SM or 2=Active Thread Blocks per SM or 3=All Thread Blocks per SM')
-    parser.add_argument("--kernel", dest="kernel_id",
+    parser.add_argument('-k', "--kernel", dest="kernel_id",
                     type=int,
                     default=-1,
                     help='(1 based index) To choose a specific kernel, add the kernel id')
@@ -111,26 +138,7 @@ if __name__ == "__main__":
                     help='change memory model')
     args = parser.parse_args()
     
-    gpu_config = get_gpu_config(args.config).uarch
-    kernels_launch_params = get_kernels_launch_params(args.app_path)
-    
-    # select model
-    if args.model == 'ppt-gpu':
-        memory_model = ppt_gpu_model_warpper
-    elif args.model == 'sdcm':
-        memory_model = sdcm_model_warpper
-    else:
-        raise ValueError("Invalid model")
-    
-    kernel_res = []
-    
-    for i in range(len(kernels_launch_params)):
-        occupancy_res = get_max_active_block_per_sm(gpu_config['cc_configs'], kernels_launch_params[i], gpu_config['num_SMs'], gpu_config['shared_mem_size'])
-        
-        l1_hit_rate, l2_hit_rate = memory_model(i+1, args.app_path, kernels_launch_params[i], occupancy_res['max_active_block_per_sm'], gpu_config)
-        
-        kernel_res.append([l1_hit_rate, l2_hit_rate])
-    
-    print(kernel_res)
+    app_res = memory_model_warpper(args.config, args.app_path, args.model, kernel_id=args.kernel_id)
+    print(app_res)
     print("Done")
     
