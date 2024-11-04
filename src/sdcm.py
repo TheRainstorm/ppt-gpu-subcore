@@ -24,7 +24,7 @@ def timeit(func):
         return result
     return wrapper
 
-def process_trace(block_trace, l1_cache_line_size):
+def process_trace(block_trace, l1_cache_line_size, inst_count=None):
     def get_line_adresses(addresses, l1_cache_line_size):
         '''
         coalescing the addresses of the warp
@@ -53,6 +53,12 @@ def process_trace(block_trace, l1_cache_line_size):
     for trace_line in block_trace:
         trace_line_splited = trace_line.strip().split(' ')
         inst = trace_line_splited[0]
+        
+        if not ("LDG" in inst or "STG" in inst or "LDL" in inst or "STL" in inst):
+            if inst_count is not None:
+                inst_count[inst] = inst_count.get(inst, 0) + 1
+            continue
+        
         addrs = trace_line_splited[1:]
         line_addrs, sector_addrs = get_line_adresses(addrs, l1_cache_line_size)
         

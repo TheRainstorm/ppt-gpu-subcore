@@ -46,6 +46,13 @@ print(f"filter apps: {args.apps}")
 logging(f"START")
 
 sim_res = {}
+if os.path.exists(args.output):
+    with open(args.output, 'r') as f:
+        try:
+            sim_res = json.load(f)
+        except:
+            pass
+            
 for app_and_arg in app_and_arg_list:
     app = app_and_arg.split('/')[0]
     app_trace_dir = os.path.join(args.trace_dir, app_and_arg)
@@ -55,6 +62,9 @@ for app_and_arg in app_and_arg_list:
     
     logging(f"{app_and_arg} start")
     app_res = memory_model_warpper(args.config, app_trace_dir, args.model)
+    avg_l1_hit_rate = sum([res['l1_hit_rate'] for res in app_res]) / len(app_res)
+    avg_l2_hit_rate = sum([res['l2_hit_rate'] for res in app_res]) / len(app_res)
+    print(f"avg_l1_hit_rate: {avg_l1_hit_rate}, avg_l2_hit_rate: {avg_l2_hit_rate}")
     sim_res[app_and_arg] = app_res
     logging(f"{app_and_arg} finished")
 

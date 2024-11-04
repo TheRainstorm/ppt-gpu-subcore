@@ -67,16 +67,17 @@ def sdcm_model_warpper(kernel_id, trace_dir,
     # reuse distance model for L1
     l1_hit_rate_list = []
     sm_traces = []
+    inst_count = {}
     for smi in range(active_sm):
         smi_blocks = sm_blocks[smi]
         smi_blocks_interleave = interleave_trace(smi_blocks)  # interleave at warp level
-        smi_trace = process_trace(smi_blocks_interleave, gpu_config['l1_cache_line_size']) # warp level to cache line level
+        smi_trace = process_trace(smi_blocks_interleave, gpu_config['l1_cache_line_size'], inst_count=inst_count) # warp level to cache line level
         if not smi_trace:
-            hit_rate = 0
+            continue   # don't count zero trace SM
         else:
             sm_traces.append(smi_trace)
             hit_rate = model(smi_trace, {'capacity': gpu_config['l1_cache_size'], 'cache_line_size': gpu_config['l1_cache_line_size'], 'associativity': gpu_config['l1_cache_associativity']})
-        l1_hit_rate_list.append(hit_rate)
+            l1_hit_rate_list.append(hit_rate)
     
     # num_jobs = min(active_sm, multiprocessing.cpu_count())
     # # l1_hit_rate_list = Parallel(n_jobs=num_jobs, prefer="processes")(delayed(model)(smi_trace, {'capacity': gpu_config['l1_cache_size'], 'cache_line_size': gpu_config['l1_cache_line_size'], 'associativity': gpu_config['l1_cache_associativity']}) for i in range(active_sm))
@@ -87,6 +88,7 @@ def sdcm_model_warpper(kernel_id, trace_dir,
     #         l1_hit_rate_list.append(future.result())
         
     # print(l1_hit_rate_list)
+    print(f"kernel {kernel_id} inst_count: {inst_count}")
     avg_l1_hit_rate = sum(l1_hit_rate_list) / len(l1_hit_rate_list)
     
     # reuse distance model for L2
@@ -122,11 +124,11 @@ def memory_model_warpper(gpu_model, app_path, model, kernel_id=-1):
     if kernel_id != -1:
         kernels_launch_params = [kernels_launch_params[kernel_id-1]]
     
-    for i in range(len(kernels_launch_params)):
-        occupancy_res = get_max_active_block_per_sm(gpu_config['cc_configs'], kernels_launch_params[i], gpu_config['num_SMs'], gpu_config['shared_mem_size'])
+    for kernel_param in kernels_launch_params:
+        occupancy_res = get_max_active_block_per_sm(gpu_config['cc_configs'], kernel_param, gpu_config['num_SMs'], gpu_config['shared_mem_size'])
         
-        print(f"kernel {i+1} start")
-        l1_hit_rate, l2_hit_rate = memory_model(i+1, app_path, kernels_launch_params[i], occupancy_res['max_active_block_per_sm'], gpu_config)
+        print(f"kernel {kernel_param['kernel_id']} start")
+        l1_hit_rate, l2_hit_rate = memory_model(kernel_param['kernel_id'], app_path, kernel_param, occupancy_res['max_active_block_per_sm'], gpu_config)
         
         app_res.append({"l1_hit_rate": l1_hit_rate*100, "l2_hit_rate": l2_hit_rate*100})
     

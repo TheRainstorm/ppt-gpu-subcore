@@ -27,6 +27,7 @@ def get_launch_params(kernel_id, app_config):
     kernel_id_name = f"kernel_{kernel_id}"
     launch_param_ = app_config[kernel_id_name]
     launch_param = {}
+    launch_param['kernel_id'] = kernel_id
     launch_param['kernel_name'] = launch_param_["kernel_name"]
     launch_param['smem_size'] = launch_param_["shared_mem_bytes"]
     launch_param['grid_size'] = launch_param_["grid_size"]
