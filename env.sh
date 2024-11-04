@@ -90,8 +90,8 @@ res_sim_detail_cpi_json=${ppt_gpu_dir}/tmp/res_${model}_${gpu}_${cuda_version}_$
 res_sim_sched_cpi_json=${ppt_gpu_dir}/tmp/res_${model}_${gpu}_${cuda_version}_${run_name}_sched_cpi.json
 
 # run memory
-res_memory_sdcm_json=${ppt_gpu_dir}/tmp/res_memory_sdcm_${gpu}_${cuda_version}_${run_name}.json
-res_memory_ppt_gpu_json=${ppt_gpu_dir}/tmp/res_memory_ppt_gpu_${gpu}_${cuda_version}_${run_name}.json
+memory_model=${memory_model:-"ppt-gpu"} # sdcm, simulator
+res_memory_prefix=${ppt_gpu_dir}/tmp/res_memory_${gpu}_${cuda_version}_${run_name}_
 
 # draw
 draw_output=${ppt_gpu_dir}/tmp_draw/draw_${model}_${gpu}_${cuda_version}_${run_name}
@@ -131,6 +131,7 @@ print_summary(){
     echo "res_sim_json: $res_sim_json"
     echo "report_dir: $report_dir"
     echo "draw_output: $draw_output"
+    echo "memory_model: $memory_model"
 }
 
 unset_env(){
@@ -139,6 +140,7 @@ unset_env(){
     unset GPU gpu
     unset trace_dir_base
     unset ppt_gpu_version
+    unset memory_model
 }
 
 print_summary

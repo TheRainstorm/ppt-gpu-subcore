@@ -1,11 +1,9 @@
 #!/usr/bin/env bash
 
 run_memory(){
-python ${ppt_gpu_dir}/memory_model/run_benchmarks.py -c TITANV -M "sdcm" -B ${benchmarks} -F ${filter_app} -T ${trace_dir} -o ${res_memory_sdcm_json} -l run_memory_${sim_identifier}.log
-python ${ppt_gpu_dir}/memory_model/run_benchmarks.py -c TITANV -M "ppt-gpu" -B ${benchmarks} -F ${filter_app} -T ${trace_dir} -o ${res_memory_ppt_gpu_json} -l run_memory_${sim_identifier}.log 
+python ${ppt_gpu_dir}/memory_model/run_benchmarks.py -c TITANV -M ${memory_model} -B ${benchmarks} -F ${filter_app} -T ${trace_dir} -o ${res_memory_prefix}${memory_model}.json -l run_memory_${memory_model}.log
 
-python ${ppt_gpu_dir}/scripts/draw/draw_1.py -B ${benchmarks} -F ${filter_app} -S ${res_memory_sdcm_json} -H ${res_hw_json} -o ${draw_output} -d "memory_sdcm" memory
-python ${ppt_gpu_dir}/scripts/draw/draw_1.py -B ${benchmarks} -F ${filter_app} -S ${res_memory_ppt_gpu_json} -H ${res_hw_json} -o ${draw_output} -d "memory_ppt_gpu" memory
+python ${ppt_gpu_dir}/scripts/draw/draw_1.py -B ${benchmarks} -F ${filter_app} -S ${res_memory_prefix}${memory_model}.json -H ${res_hw_json} -o ${draw_output} -d memory_${memory_model} memory
 }
 
 run_trace(){
