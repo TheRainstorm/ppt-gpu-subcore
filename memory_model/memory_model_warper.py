@@ -28,6 +28,9 @@ def ppt_gpu_model_warpper(kernel_id, trace_dir,
     # print(memory_stats)
     return [memory_stats['umem_hit_rate'], memory_stats['hit_rate_l2']]
 
+# import concurrent.futures
+# import multiprocessing
+# from joblib import Parallel, delayed
 def sdcm_model_warpper(kernel_id, trace_dir,
                 launch_params,
                 max_blocks_per_sm, 
@@ -64,6 +67,16 @@ def sdcm_model_warpper(kernel_id, trace_dir,
         smi_trace = sm_traces[smi]
         hit_rate = model(smi_trace, {'capacity': gpu_config['l1_cache_size'], 'cache_line_size': gpu_config['l1_cache_line_size'], 'associativity': gpu_config['l1_cache_associativity']})
         l1_hit_rate_list.append(hit_rate)
+    
+    # active_sm = num_SMs
+    # num_jobs = min(active_sm, multiprocessing.cpu_count())
+    # # l1_hit_rate_list = Parallel(n_jobs=num_jobs, prefer="processes")(delayed(model)(smi_trace, {'capacity': gpu_config['l1_cache_size'], 'cache_line_size': gpu_config['l1_cache_line_size'], 'associativity': gpu_config['l1_cache_associativity']}) for i in range(active_sm))
+    
+    # with concurrent.futures.ProcessPoolExecutor(max_workers=num_jobs) as executor:
+    #     futures = [executor.submit(model, smi_trace, {'capacity': gpu_config['l1_cache_size'], 'cache_line_size': gpu_config['l1_cache_line_size'], 'associativity': gpu_config['l1_cache_associativity']}) for i in range(active_sm)]
+    #     for future in concurrent.futures.as_completed(futures):
+    #         l1_hit_rate_list.append(future.result())
+        
     print(l1_hit_rate_list)
     avg_l1_hit_rate = sum(l1_hit_rate_list) / len(l1_hit_rate_list)
     
