@@ -1,5 +1,13 @@
 #!/usr/bin/env bash
 
+run_memory(){
+python ${ppt_gpu_dir}/memory_model/run_benchmarks.py -c TITANV -M "sdcm" -B ${benchmarks} -F ${filter_app} -T ${trace_dir} -o ${res_memory_sdcm_json} -l run_memory_${sim_identifier}.log
+python ${ppt_gpu_dir}/memory_model/run_benchmarks.py -c TITANV -M "ppt-gpu" -B ${benchmarks} -F ${filter_app} -T ${trace_dir} -o ${res_memory_ppt_gpu_json} -l run_memory_${sim_identifier}.log 
+
+python ${ppt_gpu_dir}/scripts/draw/draw_1.py -B ${benchmarks} -F ${filter_app} -S ${res_memory_sdcm_json} -H ${res_hw_json} -o ${draw_output} -d "memory_sdcm" memory
+python ${ppt_gpu_dir}/scripts/draw/draw_1.py -B ${benchmarks} -F ${filter_app} -S ${res_memory_ppt_gpu_json} -H ${res_hw_json} -o ${draw_output} -d "memory_ppt_gpu" memory
+}
+
 run_trace(){
 # trace
 python ${ppt_gpu_dir}/scripts/run_hw_trace.py -B ${benchmarks} -F ${filter_app} -T ${trace_dir} -D ${GPU} --trace_tool ${ppt_gpu_dir}/tracing_tool/tracer-${nvbit_version}.so -l run_hw_trace_${hw_identifier}.log --time-out ${time_out} > /dev/null

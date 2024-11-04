@@ -285,7 +285,7 @@ if __name__ == "__main__":
                         default="")
     parser.add_argument("-F", "--app-filter", default="", help="filter apps. e.g. regex:.*-rodinia-2.0-ft, [suite]:[exec]:[count]")
     parser.add_argument('-d', '--dir-name', default='', help='dir name to save image, default "app" and "kernel"')
-    parser.add_argument("command", choices=["app", "kernel", "kernel_by_app", "app_by_bench", "single"], help="draw app or kernel. app: to get overview error of cycle, memory performance and etc. at granurality of apps. kernel: draw all error bar in granurality of kernel. single: draw seperate app in single dir, it's useful when we want to get single app info mation")
+    parser.add_argument("command", choices=["app", "kernel", "kernel_by_app", "app_by_bench", "single", "memory"], help="draw app or kernel. app: to get overview error of cycle, memory performance and etc. at granurality of apps. kernel: draw all error bar in granurality of kernel. single: draw seperate app in single dir, it's useful when we want to get single app info mation")
 
     args = parser.parse_args()
     
@@ -437,4 +437,15 @@ if __name__ == "__main__":
             
             draw_side2side("l1_hit_rate", f"bar_6_l1_hit_rate.png", draw_kernel=True)
             draw_side2side("l2_hit_rate", f"bar_6_l2_hit_rate.png", draw_kernel=True)
+    elif args.command == 'memory':
+        print(f"\ncommand: {args.command}:")
+        args.dir_name = args.dir_name if args.dir_name else args.command
+        os.makedirs(args.dir_name, exist_ok=True)  # save image in seperate dir
+        os.chdir(args.dir_name)
+        overwrite = True
+        draw_error("l1_hit_rate", "error_6_l1_hit_rate.png")
+        draw_side2side("l1_hit_rate", "bar_6_l1_hit_rate.png")
+        draw_error("l2_hit_rate", "error_6_l2_hit_rate.png")
+        draw_side2side("l2_hit_rate", "bar_6_l2_hit_rate.png")
+        
     os.chdir(run_dir)

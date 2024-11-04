@@ -56,7 +56,10 @@ sim_identifier="${gpu}-$GPU-${CUDA_VERSION}-${run_name}"
 
 ### Set File Path
 my_home=/staff/fyyuan
-ppt_gpu_dir=$my_home/repo/PPT-GPU
+
+ppt_gpu_version=${ppt_gpu_version:-"PPT-GPU"}
+ppt_gpu_dir=$my_home/repo/${ppt_gpu_version}
+
 trace_dir_base=${trace_dir_base:-$my_home/hw_trace3}
 
 # cuda_version_major=`nvcc --version | grep release | sed -re 's/.*release ([0-9]+)\..*/\1/'`;
@@ -85,6 +88,11 @@ res_sim_lite_json=${ppt_gpu_dir}/tmp/res_${model}_${gpu}_${cuda_version}_${run_n
 res_sim_cpi_json=${ppt_gpu_dir}/tmp/res_${model}_${gpu}_${cuda_version}_${run_name}_cpi.json
 res_sim_detail_cpi_json=${ppt_gpu_dir}/tmp/res_${model}_${gpu}_${cuda_version}_${run_name}_detail_cpi.json
 res_sim_sched_cpi_json=${ppt_gpu_dir}/tmp/res_${model}_${gpu}_${cuda_version}_${run_name}_sched_cpi.json
+
+# run memory
+res_memory_sdcm_json=${ppt_gpu_dir}/tmp/res_memory_sdcm_${gpu}_${cuda_version}_${run_name}.json
+res_memory_ppt_gpu_json=${ppt_gpu_dir}/tmp/res_memory_ppt_gpu_${gpu}_${cuda_version}_${run_name}.json
+
 # draw
 draw_output=${ppt_gpu_dir}/tmp_draw/draw_${model}_${gpu}_${cuda_version}_${run_name}
 
@@ -130,6 +138,7 @@ unset_env(){
     unset run_name nvbit_version 
     unset GPU gpu
     unset trace_dir_base
+    unset ppt_gpu_version
 }
 
 print_summary
