@@ -246,9 +246,12 @@ def truncate_kernel(sim_res, num):
 
 def find_common(sim_res, hw_res):
     # proc hw_res
-    for app, kernels_res in hw_res.items():
-        for kernel_res in kernels_res:
-            kernel_res["dram_total_transactions"] = kernel_res["dram_read_transactions"] + kernel_res["dram_write_transactions"]
+    try:
+        for app, kernels_res in hw_res.items():
+            for kernel_res in kernels_res:
+                kernel_res["dram_total_transactions"] = kernel_res["dram_read_transactions"] + kernel_res["dram_write_transactions"]
+    except:
+        pass
 
     # found common
     for app in hw_res.copy():
@@ -285,7 +288,9 @@ if __name__ == "__main__":
                         default="")
     parser.add_argument("-F", "--app-filter", default="", help="filter apps. e.g. regex:.*-rodinia-2.0-ft, [suite]:[exec]:[count]")
     parser.add_argument('-d', '--dir-name', default='', help='dir name to save image, default "app" and "kernel"')
-    parser.add_argument("command", choices=["app", "kernel", "kernel_by_app", "app_by_bench", "single", "memory"], help="draw app or kernel. app: to get overview error of cycle, memory performance and etc. at granurality of apps. kernel: draw all error bar in granurality of kernel. single: draw seperate app in single dir, it's useful when we want to get single app info mation")
+    parser.add_argument("command",
+                        # choices=["app", "kernel", "kernel_by_app", "app_by_bench", "single", "memory"],
+                        help="draw app or kernel. app: to get overview error of cycle, memory performance and etc. at granurality of apps. kernel: draw all error bar in granurality of kernel. single: draw seperate app in single dir, it's useful when we want to get single app info mation")
 
     args = parser.parse_args()
     
@@ -458,5 +463,25 @@ if __name__ == "__main__":
             draw_side2side("l1_hit_rate", f"{bench}_bar_6_l1_hit_rate.png")
             draw_error("l2_hit_rate", f"{bench}_error_6_l2_hit_rate.png", avg=True)
             draw_side2side("l2_hit_rate", f"{bench}_bar_6_l2_hit_rate.png")
-        
+    elif args.command == 'memory-sim':
+        print(f"\ncommand: {args.command}:")
+        args.dir_name = args.dir_name if args.dir_name else args.command
+        os.makedirs(args.dir_name, exist_ok=True)  # save image in seperate dir
+        os.chdir(args.dir_name)
+        overwrite = True
+        # get all bench
+        app_list_all = sim_res.keys()
+        benchs = set()
+        for app_arg in app_list_all:
+            try:
+                benchs.add(suite_info['map'][app_arg][0])
+            except:
+                print(f"Warning: {app_arg} not found in suite_info, skip")
+        # set each bench as filter
+        for bench in benchs:
+            app_filter = bench
+            draw_error("l1_hit_rate", f"{bench}_error_6_l1_hit_rate.png", hw_stat="l1_hit_rate", avg=True)
+            draw_side2side("l1_hit_rate", f"{bench}_bar_6_l1_hit_rate.png", hw_stat="l1_hit_rate")
+            draw_error("l2_hit_rate", f"{bench}_error_6_l2_hit_rate.png", hw_stat="l2_hit_rate", avg=True)
+            draw_side2side("l2_hit_rate", f"{bench}_bar_6_l2_hit_rate.png", hw_stat="l2_hit_rate")
     os.chdir(run_dir)
