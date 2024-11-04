@@ -160,7 +160,7 @@ def sdcm(sdd, cache_line_size, cache_size, associativity, use_approx=False):
     A = associativity
     
     hit_rate = 0
-    for sd, _, p_sd in sdd:
+    for sd, _, p_sd in sdd[:-1]:  # the last one is -1
         if sd==0:
             p_hit = 1
         elif sd==-1:
@@ -177,10 +177,10 @@ def sdcm(sdd, cache_line_size, cache_size, associativity, use_approx=False):
         hit_rate += p_hit * p_sd
     return hit_rate
 
-def model(cache_line_access, cache_parameter):
+def model(cache_line_access, cache_parameter, use_approx=True):
     SD = get_stack_distance(cache_line_access)
     sdd, csdd = get_csdd(SD)
-    hit_rate = sdcm(sdd, cache_parameter['cache_line_size'], cache_parameter['capacity'], cache_parameter['associativity'], use_approx=False)
+    hit_rate = sdcm(sdd, cache_parameter['cache_line_size'], cache_parameter['capacity'], cache_parameter['associativity'], use_approx=use_approx)
     # print(f"hit rate: {hit_rate}")
     return hit_rate
     
@@ -249,6 +249,27 @@ def draw_SD(sdd, img_path):
     ax.set_ylabel("percentage")
     fig.savefig(img_path)
     plt.close(fig)
+
+def read_sdd_from_pardax_output(file):
+    sdd = []
+    with open(file, 'r') as f:
+        for line in f.readlines():
+            line_split = line.split(',')
+            sd = int(line_split[0])
+            prop = float(line_split[1])
+            cnt = int(line_split[2])
+            if sd== -1:
+                sd = sdd[-1][0] + 1
+            sdd.append((sd, cnt, prop))
+
+    return sdd
+if __name__ == "__main__2":
+    # sdd = read_sdd('K1_GMEM_SM0_lds.rp')
+    sdd = read_sdd_from_pardax_output('K1_UMEM_SM0.rp')
+    hit_rate = sdcm(sdd, 32, 32*1024, 64, use_approx=True)
+    print(hit_rate)
+    hit_rate = sdcm(sdd, 32, 32*1024, 64, use_approx=False)
+    print(hit_rate)
     
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(

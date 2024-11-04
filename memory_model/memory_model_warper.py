@@ -48,21 +48,19 @@ def sdcm_model_warpper(kernel_id, trace_dir,
                 smi_blocks.append(block_trace)
                 if len(smi_blocks) >= max_blocks_per_sm:
                     break
-        smi_blocks_interleave = interleave_trace(smi_blocks)
-        smi_trace = process_trace(smi_blocks_interleave, gpu_config['l1_cache_line_size'])
+        smi_blocks_interleave = interleave_trace(smi_blocks)  # interleave at warp level
+        smi_trace = process_trace(smi_blocks_interleave, gpu_config['l1_cache_line_size']) # warp level to cache line level
         sm_traces.append(smi_trace)
     
     # reuse distance model for L1
     l1_hit_rate_list = []
     for smi in range(num_SMs):
-        if smi==0 and kernel_id==1:
-            with open('sdcm_l1_sm0_trace.txt', 'w') as f:
-                for line in sm_traces[smi]:
-                    for x in line:
-                        f.write(f"{x} ")
-                    f.write("\n")
-                    # f.write(" ".join(line))
-                    # f.write(" ".join(line)+"\n")
+        # if smi==0 and kernel_id==1:
+        #     with open('sdcm_k1_l1_sm0_trace.txt', 'w') as f:
+        #         for line in sm_traces[smi]:
+        #             for x in line:
+        #                 f.write(f"{x} ")
+        #             f.write("\n")
         smi_trace = sm_traces[smi]
         hit_rate = model(smi_trace, {'capacity': gpu_config['l1_cache_size'], 'cache_line_size': gpu_config['l1_cache_line_size'], 'associativity': gpu_config['l1_cache_associativity']})
         l1_hit_rate_list.append(hit_rate)
@@ -72,6 +70,7 @@ def sdcm_model_warpper(kernel_id, trace_dir,
     # reuse distance model for L2
     l2_trace = interleave_trace(sm_traces)
     l2_hit_rate = model(l2_trace, {'capacity': gpu_config['l2_cache_size'], 'cache_line_size': gpu_config['l2_cache_line_size'], 'associativity': gpu_config['l2_cache_associativity']})
+    print(l2_hit_rate)
     
     return [avg_l1_hit_rate, l2_hit_rate]
 
