@@ -23,6 +23,25 @@ import sys, os, importlib
 from src.kernels import Kernel
 import argparse
 
+def get_launch_params(kernel_id, app_config):
+    kernel_id_name = f"kernel_{kernel_id}"
+    launch_param_ = getattr(app_config, kernel_id_name)
+    launch_param = {}
+    launch_param['kernel_name'] = launch_param_["kernel_name"]
+    launch_param['smem_size'] = launch_param_["shared_mem_bytes"]
+    launch_param['grid_size'] = launch_param_["grid_size"]
+    launch_param['block_size'] = launch_param_["block_size"]
+    launch_param['num_regs'] = launch_param_["num_registers"]
+    return launch_param
+
+def get_kernels_launch_params(app_path):
+    app_config = get_app_config(app_path)
+    
+    launch_param_list = []
+    for kernel_id in app_config.app_kernels_id:
+        launch_param_list.append(get_launch_params(kernel_id, app_config))
+    return launch_param_list
+    
 def get_current_kernel_info(kernel_id, app_name, app_path, app_config, instructions_type, granularity, app_res_ref=None, app_report_dir=None):
 
     current_kernel_info = {}
@@ -31,52 +50,13 @@ def get_current_kernel_info(kernel_id, app_name, app_path, app_config, instructi
     current_kernel_info["kernel_id"] = str(kernel_id)
     current_kernel_info["granularity"] = granularity
 
+    kernel_id_name = f"kernel_{kernel_id}"
     ###########################
     ## kernel configurations ##
     ###########################
-    kernel_id_name = f"kernel_{kernel_id}"
-
-    try:
-        kernel_config = getattr(app_config, kernel_id_name)
-    except:
-        print(str("\n[Error]\n<<")+str(kernel_id_name)+str(">> doesn't exists in app_config file"))
-        sys.exit(1)
-
-    try:
-        kernel_name = kernel_config["kernel_name"]
-    except:
-        print(str("\n[Error]\n")+str("\"kernel_name\" configuration is missing"))
-        sys.exit(1)
-    current_kernel_info["kernel_name"] = kernel_name
-
-    try:
-        kernel_smem_size = kernel_config["shared_mem_bytes"]
-    except:
-        print(str("\n[Error]\n")+str("\"shared_mem_bytes\" configuration is missing"))
-        sys.exit(1)
-    current_kernel_info["smem_size"] = kernel_smem_size
-
-    try:
-        kernel_grid_size = kernel_config["grid_size"]
-    except:
-        print(str("\n[Error]\n")+str("\"grid_size\" configuration is missing"))
-        sys.exit(1)
-    current_kernel_info["grid_size"] = kernel_grid_size
-
-    try:
-        kernel_block_size = kernel_config["block_size"]
-    except:
-        print(str("\n[Error]\n")+str("\"block_size\" configuration is missing"))
-        sys.exit(1)
-    current_kernel_info["block_size"] = kernel_block_size
+    launch_param = get_launch_params(kernel_id, app_config)
+    current_kernel_info.update(launch_param)
     
-    try:
-        kernel_num_regs = kernel_config["num_registers"]
-    except:
-        print(str("\n[Error]\n")+str("\"num_registers\" configuration is missing"))
-        sys.exit(1)
-    current_kernel_info["num_regs"] = kernel_num_regs
-
     ##################
     ## memory trace ##
     ##################

@@ -7,6 +7,7 @@ import matplotlib.pyplot as plt
 import time
 from functools import wraps
 
+
 def timeit(func):
     """
     装饰器，用于统计函数执行时间。
@@ -21,8 +22,7 @@ def timeit(func):
         return result
     return wrapper
 
-@timeit
-def get_cache_line_access_from_raw_trace(trace_file, l1_cache_line_size):
+def process_trace(block_trace, l1_cache_line_size):
     def get_line_adresses(addresses, l1_cache_line_size):
         '''
         coalescing the addresses of the warp
@@ -48,8 +48,6 @@ def get_cache_line_access_from_raw_trace(trace_file, l1_cache_line_size):
         return list(cache_line_set), list(sector_set)
 
     cache_line_access = []
-    # block_trace = open(trace_file,'r').read().strip().split("\n=====\n")
-    block_trace = open(trace_file,'r').readlines()
     for trace_line in block_trace:
         trace_line_splited = trace_line.strip().split(' ')
         inst = trace_line_splited[0]
@@ -59,10 +57,14 @@ def get_cache_line_access_from_raw_trace(trace_file, l1_cache_line_size):
         for individual_addrs in line_addrs:
             cache_line_access.append([0, 0, 0, individual_addrs])
     
-    print(f"[INFO]: {trace_file} req,warp_inst,ratio: {len(cache_line_access)},{len(block_trace)},{len(cache_line_access)/len(block_trace)}")
+    # print(f"[INFO]: {trace_file} req,warp_inst,ratio: {len(cache_line_access)},{len(block_trace)},{len(cache_line_access)/len(block_trace)}")
     return cache_line_access
+# @timeit
+def get_cache_line_access_from_raw_trace(trace_file, l1_cache_line_size):
+    block_trace = open(trace_file,'r').readlines()
+    return process_trace(block_trace, l1_cache_line_size)
 
-@timeit
+# @timeit
 def get_cache_line_access_from_file(file_path):
     cache_line_access = []
     with open(file_path, 'r') as f:
@@ -72,7 +74,7 @@ def get_cache_line_access_from_file(file_path):
     
     return cache_line_access
 
-@timeit
+# @timeit
 def get_stack_distance(cache_line_access):
     '''caculate sd for each reference
     rs: reference stream, cache line address list
@@ -92,7 +94,7 @@ def get_stack_distance(cache_line_access):
         stack.append(address)
     return SD
 
-@timeit
+# @timeit
 def get_csdd(SD):
     '''get cumulative stack distance distribution (csdd)
     '''
@@ -145,7 +147,7 @@ def calculate_p_hit_approx(A, B, D):
     p_hit = 1 - qfunc( abs(A-1-mean) / math.sqrt(variance) )
     return p_hit
 
-@timeit
+# @timeit
 def sdcm(sdd, cache_line_size, cache_size, associativity, use_approx=False):
     '''calculate the stack distance cache miss rate (SDCM)
     sdd: stack distance distribution
@@ -179,7 +181,8 @@ def model(cache_line_access, cache_parameter):
     SD = get_stack_distance(cache_line_access)
     sdd, csdd = get_csdd(SD)
     hit_rate = sdcm(sdd, cache_parameter['cache_line_size'], cache_parameter['capacity'], cache_parameter['associativity'], use_approx=False)
-    print(f"hit rate: {hit_rate}")
+    # print(f"hit rate: {hit_rate}")
+    return hit_rate
     
 def draw_csdd(csdd, img_path):
     import matplotlib.pyplot as plt
