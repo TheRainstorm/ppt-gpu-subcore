@@ -277,6 +277,7 @@ def main():
         if rank==0:
             if not os.path.exists(app_report_dir):
                 os.makedirs(app_report_dir)
+    comm.Barrier()
     
     ##############################
     ## app configiguration file ##

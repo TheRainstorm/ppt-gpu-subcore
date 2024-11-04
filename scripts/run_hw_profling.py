@@ -26,7 +26,7 @@ parser.add_argument("-c", "--kernel_number",
                     type=int,
                     default=300,
                     help="Sets a hard limit to the number of traced limits")
-parser.add_argument("-l", "--loop-cnt",
+parser.add_argument("--loop-cnt",
                     type=int,
                     default=3,
                     help="run multiple times")
