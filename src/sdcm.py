@@ -7,6 +7,8 @@ import matplotlib.pyplot as plt
 import time
 from functools import wraps
 
+from sortedcontainers import SortedList
+
 
 def timeit(func):
     """
@@ -74,13 +76,34 @@ def get_cache_line_access_from_file(file_path):
     
     return cache_line_access
 
-# @timeit
 def get_stack_distance(cache_line_access):
+    stack = SortedList()
+    last_position = {}
+    SD = []
+
+    for i, (inst_id, mem_id, warp_id, address) in enumerate(cache_line_access):
+        if address in last_position:
+            # 获取上次访问的位置
+            previous_index = last_position[address]
+            # 计算 stack distance 为当前排序列表的长度减去之前的位置
+            sd = len(stack) - stack.bisect_left(previous_index) - 1
+            SD.append(sd)
+            stack.remove(previous_index)  # 移除上次的访问位置
+        else:
+            SD.append(-1)
+        
+        # 记录当前访问位置
+        last_position[address] = i
+        stack.add(i)
+
+    return SD
+
+# @timeit
+def get_stack_distance_1(cache_line_access):
     '''caculate sd for each reference
     rs: reference stream, cache line address list
-    return:
+    return: stack distance of each reference
     - sd
-    - sdd: stack distance distribution (histogram)
     '''
     stack = []
     SD = []
