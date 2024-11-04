@@ -443,9 +443,20 @@ if __name__ == "__main__":
         os.makedirs(args.dir_name, exist_ok=True)  # save image in seperate dir
         os.chdir(args.dir_name)
         overwrite = True
-        draw_error("l1_hit_rate", "error_6_l1_hit_rate.png")
-        draw_side2side("l1_hit_rate", "bar_6_l1_hit_rate.png")
-        draw_error("l2_hit_rate", "error_6_l2_hit_rate.png")
-        draw_side2side("l2_hit_rate", "bar_6_l2_hit_rate.png")
+        # get all bench
+        app_list_all = sim_res.keys()
+        benchs = set()
+        for app_arg in app_list_all:
+            try:
+                benchs.add(suite_info['map'][app_arg][0])
+            except:
+                print(f"Warning: {app_arg} not found in suite_info, skip")
+        # set each bench as filter
+        for bench in benchs:
+            app_filter = bench
+            draw_error("l1_hit_rate", f"{bench}_error_6_l1_hit_rate.png", avg=True)
+            draw_side2side("l1_hit_rate", f"{bench}_bar_6_l1_hit_rate.png")
+            draw_error("l2_hit_rate", f"{bench}_error_6_l2_hit_rate.png", avg=True)
+            draw_side2side("l2_hit_rate", f"{bench}_bar_6_l2_hit_rate.png")
         
     os.chdir(run_dir)

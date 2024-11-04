@@ -11,9 +11,9 @@ parser = argparse.ArgumentParser(
     description=''
 )
 parser.add_argument('-M', "--model",
-                    choices=['ppt-gpu', 'sdcm'],
+                    # choices=['ppt-gpu', 'sdcm'],
                     default='ppt-gpu',
-                    help='change memory model')
+                    help='change memory model, check memory_model_warper.py for available models')
 parser.add_argument('-c', "--config",
                     required=True,
                     help='target GPU hardware configuration')

@@ -30,9 +30,9 @@ class Node:
 
 class LRUCache:
     def __init__(self, cache_parameter) -> None:
-        self.associativity = cache_parameter['associativity']
-        self.capacity = cache_parameter['capacity']
-        self.cache_line_size = cache_parameter['cache_line_size']
+        self.associativity = int(cache_parameter['associativity'])
+        self.capacity = int(cache_parameter['capacity'])
+        self.cache_line_size = int(cache_parameter['cache_line_size'])
         self.cache_set_num = self.capacity // self.associativity // self.cache_line_size
         
         # helper
@@ -125,7 +125,7 @@ class LRUCache:
             "total_access": total_access
         }
 
-@timeit
+# @timeit
 def get_cache_line_access_from_raw_trace(trace_file, l1_cache_line_size):
     def get_line_adresses(addresses, l1_cache_line_size):
         '''
@@ -181,7 +181,7 @@ def interleave_trace(block_trace_list):
 
     return interleaved_trace
 
-@timeit
+# @timeit
 def get_merged_line_access_from_raw_trace_list(trace_file_list, l1_cache_line_size):
     block_trace_list = []
     for trace_file in trace_file_list:
@@ -203,7 +203,7 @@ def run(trace_files, ):
             f.write("%s\n" % item)
     return cache_simulate(cache_line_access, l1_cache_parameter)
 
-@timeit
+# @timeit
 def cache_simulate(cache_line_access, cache_parameter):
     cache = LRUCache(cache_parameter)
     
@@ -213,10 +213,10 @@ def cache_simulate(cache_line_access, cache_parameter):
         addr = address * cache_parameter['cache_line_size']
 
         hit = cache.access(mem_width, write, addr)
-        print(hit)
+        # print(hit)
     
-    print(json.dumps(cache.get_hit_info(), indent=4))
-    return cache.get_hit_info()
+    # print(json.dumps(cache.get_hit_info(), indent=4))
+    return cache.get_hit_info()['hit_ratio']
     
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(

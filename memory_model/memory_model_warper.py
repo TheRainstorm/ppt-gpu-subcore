@@ -8,9 +8,10 @@ sys.path.insert(0, os.path.abspath(par_dir))
 
 from src.memory_model import interleave_trace, get_memory_perf
 from src.kernels import get_max_active_block_per_sm
-from ppt import get_gpu_config,get_app_config,get_current_kernel_info, get_kernels_launch_params
+from ppt import get_gpu_config, get_kernels_launch_params
 
-from src.sdcm import get_cache_line_access_from_raw_trace, model, process_trace
+from src.sdcm import sdcm_model, process_trace
+from src.cache_simulator import cache_simulate
 
 def ppt_gpu_model_warpper(kernel_id, trace_dir,
                          launch_params,
@@ -31,16 +32,11 @@ def ppt_gpu_model_warpper(kernel_id, trace_dir,
 # import concurrent.futures
 # import multiprocessing
 # from joblib import Parallel, delayed
-def sdcm_model_warpper(kernel_id, trace_dir,
-                launch_params,
-                max_blocks_per_sm, 
-                gpu_config, # gpu config
-                ):
-    grid_size = launch_params['grid_size']
-    num_SMs = gpu_config['num_SMs']
+
+def map_block_to_sm(trace_dir, kernel_id, grid_size, num_SMs, max_blocks_per_sm):
     active_sm = min(num_SMs, grid_size)
-    # mapping block trace to SM
-    sm_traces = []
+
+    sm_blocks = []
     for smi in range(active_sm):
         smi_blocks = []
         for bidx in range(grid_size):
@@ -54,17 +50,31 @@ def sdcm_model_warpper(kernel_id, trace_dir,
                     smi_blocks.append(block_trace)
                 if len(smi_blocks) >= max_blocks_per_sm:
                     break
-        smi_blocks_interleave = interleave_trace(smi_blocks)  # interleave at warp level
-        smi_trace = process_trace(smi_blocks_interleave, gpu_config['l1_cache_line_size']) # warp level to cache line level
-        sm_traces.append(smi_trace)
+        sm_blocks.append(smi_blocks)
+    return sm_blocks
+
+def sdcm_model_warpper(kernel_id, trace_dir,
+                launch_params,
+                max_blocks_per_sm, 
+                gpu_config, # gpu config
+                model=sdcm_model):
+    grid_size = launch_params['grid_size']
+    num_SMs = gpu_config['num_SMs']
+    active_sm = min(num_SMs, grid_size)
+    # mapping block trace to SM
+    sm_blocks = map_block_to_sm(trace_dir, kernel_id, grid_size, num_SMs, max_blocks_per_sm)
     
     # reuse distance model for L1
     l1_hit_rate_list = []
+    sm_traces = []
     for smi in range(active_sm):
-        smi_trace = sm_traces[smi]
+        smi_blocks = sm_blocks[smi]
+        smi_blocks_interleave = interleave_trace(smi_blocks)  # interleave at warp level
+        smi_trace = process_trace(smi_blocks_interleave, gpu_config['l1_cache_line_size']) # warp level to cache line level
         if not smi_trace:
             hit_rate = 0
         else:
+            sm_traces.append(smi_trace)
             hit_rate = model(smi_trace, {'capacity': gpu_config['l1_cache_size'], 'cache_line_size': gpu_config['l1_cache_line_size'], 'associativity': gpu_config['l1_cache_associativity']})
         l1_hit_rate_list.append(hit_rate)
     
@@ -86,6 +96,12 @@ def sdcm_model_warpper(kernel_id, trace_dir,
     
     return [avg_l1_hit_rate, l2_hit_rate]
 
+def simulator_warpper(kernel_id, trace_dir,
+                launch_params,
+                max_blocks_per_sm, 
+                gpu_config, # gpu config
+                ):
+    return sdcm_model_warpper(kernel_id, trace_dir, launch_params, max_blocks_per_sm, gpu_config, model=cache_simulate)
 
 def memory_model_warpper(gpu_model, app_path, model, kernel_id=-1):
     gpu_config = get_gpu_config(gpu_model).uarch
@@ -96,6 +112,8 @@ def memory_model_warpper(gpu_model, app_path, model, kernel_id=-1):
         memory_model = ppt_gpu_model_warpper
     elif model == 'sdcm':
         memory_model = sdcm_model_warpper
+    elif model == 'simulator':
+        memory_model = simulator_warpper
     else:
         raise ValueError("Invalid model")
     
@@ -133,7 +151,7 @@ if __name__ == "__main__":
                     default=-1,
                     help='(1 based index) To choose a specific kernel, add the kernel id')
     parser.add_argument('-M', "--model",
-                    choices=['ppt-gpu', 'sdcm'],
+                    choices=['ppt-gpu', 'sdcm', 'simulator'],
                     default='ppt-gpu',
                     help='change memory model')
     args = parser.parse_args()

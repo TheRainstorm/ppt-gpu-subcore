@@ -200,7 +200,7 @@ def sdcm(sdd, cache_line_size, cache_size, associativity, use_approx=False):
         hit_rate += p_hit * p_sd
     return hit_rate
 
-def model(cache_line_access, cache_parameter, use_approx=True):
+def sdcm_model(cache_line_access, cache_parameter, use_approx=True):
     SD = get_stack_distance(cache_line_access)
     sdd, csdd = get_csdd(SD)
     hit_rate = sdcm(sdd, cache_parameter['cache_line_size'], cache_parameter['capacity'], cache_parameter['associativity'], use_approx=use_approx)
