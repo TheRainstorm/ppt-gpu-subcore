@@ -25,7 +25,7 @@ import argparse
 
 def get_launch_params(kernel_id, app_config):
     kernel_id_name = f"kernel_{kernel_id}"
-    launch_param_ = getattr(app_config, kernel_id_name)
+    launch_param_ = app_config[kernel_id_name]
     launch_param = {}
     launch_param['kernel_name'] = launch_param_["kernel_name"]
     launch_param['smem_size'] = launch_param_["shared_mem_bytes"]
@@ -38,7 +38,7 @@ def get_kernels_launch_params(app_path):
     app_config = get_app_config(app_path)
     
     launch_param_list = []
-    for kernel_id in app_config.app_kernels_id:
+    for kernel_id in app_config['app_kernels_id']:
         launch_param_list.append(get_launch_params(kernel_id, app_config))
     return launch_param_list
     
@@ -147,12 +147,10 @@ def get_gpu_config(gpu_config, repo_path=None):
     return gpu_configs
 
 def get_app_config(app_path):
-    sys.path.append(app_path)
-    try:
-        import app_config
-    except:
-        print(str("\n[Error]\n")+str("<app_config.py>> file doesn't exist in \"")+app_name+str("\" directory"))
-        sys.exit(1)
+    app_config_path = os.path.join(app_path, "app_config.py")
+    app_config = {}
+    with open(app_config_path, "r") as file:
+        exec(file.read(), app_config)
     return app_config
     
 def main():
@@ -225,7 +223,7 @@ def main():
     kernels_info = []
     instructions_type = "SASS" if args.sass else "PTX"
     if args.kernel_id == -1: # sim all kernel
-        for kernel_id in app_config.app_kernels_id:
+        for kernel_id in app_config['app_kernels_id']:
             kernels_info.append(get_current_kernel_info(int(kernel_id), args.app_path, args.app_path, app_config, instructions_type, args.granularity, app_res_ref=app_res_ref, app_report_dir=app_report_dir))
     else:
         kernels_info.append(get_current_kernel_info(kernel_id, args.app_path, args.app_path, app_config, instructions_type, args.granularity, app_res_ref=app_res_ref, app_report_dir=app_report_dir))
