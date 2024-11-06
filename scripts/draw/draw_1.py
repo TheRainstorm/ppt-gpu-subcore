@@ -291,6 +291,7 @@ if __name__ == "__main__":
     parser.add_argument("command",
                         # choices=["app", "kernel", "kernel_by_app", "app_by_bench", "single", "memory"],
                         help="draw app or kernel. app: to get overview error of cycle, memory performance and etc. at granurality of apps. kernel: draw all error bar in granurality of kernel. single: draw seperate app in single dir, it's useful when we want to get single app info mation")
+    parser.add_argument('--gtx1080ti', action='store_true', help='1080ti l1 hit should use tex_cache_hit_rate')
 
     args = parser.parse_args()
     
@@ -442,7 +443,7 @@ if __name__ == "__main__":
             
             draw_side2side("l1_hit_rate", f"bar_6_l1_hit_rate.png", draw_kernel=True)
             draw_side2side("l2_hit_rate", f"bar_6_l2_hit_rate.png", draw_kernel=True)
-    elif args.command == 'memory':
+    elif 'memory' in args.command:
         print(f"\ncommand: {args.command}:")
         args.dir_name = args.dir_name if args.dir_name else args.command
         os.makedirs(args.dir_name, exist_ok=True)  # save image in seperate dir
@@ -457,31 +458,12 @@ if __name__ == "__main__":
             except:
                 print(f"Warning: {app_arg} not found in suite_info, skip")
         # set each bench as filter
+        l1_hw_stat = "tex_cache_hit_rate" if args.gtx1080ti else ("l1_hit_rate" if args.command == 'memory-sim' else "global_hit_rate")
+        l2_hw_stat = "l2_hit_rate" if args.command == 'memory-sim' else "l2_tex_hit_rate"
         for bench in benchs:
             app_filter = bench
-            draw_error("l1_hit_rate", f"{bench}_error_6_l1_hit_rate.png", avg=True)
-            draw_side2side("l1_hit_rate", f"{bench}_bar_6_l1_hit_rate.png")
-            draw_error("l2_hit_rate", f"{bench}_error_6_l2_hit_rate.png", avg=True)
-            draw_side2side("l2_hit_rate", f"{bench}_bar_6_l2_hit_rate.png")
-    elif args.command == 'memory-sim':
-        print(f"\ncommand: {args.command}:")
-        args.dir_name = args.dir_name if args.dir_name else args.command
-        os.makedirs(args.dir_name, exist_ok=True)  # save image in seperate dir
-        os.chdir(args.dir_name)
-        overwrite = True
-        # get all bench
-        app_list_all = sim_res.keys()
-        benchs = set()
-        for app_arg in app_list_all:
-            try:
-                benchs.add(suite_info['map'][app_arg][0])
-            except:
-                print(f"Warning: {app_arg} not found in suite_info, skip")
-        # set each bench as filter
-        for bench in benchs:
-            app_filter = bench
-            draw_error("l1_hit_rate", f"{bench}_error_6_l1_hit_rate.png", hw_stat="l1_hit_rate", avg=True)
-            draw_side2side("l1_hit_rate", f"{bench}_bar_6_l1_hit_rate.png", hw_stat="l1_hit_rate")
-            draw_error("l2_hit_rate", f"{bench}_error_6_l2_hit_rate.png", hw_stat="l2_hit_rate", avg=True)
-            draw_side2side("l2_hit_rate", f"{bench}_bar_6_l2_hit_rate.png", hw_stat="l2_hit_rate")
+            draw_error("l1_hit_rate", f"{bench}_error_6_l1_hit_rate.png", hw_stat=l1_hw_stat, avg=True)
+            draw_side2side("l1_hit_rate", f"{bench}_bar_6_l1_hit_rate.png", hw_stat=l1_hw_stat)
+            draw_error("l2_hit_rate", f"{bench}_error_6_l2_hit_rate.png", hw_stat=l2_hw_stat, avg=True)
+            draw_side2side("l2_hit_rate", f"{bench}_bar_6_l2_hit_rate.png", hw_stat=l2_hw_stat)
     os.chdir(run_dir)

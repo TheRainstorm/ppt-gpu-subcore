@@ -133,6 +133,7 @@ print_summary(){
     echo "filter_app: $filter_app"
     echo "trace_dir: $trace_dir"
     echo "res_hw_json: $res_hw_json"
+    echo "res_hw_sim_json: $res_hw_sim_json"
     echo "res_sim_json: $res_sim_json"
     echo "report_dir: $report_dir"
     echo "draw_output: $draw_output"
