@@ -54,9 +54,10 @@ def process_trace(block_trace, l1_cache_line_size, inst_count=None):
         trace_line_splited = trace_line.strip().split(' ')
         inst = trace_line_splited[0]
         
+        if inst_count is not None:
+            inst_count[inst] = inst_count.get(inst, 0) + 1
+        
         if not ("LDG" in inst or "STG" in inst or "LDL" in inst or "STL" in inst):
-            if inst_count is not None:
-                inst_count[inst] = inst_count.get(inst, 0) + 1
             continue
         
         addrs = trace_line_splited[1:]
@@ -206,7 +207,7 @@ def sdcm(sdd, cache_line_size, cache_size, associativity, use_approx=False):
         hit_rate += p_hit * p_sd
     return hit_rate
 
-def sdcm_model(cache_line_access, cache_parameter, use_approx=True):
+def sdcm_model(cache_line_access, cache_parameter, use_approx=True, granularity=2):
     SD = get_stack_distance(cache_line_access)
     sdd, csdd = get_csdd(SD)
     hit_rate = sdcm(sdd, cache_parameter['cache_line_size'], cache_parameter['capacity'], cache_parameter['associativity'], use_approx=use_approx)

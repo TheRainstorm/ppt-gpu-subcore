@@ -11,7 +11,7 @@ from src.kernels import get_max_active_block_per_sm
 from ppt import get_gpu_config, get_kernels_launch_params
 
 from src.sdcm import sdcm_model, process_trace
-from src.cache_simulator import cache_simulate
+from src.cache_simulator import LRUCache, cache_simulate
 
 def ppt_gpu_model_warpper(kernel_id, trace_dir,
                          launch_params,
@@ -29,13 +29,18 @@ def ppt_gpu_model_warpper(kernel_id, trace_dir,
     # print(memory_stats)
     return [memory_stats['umem_hit_rate'], memory_stats['hit_rate_l2']]
 
-# import concurrent.futures
-# import multiprocessing
-# from joblib import Parallel, delayed
-
-def map_block_to_sm(trace_dir, kernel_id, grid_size, num_SMs, max_blocks_per_sm):
+def sdcm_model_warpper(kernel_id, trace_dir,
+                launch_params,
+                max_blocks_per_sm, 
+                gpu_config, # gpu config
+                model=sdcm_model,
+                is_sdcm=True,
+                use_approx=True,
+                granularity=2):
+    grid_size = launch_params['grid_size']
+    num_SMs = gpu_config['num_SMs']
     active_sm = min(num_SMs, grid_size)
-
+    # mapping block trace to SM
     sm_blocks = []
     for smi in range(active_sm):
         smi_blocks = []
@@ -51,18 +56,6 @@ def map_block_to_sm(trace_dir, kernel_id, grid_size, num_SMs, max_blocks_per_sm)
                 if len(smi_blocks) >= max_blocks_per_sm:
                     break
         sm_blocks.append(smi_blocks)
-    return sm_blocks
-
-def sdcm_model_warpper(kernel_id, trace_dir,
-                launch_params,
-                max_blocks_per_sm, 
-                gpu_config, # gpu config
-                model=sdcm_model):
-    grid_size = launch_params['grid_size']
-    num_SMs = gpu_config['num_SMs']
-    active_sm = min(num_SMs, grid_size)
-    # mapping block trace to SM
-    sm_blocks = map_block_to_sm(trace_dir, kernel_id, grid_size, num_SMs, max_blocks_per_sm)
     
     # reuse distance model for L1
     l1_hit_rate_list = []
@@ -76,25 +69,156 @@ def sdcm_model_warpper(kernel_id, trace_dir,
             continue   # don't count zero trace SM
         else:
             sm_traces.append(smi_trace)
-            hit_rate = model(smi_trace, {'capacity': gpu_config['l1_cache_size'], 'cache_line_size': gpu_config['l1_cache_line_size'], 'associativity': gpu_config['l1_cache_associativity']})
+            if is_sdcm:
+                hit_rate = model(smi_trace, {'capacity': gpu_config['l1_cache_size'], 'cache_line_size': gpu_config['l1_cache_line_size'], 'associativity': gpu_config['l1_cache_associativity']},
+                                use_approx=use_approx, granularity=granularity)
+            else:
+                hit_rate = model(smi_trace, {'capacity': gpu_config['l1_cache_size'], 'cache_line_size': gpu_config['l1_cache_line_size'], 'associativity': gpu_config['l1_cache_associativity']})
+            
             l1_hit_rate_list.append(hit_rate)
-    
-    # num_jobs = min(active_sm, multiprocessing.cpu_count())
-    # # l1_hit_rate_list = Parallel(n_jobs=num_jobs, prefer="processes")(delayed(model)(smi_trace, {'capacity': gpu_config['l1_cache_size'], 'cache_line_size': gpu_config['l1_cache_line_size'], 'associativity': gpu_config['l1_cache_associativity']}) for i in range(active_sm))
-    
-    # with concurrent.futures.ProcessPoolExecutor(max_workers=num_jobs) as executor:
-    #     futures = [executor.submit(model, smi_trace, {'capacity': gpu_config['l1_cache_size'], 'cache_line_size': gpu_config['l1_cache_line_size'], 'associativity': gpu_config['l1_cache_associativity']}) for i in range(active_sm)]
-    #     for future in concurrent.futures.as_completed(futures):
-    #         l1_hit_rate_list.append(future.result())
-        
-    # print(l1_hit_rate_list)
+
     print(f"kernel {kernel_id} inst_count: {inst_count}")
     avg_l1_hit_rate = sum(l1_hit_rate_list) / len(l1_hit_rate_list)
     
     # reuse distance model for L2
     l2_trace = interleave_trace(sm_traces)
     l2_hit_rate = model(l2_trace, {'capacity': gpu_config['l2_cache_size'], 'cache_line_size': gpu_config['l2_cache_line_size'], 'associativity': gpu_config['l2_cache_associativity']})
-    # print(l2_hit_rate)
+    return [avg_l1_hit_rate, l2_hit_rate]
+
+def get_block(smi, trace_dir, kernel_id, grid_size, num_SMs, max_blocks_per_sm):
+    smi_blocks = []
+    for bidx in range(grid_size):
+        if bidx % num_SMs == smi:
+            block_trace_path = os.path.join(trace_dir, 'memory_traces', f"kernel_{kernel_id}_block_{bidx}.mem")
+            if not os.path.exists(block_trace_path):
+                smi_blocks.append([])
+            else:
+                with open(block_trace_path,'r') as f:
+                    block_trace = f.readlines()
+                smi_blocks.append(block_trace)
+            if len(smi_blocks) >= max_blocks_per_sm:
+                break
+    return smi_blocks
+
+def run_L1(smi, trace_dir, kernel_id, grid_size, num_SMs, max_blocks_per_sm, gpu_config, is_sdcm, use_approx, granularity, model):
+    # mapping block trace to SM
+    smi_blocks = get_block(smi, trace_dir, kernel_id, grid_size, num_SMs, max_blocks_per_sm)
+    
+    inst_count = {}
+    smi_blocks_interleave = interleave_trace(smi_blocks)
+    smi_trace = process_trace(smi_blocks_interleave, gpu_config['l1_cache_line_size'], inst_count=inst_count) # warp level to cache line level
+    
+    flag_active = False
+    hit_rate = 0
+    if smi_trace:
+        flag_active = True
+        if is_sdcm:
+            hit_rate = model(smi_trace, {'capacity': gpu_config['l1_cache_size'], 'cache_line_size': gpu_config['l1_cache_line_size'], 'associativity': gpu_config['l1_cache_associativity']},
+                            use_approx=use_approx, granularity=granularity)
+        else:
+            hit_rate = model(smi_trace, {'capacity': gpu_config['l1_cache_size'], 'cache_line_size': gpu_config['l1_cache_line_size'], 'associativity': gpu_config['l1_cache_associativity']})
+    
+    return flag_active, hit_rate, smi_trace
+
+def sdcm_model_warpper_parallel(kernel_id, trace_dir,
+                launch_params,
+                max_blocks_per_sm, 
+                gpu_config, # gpu config
+                model=sdcm_model,
+                is_sdcm=True,
+                use_approx=True,
+                granularity=2):
+    grid_size = launch_params['grid_size']
+    num_SMs = gpu_config['num_SMs']
+    active_sm = min(num_SMs, grid_size)
+    
+    import concurrent.futures
+    import multiprocessing
+
+    # reuse distance model for L1
+    l1_hit_rate_list = []
+    sm_traces = []
+    inst_count = {}
+    
+    num_jobs = min(active_sm, multiprocessing.cpu_count())
+    with concurrent.futures.ProcessPoolExecutor(max_workers=num_jobs) as executor:
+        futures = [executor.submit(run_L1, i, trace_dir, kernel_id, grid_size, num_SMs, max_blocks_per_sm, gpu_config, is_sdcm, use_approx, granularity, model)
+                   for i in range(active_sm)]
+        for future in concurrent.futures.as_completed(futures):
+            flag, hit_rate, smi_trace = future.result()
+            if flag:
+                sm_traces.append(smi_trace)
+                l1_hit_rate_list.append(hit_rate)
+        
+    avg_l1_hit_rate = sum(l1_hit_rate_list) / len(l1_hit_rate_list)
+
+    # reuse distance model for L2
+    l2_trace = interleave_trace(sm_traces)
+    l2_hit_rate = model(l2_trace, {'capacity': gpu_config['l2_cache_size'], 'cache_line_size': gpu_config['l2_cache_line_size'], 'associativity': gpu_config['l2_cache_associativity']})
+    
+    return [avg_l1_hit_rate, l2_hit_rate]
+
+def run_L1_filter(smi, trace_dir, kernel_id, grid_size, num_SMs, max_blocks_per_sm, gpu_config, is_sdcm, use_approx, granularity, model):
+    smi_blocks = get_block(smi, trace_dir, kernel_id, grid_size, num_SMs, max_blocks_per_sm)
+    
+    smi_blocks_interleave = interleave_trace(smi_blocks)
+    
+    smi_trace = process_trace(smi_blocks_interleave, gpu_config['l1_cache_line_size']) # warp level to cache line level
+    
+    flag_active = False
+    hit_rate = 0
+    L2_req = []
+    if smi_trace:
+        flag_active = True
+        cache_parameter = {'capacity': gpu_config['l1_cache_size'], 'cache_line_size': gpu_config['l1_cache_line_size'], 'associativity': gpu_config['l1_cache_associativity']}
+        cache = LRUCache(cache_parameter)
+        for inst_id, mem_id, warp_id, address in smi_trace:
+            mem_width = 4
+            write = inst_id == '1'
+            addr = address * cache_parameter['cache_line_size']
+
+            hit = cache.access(mem_width, write, addr)
+            if not hit:
+                L2_req.append([inst_id, mem_id, warp_id, address])
+        
+        hit_rate = cache.get_hit_info()['hit_ratio']
+    return flag_active, hit_rate, L2_req
+
+def sdcm_model_warpper_l2_filter(kernel_id, trace_dir,
+                launch_params,
+                max_blocks_per_sm, 
+                gpu_config, # gpu config
+                model=sdcm_model,
+                is_sdcm=True,
+                use_approx=True,
+                granularity=2):
+    grid_size = launch_params['grid_size']
+    num_SMs = gpu_config['num_SMs']
+    active_sm = min(num_SMs, grid_size)
+    
+    import concurrent.futures
+    import multiprocessing
+
+    # reuse distance model for L1
+    l1_hit_rate_list = []
+    sm_traces = []
+    inst_count = {}
+    
+    num_jobs = min(active_sm, multiprocessing.cpu_count())
+    with concurrent.futures.ProcessPoolExecutor(max_workers=num_jobs) as executor:
+        futures = [executor.submit(run_L1_filter, i, trace_dir, kernel_id, grid_size, num_SMs, max_blocks_per_sm, gpu_config, is_sdcm, use_approx, granularity, model)
+                   for i in range(active_sm)]
+        for future in concurrent.futures.as_completed(futures):
+            flag, hit_rate, smi_trace = future.result()
+            if flag:
+                sm_traces.append(smi_trace)
+                l1_hit_rate_list.append(hit_rate)
+        
+    avg_l1_hit_rate = sum(l1_hit_rate_list) / len(l1_hit_rate_list)
+
+    # reuse distance model for L2
+    l2_trace = interleave_trace(sm_traces)
+    l2_hit_rate = model(l2_trace, {'capacity': gpu_config['l2_cache_size'], 'cache_line_size': gpu_config['l2_cache_line_size'], 'associativity': gpu_config['l2_cache_associativity']})
     
     return [avg_l1_hit_rate, l2_hit_rate]
 
@@ -103,9 +227,18 @@ def simulator_warpper(kernel_id, trace_dir,
                 max_blocks_per_sm, 
                 gpu_config, # gpu config
                 ):
-    return sdcm_model_warpper(kernel_id, trace_dir, launch_params, max_blocks_per_sm, gpu_config, model=cache_simulate)
+    return sdcm_model_warpper_parallel(kernel_id, trace_dir, launch_params, max_blocks_per_sm, gpu_config,
+                              model=cache_simulate, is_sdcm=False)
 
-def memory_model_warpper(gpu_model, app_path, model, kernel_id=-1):
+def simulator_warpper_l2_filter(kernel_id, trace_dir,
+                launch_params,
+                max_blocks_per_sm, 
+                gpu_config, # gpu config
+                ):
+    return sdcm_model_warpper_l2_filter(kernel_id, trace_dir, launch_params, max_blocks_per_sm, gpu_config,
+                              model=cache_simulate, is_sdcm=False)
+
+def memory_model_warpper(gpu_model, app_path, model, kernel_id=-1, use_approx=True, granularity=2):
     gpu_config = get_gpu_config(gpu_model).uarch
     kernels_launch_params = get_kernels_launch_params(app_path)
     
@@ -113,9 +246,11 @@ def memory_model_warpper(gpu_model, app_path, model, kernel_id=-1):
     if model == 'ppt-gpu':
         memory_model = ppt_gpu_model_warpper
     elif model == 'sdcm':
-        memory_model = sdcm_model_warpper
+        memory_model = sdcm_model_warpper_parallel
     elif model == 'simulator':
         memory_model = simulator_warpper
+    elif model == 'simulator_l2_filter':
+        memory_model = simulator_warpper_l2_filter
     else:
         raise ValueError("Invalid model")
     
@@ -128,7 +263,12 @@ def memory_model_warpper(gpu_model, app_path, model, kernel_id=-1):
         occupancy_res = get_max_active_block_per_sm(gpu_config['cc_configs'], kernel_param, gpu_config['num_SMs'], gpu_config['shared_mem_size'])
         
         print(f"kernel {kernel_param['kernel_id']} start")
-        l1_hit_rate, l2_hit_rate = memory_model(kernel_param['kernel_id'], app_path, kernel_param, occupancy_res['max_active_block_per_sm'], gpu_config)
+        
+        if model == 'sdcm':
+            l1_hit_rate, l2_hit_rate = memory_model(kernel_param['kernel_id'], app_path, kernel_param, occupancy_res['max_active_block_per_sm'], gpu_config,
+                                        use_approx=use_approx, granularity=granularity)
+        else:
+            l1_hit_rate, l2_hit_rate = memory_model(kernel_param['kernel_id'], app_path, kernel_param, occupancy_res['max_active_block_per_sm'], gpu_config)
         
         app_res.append({"l1_hit_rate": l1_hit_rate*100, "l2_hit_rate": l2_hit_rate*100})
     
