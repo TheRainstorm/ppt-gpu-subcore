@@ -38,6 +38,9 @@ parser.add_argument('--use-approx',
 parser.add_argument('--filter-l2', 
                     action='store_true',
                     help='L1 hit bypass L2')
+parser.add_argument('--use-sm-trace', 
+                    action='store_true',
+                    help='use sm level trace')
 args = parser.parse_args()
 
 apps = gen_apps_from_suite_list(args.benchmark_list)
@@ -71,7 +74,8 @@ for app_and_arg in app_and_arg_list:
         continue
     
     logging(f"{app_and_arg} start")
-    app_res = memory_model_warpper(args.config, app_trace_dir, args.model, use_approx=args.use_approx, granularity=args.granularity, filter_L2=args.filter_l2)
+    app_res = memory_model_warpper(args.config, app_trace_dir, args.model, use_approx=args.use_approx, granularity=args.granularity,
+                                   filter_L2=args.filter_l2, use_sm_trace=args.use_sm_trace)
     avg_l1_hit_rate = sum([res['l1_hit_rate'] for res in app_res]) / len(app_res)
     avg_l2_hit_rate = sum([res['l2_hit_rate'] for res in app_res]) / len(app_res)
     print(f"avg_l1_hit_rate: {avg_l1_hit_rate}, avg_l2_hit_rate: {avg_l2_hit_rate}")

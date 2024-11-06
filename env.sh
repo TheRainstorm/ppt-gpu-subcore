@@ -41,6 +41,7 @@ gpu_sim=$(echo $GPU_PROFILE | tr 'A-Z' 'a-z')
 granularity=${granularity:-2}
 filter_l2=${filter_l2:-" "}
 use_approx=${use_approx:-" "}
+use_sm_trace=${use_sm_trace:-" "}
 
 use_ncu=1
 profile_cpi=1
@@ -98,7 +99,7 @@ res_sim_sched_cpi_json=${ppt_gpu_dir}/tmp/res_${model}_${gpu}_${cuda_version}_${
 
 # run memory
 memory_model=${memory_model:-"ppt-gpu"} # sdcm, simulator
-res_memory_prefix=${ppt_gpu_dir}/tmp/res_memory_${gpu}_${cuda_version}_${GPU_PROFILE}_${run_name}_
+res_memory_json=${ppt_gpu_dir}/tmp/res_memory_${gpu}_${cuda_version}_${GPU_PROFILE}_${run_name}_${memory_model}.json
 
 # draw
 draw_output=${ppt_gpu_dir}/tmp_draw/draw_${model}_${gpu}_${cuda_version}_${GPU_PROFILE}_${run_name}
@@ -125,24 +126,34 @@ single_draw_output=${single_report_dir}
 log_file=run_helper.log
 print_summary(){
     date '+%Y-%m-%d %H:%M:%S'
-    echo "Summary:"
+    echo "Summary:\n"
+    echo "[Tracing]:"
     echo "app cuda_version: $CUDA_VERSION"
     echo "nvcc cuda_version: $curr_cuda_version"
-    echo "gpu: $gpu [${GPU}]"
-    echo "Simulation GPU Profile: $GPU_PROFILE"
+    echo "HW GPU: $gpu [${GPU}]"
+    echo "trace_dir: $trace_dir"
+    echo ""
+
+    echo "[Simulation]:"
+    echo "GPU Profile: $GPU_PROFILE"
     echo "run_name: $run_name"
     echo "apps_yaml: $apps_yaml"
     echo "benchmarks: $benchmarks"
     echo "filter_app: $filter_app"
-    echo "trace_dir: $trace_dir"
+    echo ""
+
+    echo "[Files]:"
     echo "res_hw_json: $res_hw_json"
     echo "res_hw_sim_json: $res_hw_sim_json"
     echo "res_sim_json: $res_sim_json"
     echo "report_dir: $report_dir"
     echo "draw_output: $draw_output"
-    echo "res_memory_prefix: $res_memory_prefix"
+    echo "res_memory_json: $res_memory_json"
+    echo ""
+
+    echo "[Memory]:"
     echo "memory_model: $memory_model"
-    echo "granularity: $granularity, filter_l2: $filter_l2"
+    echo "granularity: $granularity, filter_l2: $filter_l2, use_approx: $use_approx, use_sm_trace: $use_sm_trace"
 }
 
 unset_env(){
@@ -153,7 +164,7 @@ unset_env(){
     unset ppt_gpu_version
     unset memory_model
     unset GPU_PROFILE
-    unset granularity filter_l2 use_approx
+    unset granularity filter_l2 use_approx use_sm_trace
 }
 
 print_summary
