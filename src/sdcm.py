@@ -173,6 +173,29 @@ def get_stack_distance_1(cache_line_access):
         stack.append(address)
     return SD
 
+def get_sdd_dict(SD, cache_line_access):
+    sd_st_counter = {}
+    sd_ld_counter = {}
+    st_count = 0
+    ld_count = 0
+    for i, sd in enumerate(SD):
+        is_store = cache_line_access[i][0]
+        if is_store:
+            ld_count += 1
+            sd_ld_counter[sd] = sd_ld_counter.get(sd, 0) + 1
+        else:
+            st_count += 1
+            sd_st_counter[sd] = sd_st_counter.get(sd, 0) + 1
+    
+    sdd_st = [(sd, count, count/st_count) for sd, count in sd_st_counter.items()]
+    sdd_ld = [(sd, count, count/ld_count) for sd, count in sd_ld_counter.items()]
+
+    T = len(SD)
+    return {
+        'st': {'sdd': sdd_st, 'ratio': st_count/T}, 
+        'ld': {'sdd': sdd_ld, 'ratio': ld_count/T}
+        }
+
 # @timeit
 def get_csdd(SD):
     '''get cumulative stack distance distribution (csdd)
@@ -226,20 +249,12 @@ def calculate_p_hit_approx(A, B, D):
     p_hit = 1 - qfunc( abs(A-1-mean) / math.sqrt(variance) )
     return p_hit
 
-# @timeit
-def sdcm(sdd, cache_line_size, cache_size, associativity, use_approx=False):
-    '''calculate the stack distance cache miss rate (SDCM)
-    sdd: stack distance distribution
-    cache_line_size: cache line size
-    cache_size: cache size
-    associativity: cache associativity
-    '''
-    # cache line number
-    B = cache_size // cache_line_size
-    A = associativity
-    
+def get_hit_rate_from_sdd(sdd, A, B, use_approx, exclude_last=True):
+    # exclude_last: old sdd last is -1
     hit_rate = 0
-    for sd, _, p_sd in sdd[:-1]:  # the last one is -1
+    if exclude_last:
+        sdd = sdd[:-1]
+    for sd, _, p_sd in sdd:
         if sd==0:
             p_hit = 1
         elif sd==-1:
@@ -256,12 +271,42 @@ def sdcm(sdd, cache_line_size, cache_size, associativity, use_approx=False):
         hit_rate += p_hit * p_sd
     return hit_rate
 
+# @timeit
+def sdcm(sdd, cache_line_size, cache_size, associativity, use_approx=False):
+    '''calculate the stack distance cache miss rate (SDCM)
+    sdd: stack distance distribution
+    cache_line_size: cache line size
+    cache_size: cache size
+    associativity: cache associativity
+    '''
+    # cache line number
+    B = cache_size // cache_line_size
+    A = associativity
+    
+    hit_rate = get_hit_rate_from_sdd(sdd, A, B, use_approx)
+    
+    return hit_rate
+
+def sdcm_dict(sdd_dict, cache_line_size, cache_size, associativity, use_approx=False):
+    B = cache_size // cache_line_size
+    A = associativity
+    
+    hit_rate_dict = {}
+    hit_rate_dict['tot'] = 0
+    for categ, v in sdd_dict.items():
+        sdd = v['sdd']
+        ratio = v['ratio']
+        hit_rate = get_hit_rate_from_sdd(sdd, A, B, use_approx, exclude_last=False)
+        
+        hit_rate_dict[categ] = hit_rate
+        hit_rate_dict['tot'] += hit_rate * ratio
+    return hit_rate_dict
+
 def sdcm_model(cache_line_access, cache_parameter, use_approx=True, granularity=2):
     SD = get_stack_distance(cache_line_access)
-    sdd, csdd = get_csdd(SD)
-    hit_rate = sdcm(sdd, cache_parameter['cache_line_size'], cache_parameter['capacity'], cache_parameter['associativity'], use_approx=use_approx)
-    # print(f"hit rate: {hit_rate}")
-    return hit_rate
+    sdd_dict = get_sdd_dict(SD, cache_line_access)
+    hit_rate_dict = sdcm_dict(sdd_dict, cache_parameter['cache_line_size'], cache_parameter['capacity'], cache_parameter['associativity'], use_approx=use_approx)
+    return hit_rate_dict
     
 def draw_csdd(csdd, img_path):
     import matplotlib.pyplot as plt
