@@ -38,6 +38,9 @@ gpu_detect(){
 gpu=${gpu:-$(gpu_detect)}
 GPU_PROFILE=${GPU_PROFILE:-TITANV}
 gpu_sim=$(echo $GPU_PROFILE | tr 'A-Z' 'a-z')
+granularity=${granularity:-2}
+filter_l2=${filter_l2:-" "}
+use_approx=${use_approx:-" "}
 
 use_ncu=1
 profile_cpi=1
@@ -139,6 +142,7 @@ print_summary(){
     echo "draw_output: $draw_output"
     echo "res_memory_prefix: $res_memory_prefix"
     echo "memory_model: $memory_model"
+    echo "granularity: $granularity, filter_l2: $filter_l2"
 }
 
 unset_env(){
@@ -149,6 +153,7 @@ unset_env(){
     unset ppt_gpu_version
     unset memory_model
     unset GPU_PROFILE
+    unset granularity filter_l2 use_approx
 }
 
 print_summary

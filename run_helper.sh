@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 
 run_memory(){
-python ${ppt_gpu_dir}/memory_model/run_benchmarks.py -c ${GPU_PROFILE} -M ${memory_model} -B ${benchmarks} -F ${filter_app} -T ${trace_dir} -o ${res_memory_prefix}${memory_model}.json -l run_memory_${memory_model}.log
+python ${ppt_gpu_dir}/memory_model/run_benchmarks.py -c ${GPU_PROFILE} -M ${memory_model} --granularity $granularity $(echo $filter_l2) $(echo $use_approx) -B ${benchmarks} -F ${filter_app} -T ${trace_dir} -o ${res_memory_prefix}${memory_model}.json -l run_memory_${memory_model}.log
 
 python ${ppt_gpu_dir}/scripts/draw/draw_1.py -B ${benchmarks} -F ${filter_app} -S ${res_memory_prefix}${memory_model}.json -H ${res_hw_sim_json} -o ${draw_output} -d memory_${memory_model} memory
 }
