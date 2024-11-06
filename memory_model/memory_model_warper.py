@@ -140,7 +140,8 @@ def memory_model_warpper(gpu_model, app_path, model, kernel_id=-1,
         print(f"kernel {kernel_param['kernel_id']} start")
         
         if model == 'ppt-gpu':
-            l1_hit_rate, l2_hit_rate = ppt_gpu_model_warpper(kernel_param['kernel_id'], app_path, kernel_param, occupancy_res['max_active_block_per_sm'], gpu_config)
+            l1_hit_rate, l2_hit_rate = ppt_gpu_model_warpper(kernel_param['kernel_id'], app_path, kernel_param, occupancy_res['max_active_block_per_sm'], gpu_config,
+                                        granularity=granularity, use_sm_trace=use_sm_trace)
         elif model == 'sdcm':
             l1_hit_rate, l2_hit_rate = sdcm_model_warpper_parallel(kernel_param['kernel_id'], app_path, kernel_param, occupancy_res['max_active_block_per_sm'], gpu_config,
                                         use_approx=use_approx, granularity=granularity)
