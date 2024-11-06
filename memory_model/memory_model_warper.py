@@ -38,8 +38,23 @@ def ppt_gpu_model_warpper(kernel_id, trace_dir,
                                 gpu_config['l1_cache_size'], gpu_config['l1_cache_line_size'], gpu_config['l1_cache_associativity'],\
                                 gpu_config['l2_cache_size'], gpu_config['l2_cache_line_size'], gpu_config['l2_cache_associativity'],\
                                 gmem_reqs, avg_block_per_sm, block_per_sm_simulate)
-    # print(memory_stats)
-    return [memory_stats['umem_hit_rate'], memory_stats['hit_rate_l2']]
+    # rename
+    memory_stats['l1_hit_rate'] = memory_stats['umem_hit_rate'] * 100
+    memory_stats['l2_hit_rate'] = memory_stats['hit_rate_l2'] * 100
+    return memory_stats
+
+def process_dict_list(dict_list, op='sum', scale=1):
+    dict_new = {}
+    for key in dict_list[0].keys():
+        try:
+            if op=='avg':
+                dict_new[key] = sum([d[key] for d in dict_list]) / len(dict_list) * scale
+            elif op=='sum':
+                dict_new[key] = sum([d[key] for d in dict_list]) * scale
+        except:
+            dict_new[key] = dict_list[0][key]
+        
+    return dict_new
 
 def get_block(smi, trace_dir, kernel_id, grid_size, num_SMs, max_blocks_per_sm):
     smi_blocks = []
@@ -70,7 +85,7 @@ def run_L1(smi, trace_dir, kernel_id, grid_size, num_SMs, max_blocks_per_sm, gpu
                 smi_blocks_interleave = f.readlines()
     
     inst_count = {}
-    smi_trace = process_trace(smi_blocks_interleave, gpu_config['l1_cache_line_size'], inst_count=inst_count) # warp level to cache line level
+    sm_stats, smi_trace = process_trace(smi_blocks_interleave, gpu_config['l1_cache_line_size']) # warp level to cache line level
     
     flag_active = False
     hit_rate = 0
@@ -83,8 +98,9 @@ def run_L1(smi, trace_dir, kernel_id, grid_size, num_SMs, max_blocks_per_sm, gpu
             hit_rate, L2_req = cache_simulate(smi_trace, {'capacity': gpu_config['l1_cache_size'], 'cache_line_size': gpu_config['l1_cache_line_size'], 'associativity': gpu_config['l1_cache_associativity']})
             if filter_L2:
                 smi_trace = L2_req
-            
-    return flag_active, hit_rate, smi_trace
+    
+    sm_stats['l1_hit_rate'] = hit_rate * 100
+    return flag_active, sm_stats, smi_trace
 
 def sdcm_model_warpper_parallel(kernel_id, trace_dir,
                 launch_params,
@@ -100,7 +116,7 @@ def sdcm_model_warpper_parallel(kernel_id, trace_dir,
     active_sm = min(num_SMs, grid_size)
     
     # reuse distance model for L1
-    l1_hit_rate_list = []
+    sm_stats_list = []
     sm_traces = []
 
     avg_block_per_sm = (launch_params['grid_size'] + gpu_config['num_SMs'] - 1) // gpu_config['num_SMs']
@@ -111,18 +127,22 @@ def sdcm_model_warpper_parallel(kernel_id, trace_dir,
     elif granularity == 3:
         block_per_sm_simulate = avg_block_per_sm
     
+    # scale
+    scale = avg_block_per_sm / block_per_sm_simulate
+    
     num_jobs = min(active_sm, multiprocessing.cpu_count())
     with concurrent.futures.ProcessPoolExecutor(max_workers=num_jobs) as executor:
         futures = [executor.submit(run_L1, i, trace_dir, kernel_id, grid_size, num_SMs, block_per_sm_simulate, gpu_config, is_sdcm, use_approx, granularity, filter_L2, use_sm_trace)
                    for i in range(active_sm)]
         for future in concurrent.futures.as_completed(futures):
-            flag, hit_rate, smi_trace = future.result()
+            flag, sm_stats, smi_trace = future.result()
             if flag:
                 sm_traces.append(smi_trace)
-                l1_hit_rate_list.append(hit_rate)
-        
-    avg_l1_hit_rate = sum(l1_hit_rate_list) / len(l1_hit_rate_list)
-
+                sm_stats_list.append(sm_stats)
+    K = process_dict_list(sm_stats_list, op='sum', scale=scale)
+    K['l1_hit_rate_list'] = [sm_stats['l1_hit_rate'] for sm_stats in sm_stats_list]
+    K['l1_hit_rate'] = sum(K['l1_hit_rate_list'])/len(sm_stats_list)
+    
     # reuse distance model for L2
     l2_trace = interleave_trace(sm_traces)
     
@@ -131,8 +151,25 @@ def sdcm_model_warpper_parallel(kernel_id, trace_dir,
         l2_hit_rate = sdcm_model(l2_trace, l2_param)
     else:
         l2_hit_rate, _ = granularity=granularity(l2_trace, l2_param)
+    K['l2_hit_rate'] = l2_hit_rate * 100
     
-    return [avg_l1_hit_rate, l2_hit_rate]
+    # global memory
+    K['gmem_tot_reqs'] = K['gmem_ld_reqs'] + K['gmem_st_reqs']
+    K['gmem_tot_trans'] = K['gmem_ld_trans'] + K['gmem_st_trans']
+    K['gmem_ld_diverg'] = K['gmem_ld_trans'] / K['gmem_ld_reqs'] if K['gmem_ld_reqs'] > 0 else 0
+    K['gmem_st_diverg'] = K['gmem_st_trans'] / K['gmem_st_reqs'] if K['gmem_st_reqs'] > 0 else 0
+    K['gmem_tot_diverg'] = K['gmem_tot_trans'] / K['gmem_tot_reqs'] if K['gmem_tot_reqs'] > 0 else 0
+    # l2
+    l1_hit_rate_ld = K['l1_hit_rate'] / 100  # TODO
+    K['l2_ld_trans_gmem'] = K['gmem_ld_trans'] * (1 - l1_hit_rate_ld)
+    K['l2_st_trans_gmem'] = K['gmem_st_trans']
+    K['l2_tot_trans_gmem'] = K['l2_ld_trans_gmem'] + K['l2_st_trans_gmem']
+    # DRAM
+    K["dram_tot_trans_gmem"] = K["l2_tot_trans_gmem"] * (1 - K["l2_hit_rate"])
+    K["dram_ld_trans_gmem"] =  K["l2_ld_trans_gmem"] * (1 - K["l2_hit_rate"])
+    K["dram_st_trans_gmem"] =  K["l2_st_trans_gmem"] * (1 - K["l2_hit_rate"])
+    
+    return K
 
 def memory_model_warpper(gpu_model, app_path, model, kernel_id=-1, granularity=2, use_sm_trace=False, 
                          use_approx=True, filter_L2=False):
@@ -150,18 +187,18 @@ def memory_model_warpper(gpu_model, app_path, model, kernel_id=-1, granularity=2
         print(f"kernel {kernel_param['kernel_id']} start")
         
         if model == 'ppt-gpu':
-            l1_hit_rate, l2_hit_rate = ppt_gpu_model_warpper(kernel_param['kernel_id'], app_path, kernel_param, occupancy_res['max_active_block_per_sm'], gpu_config,
+            kernel_res = ppt_gpu_model_warpper(kernel_param['kernel_id'], app_path, kernel_param, occupancy_res['max_active_block_per_sm'], gpu_config,
                                         granularity=granularity, use_sm_trace=use_sm_trace)
         elif model == 'sdcm':
-            l1_hit_rate, l2_hit_rate = sdcm_model_warpper_parallel(kernel_param['kernel_id'], app_path, kernel_param, occupancy_res['max_active_block_per_sm'], gpu_config,
+            kernel_res = sdcm_model_warpper_parallel(kernel_param['kernel_id'], app_path, kernel_param, occupancy_res['max_active_block_per_sm'], gpu_config,
                                         granularity=granularity, use_sm_trace=use_sm_trace, use_approx=use_approx)
         elif model == 'simulator':
-            l1_hit_rate, l2_hit_rate = sdcm_model_warpper_parallel(kernel_param['kernel_id'], app_path, kernel_param, occupancy_res['max_active_block_per_sm'], gpu_config,
+            kernel_res = sdcm_model_warpper_parallel(kernel_param['kernel_id'], app_path, kernel_param, occupancy_res['max_active_block_per_sm'], gpu_config,
                                         is_sdcm=False, granularity=granularity, use_sm_trace=use_sm_trace, filter_L2=filter_L2)
         else:
             raise ValueError(f"model {model} is not supported")
         
-        app_res.append({"l1_hit_rate": l1_hit_rate*100, "l2_hit_rate": l2_hit_rate*100})
+        app_res.append(kernel_res)
     
     return app_res
     

@@ -24,50 +24,99 @@ def timeit(func):
         return result
     return wrapper
 
-def process_trace(block_trace, l1_cache_line_size, inst_count=None):
-    def get_line_adresses(addresses, l1_cache_line_size):
-        '''
-        coalescing the addresses of the warp
-        '''
-        line_idx = int(math.log(l1_cache_line_size,2))
-        sector_size = 32
-        sector_idx = int(math.log(sector_size,2))
-        line_mask = ~(2**line_idx - 1)
-        sector_mask = ~(2**sector_idx - 1)
-        
-        cache_line_set = set()
-        sector_set = set()  # count sector number
-        
-        for addr in addresses:
-            # 排除 0 ？
-            if addr:
-                addr = int(addr, base=16)
-                cache_line = addr >> line_idx
-                cache_line_set.add(cache_line)
-                sector = addr >> sector_idx
-                sector_set.add(sector)
-        
-        return list(cache_line_set), list(sector_set)
+def get_line_adresses(addresses, l1_cache_line_size):
+    '''
+    coalescing the addresses of the warp
+    '''
+    line_idx = int(math.log(l1_cache_line_size,2))
+    sector_size = 32
+    sector_idx = int(math.log(sector_size,2))
+    line_mask = ~(2**line_idx - 1)
+    sector_mask = ~(2**sector_idx - 1)
+    
+    cache_line_set = set()
+    sector_set = set()  # count sector number
+    
+    for addr in addresses:
+        # 排除 0 ？
+        if addr:
+            addr = int(addr, base=16)
+            cache_line = addr >> line_idx
+            cache_line_set.add(cache_line)
+            sector = addr >> sector_idx
+            sector_set.add(sector)
+    
+    return list(cache_line_set), list(sector_set)
+
+def process_trace(block_trace, l1_cache_line_size):
+    S = {}
+    S["gmem_ld_reqs"] = 0
+    S["gmem_st_reqs"] = 0
+    S["gmem_ld_trans"] = 0
+    S["gmem_st_trans"] = 0
+    S["lmem_ld_reqs"] = 0
+    S["lmem_st_reqs"] = 0
+    S["lmem_ld_trans"] = 0
+    S["lmem_st_trans"] = 0
+    S["lmem_used"] = False
+    S["atom_reqs"] = 0
+    S["red_reqs"] = 0
+    S["atom_red_trans"] = 0
+
+    warp_id = 0 ## warp counter for l2 inclusion
+    is_store = 0 ## LD=0 - ST=1
+    is_local = 2  ## Global=0 - Local=1
 
     cache_line_access = []
-    for trace_line in block_trace:
-        trace_line_splited = trace_line.strip().split(' ')
-        inst = trace_line_splited[0]
-        
-        if inst_count is not None:
-            inst_count[inst] = inst_count.get(inst, 0) + 1
-        
-        if not ("LDG" in inst or "STG" in inst or "LDL" in inst or "STL" in inst):
+    for items in block_trace:
+        addrs = items.strip().split(" ")
+        access_type = addrs[0]
+        line_addrs, sector_addrs = get_line_adresses(addrs[1:], l1_cache_line_size)
+
+        ## global reduction operations
+        if "RED" in access_type:
+            S["red_reqs"] += 1
+            S["atom_red_trans"] += len(line_addrs)
             continue
+
+        ## global atomic operations
+        if "ATOM" in access_type:
+            S["atom_reqs"] += 1
+            S["atom_red_trans"] += len(line_addrs)
+            continue
+
+        warp_id += 1
+        ## global memory access
+        if "LDG" in access_type or "STG" in access_type: 
+            is_local = 0
+            if "LDG" in access_type:
+                is_store = 0
+                S["gmem_ld_reqs"] += 1
+                S["gmem_ld_trans"] += len(line_addrs)
+            elif "STG" in access_type:
+                is_store = 1
+                S["gmem_st_reqs"] += 1
+                S["gmem_st_trans"] += len(line_addrs)
         
-        addrs = trace_line_splited[1:]
-        line_addrs, sector_addrs = get_line_adresses(addrs, l1_cache_line_size)
-        
+        ## local memory access
+        elif "LDL" in access_type or "STL" in access_type:
+            is_local = 1
+            S["lmem_used"] = True
+            if "LDL" in access_type:
+                is_store = 0
+                S["lmem_ld_reqs"] += 1
+                S["lmem_ld_trans"] += len(line_addrs)
+            elif "STL" in access_type:
+                is_store = 1
+                S["lmem_st_reqs"] += 1
+                S["lmem_st_trans"] += len(line_addrs)
+
         for individual_addrs in line_addrs:
-            cache_line_access.append([0, 0, 0, individual_addrs])
+            cache_line_access.append([is_store, is_local, warp_id, individual_addrs])
     
     # print(f"[INFO]: {trace_file} req,warp_inst,ratio: {len(cache_line_access)},{len(block_trace)},{len(cache_line_access)/len(block_trace)}")
-    return cache_line_access
+    return S, cache_line_access
+
 # @timeit
 def get_cache_line_access_from_raw_trace(trace_file, l1_cache_line_size):
     block_trace = open(trace_file,'r').readlines()
@@ -77,7 +126,7 @@ def get_cache_line_access_from_raw_trace(trace_file, l1_cache_line_size):
 def get_cache_line_access_from_file(file_path):
     cache_line_access = []
     with open(file_path, 'r') as f:
-        # assert(fscanf(fp, "%s %s %s %s", inst_id, mem_id, warp_id, address) != EOF);
+        # assert(fscanf(fp, "%s %s %s %s", is_store, is_local, warp_id, address) != EOF);
         for line in f.readlines():
             cache_line_access.append(line.split())
     
@@ -88,7 +137,7 @@ def get_stack_distance(cache_line_access):
     last_position = {}
     SD = []
 
-    for i, (inst_id, mem_id, warp_id, address) in enumerate(cache_line_access):
+    for i, (is_store, is_local, warp_id, address) in enumerate(cache_line_access):
         if address in last_position:
             # 获取上次访问的位置
             previous_index = last_position[address]
@@ -114,7 +163,7 @@ def get_stack_distance_1(cache_line_access):
     '''
     stack = []
     SD = []
-    for inst_id, mem_id, warp_id, address in cache_line_access:
+    for is_store, is_local, warp_id, address in cache_line_access:
         if address in stack:
             sd = len(stack) - stack.index(address) - 1
             SD.append(sd)
