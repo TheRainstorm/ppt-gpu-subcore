@@ -185,26 +185,32 @@ def get_hit_rate_analytical(reuse_profile, cache_size, line_size, associativity)
 
 
 def private_SM_computation(SM_id, kernel_id, grid_size, num_SMs, mem_trace_dir_path, max_blocks_per_SM,\
-                          l1_cache_size, l1_cache_line_size, l1_cache_associativity):
+                          l1_cache_size, l1_cache_line_size, l1_cache_associativity, use_sm_trace=False):
 
     SM_stats = {}
     smi_trace = []
     shared_trace = []
-    count_blocks = 0
-    for block_id in range(grid_size):
-        if count_blocks > max_blocks_per_SM:
-            break
-        current_block_id = block_id % num_SMs
-        if current_block_id == SM_id:
-            try:
-                count_blocks += 1
-                trace_file = mem_trace_dir_path+"/kernel_"+str(kernel_id)+"_block_"+str(block_id)+".mem"
-                # block_trace = open(trace_file,'r').read().strip().split("\n=====\n")
-                block_trace = open(trace_file,'r').readlines()
-                smi_trace.append(block_trace)
-            except:
-                # print("\n[Warning]\n"+trace_file+" not found\n")
-                continue
+    
+    if use_sm_trace:
+        trace_file = mem_trace_dir_path+"/kernel_"+str(kernel_id)+"_sm_"+str(SM_id)+".mem"
+        interleaved_trace = open(trace_file,'r').readlines()
+        smi_trace = interleaved_trace  # smi_trace just for check, not used
+    else:
+        count_blocks = 0
+        for block_id in range(grid_size):
+            if count_blocks > max_blocks_per_SM:
+                break
+            current_block_id = block_id % num_SMs
+            if current_block_id == SM_id:
+                try:
+                    count_blocks += 1
+                    trace_file = mem_trace_dir_path+"/kernel_"+str(kernel_id)+"_block_"+str(block_id)+".mem"
+                    # block_trace = open(trace_file,'r').read().strip().split("\n=====\n")
+                    block_trace = open(trace_file,'r').readlines()
+                    smi_trace.append(block_trace)
+                except:
+                    # print("\n[Warning]\n"+trace_file+" not found\n")
+                    continue
 
     if smi_trace:
         SMi_trans_file = mem_trace_dir_path+"/K"+str(kernel_id)+"_SM"+str(SM_id)+".trace"
@@ -220,7 +226,8 @@ def private_SM_computation(SM_id, kernel_id, grid_size, num_SMs, mem_trace_dir_p
         #     current_blocks = smi_trace[i:i+concurrent_blocks]
         #     current_interleave_trace = interleave_trace(current_blocks)
         #     interleaved_trace += current_interleave_trace
-        interleaved_trace = interleave_trace(smi_trace)
+        if not use_sm_trace:
+            interleaved_trace = interleave_trace(smi_trace)
 
         memory_stats, shared_trace = preprocess_private_trace(interleaved_trace, SMi_trans_file, l1_cache_line_size)
         SM_stats.update(memory_stats)

@@ -20,6 +20,7 @@ def ppt_gpu_model_warpper(kernel_id, trace_dir,
                          max_blocks_per_sm, 
                          gpu_config, # gpu config
                          granularity = 2,
+                         use_sm_trace=False,
                         ):
         
     avg_block_per_sm = (launch_params['grid_size'] + gpu_config['num_SMs'] - 1) // gpu_config['num_SMs']
@@ -55,12 +56,20 @@ def get_block(smi, trace_dir, kernel_id, grid_size, num_SMs, max_blocks_per_sm):
                 break
     return smi_blocks
 
-def run_L1(smi, trace_dir, kernel_id, grid_size, num_SMs, max_blocks_per_sm, gpu_config, is_sdcm, use_approx, granularity, filter_L2=False):
+def run_L1(smi, trace_dir, kernel_id, grid_size, num_SMs, max_blocks_per_sm, gpu_config, is_sdcm, use_approx, granularity, filter_L2=False, use_sm_trace=False):
     # mapping block trace to SM
-    smi_blocks = get_block(smi, trace_dir, kernel_id, grid_size, num_SMs, max_blocks_per_sm)
+    if not use_sm_trace:
+        smi_blocks = get_block(smi, trace_dir, kernel_id, grid_size, num_SMs, max_blocks_per_sm)
+        smi_blocks_interleave = interleave_trace(smi_blocks)
+    else:
+        trace_path = os.path.join(trace_dir, 'memory_traces', f"kernel_{kernel_id}_sm_{smi}.mem")
+        if not os.path.exists(trace_path):
+            smi_blocks_interleave = []
+        else:
+            with open(trace_path,'r') as f:
+                smi_blocks_interleave = f.readlines()
     
     inst_count = {}
-    smi_blocks_interleave = interleave_trace(smi_blocks)
     smi_trace = process_trace(smi_blocks_interleave, gpu_config['l1_cache_line_size'], inst_count=inst_count) # warp level to cache line level
     
     flag_active = False
@@ -84,7 +93,8 @@ def sdcm_model_warpper_parallel(kernel_id, trace_dir,
                 is_sdcm=True,
                 use_approx=True,
                 granularity=2,
-                filter_L2=False):
+                filter_L2=False,
+                use_sm_trace=False):
     grid_size = launch_params['grid_size']
     num_SMs = gpu_config['num_SMs']
     active_sm = min(num_SMs, grid_size)
@@ -103,7 +113,7 @@ def sdcm_model_warpper_parallel(kernel_id, trace_dir,
     
     num_jobs = min(active_sm, multiprocessing.cpu_count())
     with concurrent.futures.ProcessPoolExecutor(max_workers=num_jobs) as executor:
-        futures = [executor.submit(run_L1, i, trace_dir, kernel_id, grid_size, num_SMs, block_per_sm_simulate, gpu_config, is_sdcm, use_approx, granularity, filter_L2)
+        futures = [executor.submit(run_L1, i, trace_dir, kernel_id, grid_size, num_SMs, block_per_sm_simulate, gpu_config, is_sdcm, use_approx, granularity, filter_L2, use_sm_trace)
                    for i in range(active_sm)]
         for future in concurrent.futures.as_completed(futures):
             flag, hit_rate, smi_trace = future.result()
@@ -124,8 +134,8 @@ def sdcm_model_warpper_parallel(kernel_id, trace_dir,
     
     return [avg_l1_hit_rate, l2_hit_rate]
 
-def memory_model_warpper(gpu_model, app_path, model, kernel_id=-1,
-                         use_approx=True, granularity=2, filter_L2=False):
+def memory_model_warpper(gpu_model, app_path, model, kernel_id=-1, granularity=2, use_sm_trace=False, 
+                         use_approx=True, filter_L2=False):
     gpu_config = get_gpu_config(gpu_model).uarch
     kernels_launch_params = get_kernels_launch_params(app_path)
 
@@ -144,10 +154,10 @@ def memory_model_warpper(gpu_model, app_path, model, kernel_id=-1,
                                         granularity=granularity, use_sm_trace=use_sm_trace)
         elif model == 'sdcm':
             l1_hit_rate, l2_hit_rate = sdcm_model_warpper_parallel(kernel_param['kernel_id'], app_path, kernel_param, occupancy_res['max_active_block_per_sm'], gpu_config,
-                                        use_approx=use_approx, granularity=granularity)
+                                        granularity=granularity, use_sm_trace=use_sm_trace, use_approx=use_approx)
         elif model == 'simulator':
             l1_hit_rate, l2_hit_rate = sdcm_model_warpper_parallel(kernel_param['kernel_id'], app_path, kernel_param, occupancy_res['max_active_block_per_sm'], gpu_config,
-                                        is_sdcm=False, granularity=granularity, filter_L2=filter_L2)
+                                        is_sdcm=False, granularity=granularity, use_sm_trace=use_sm_trace, filter_L2=filter_L2)
         else:
             raise ValueError(f"model {model} is not supported")
         
@@ -180,9 +190,12 @@ if __name__ == "__main__":
                     choices=['ppt-gpu', 'sdcm', 'simulator'],
                     default='ppt-gpu',
                     help='change memory model')
+    parser.add_argument('--use-sm-trace', 
+                    action='store_true',
+                    help='use sm level trace')
     args = parser.parse_args()
     
-    app_res = memory_model_warpper(args.config, args.app_path, args.model, kernel_id=args.kernel_id, granularity=args.granularity)
+    app_res = memory_model_warpper(args.config, args.app_path, args.model, kernel_id=args.kernel_id, granularity=args.granularity, use_sm_trace=args.use_sm_trace)
     print(app_res)
     print("Done")
     
