@@ -134,7 +134,7 @@ def get_gpu_config(gpu_config, repo_path=None):
     gpu_configs.uarch["ptx_isa"] = ISA.ptx_isa
     gpu_configs.uarch["sass_isa"] = ISA.sass_isa
     gpu_configs.uarch["units_latency"] = ISA.units_latency
-    gpu_configs.uarch["initial_interval"] = ISA.initial_interval
+    gpu_configs.uarch["initial_interval"] = getattr(ISA, "initial_interval", {})
     
     # get cc
     try:

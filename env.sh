@@ -36,6 +36,8 @@ gpu_detect(){
     echo $gpu
 }
 gpu=${gpu:-$(gpu_detect)}
+GPU_PROFILE=${GPU_PROFILE:-TITANV}
+gpu_sim=$(echo $GPU_PROFILE | tr 'A-Z' 'a-z')
 
 use_ncu=1
 profile_cpi=1
@@ -73,6 +75,8 @@ trace_dir=${trace_dir_base}/${model}-${gpu}/${cuda_version}
 # run hw
 res_hw_json=${ppt_gpu_dir}/tmp/res_hw_${gpu}_${cuda_version}.json
 res_hw_cpi_json=${ppt_gpu_dir}/tmp/res_hw_${gpu}_${cuda_version}_cpi.json
+res_hw_sim_json=${ppt_gpu_dir}/tmp/res_hw_${gpu_sim}_${cuda_version}.json
+res_hw_cpi_sim_json=${ppt_gpu_dir}/tmp/res_hw_${gpu_sim}_${cuda_version}_cpi.json
 # raw profile data
 res_hw_nvprof_json=${ppt_gpu_dir}/tmp/res_hw_${gpu}_${cuda_version}_nvprof.json
 res_hw_ncu_json=${ppt_gpu_dir}/tmp/res_hw_${gpu}_${cuda_version}_ncu.json
@@ -81,20 +85,20 @@ res_hw_nvprof_cpi_json=${ppt_gpu_dir}/tmp/res_hw_${gpu}_${cuda_version}_nvprof_c
 res_hw_ncu_cpi_json=${ppt_gpu_dir}/tmp/res_hw_${gpu}_${cuda_version}_ncu_cpi.json
 
 # run sim
-report_dir=${ppt_gpu_dir}/tmp_output/${model}_${gpu}_${cuda_version}_${run_name}
-res_sim_json=${ppt_gpu_dir}/tmp/res_${model}_${gpu}_${cuda_version}_${run_name}.json
-res_sim_lite_json=${ppt_gpu_dir}/tmp/res_${model}_${gpu}_${cuda_version}_${run_name}_lite.json
+report_dir=${ppt_gpu_dir}/tmp_output/${model}_${gpu}_${cuda_version}_${GPU_PROFILE}_${run_name}
+res_sim_json=${ppt_gpu_dir}/tmp/res_${model}_${gpu}_${cuda_version}_${GPU_PROFILE}_${run_name}.json
+res_sim_lite_json=${ppt_gpu_dir}/tmp/res_${model}_${gpu}_${cuda_version}_${GPU_PROFILE}_${run_name}_lite.json
 # from full sim res, get cpi, detail cpi, sched cpi result
-res_sim_cpi_json=${ppt_gpu_dir}/tmp/res_${model}_${gpu}_${cuda_version}_${run_name}_cpi.json
-res_sim_detail_cpi_json=${ppt_gpu_dir}/tmp/res_${model}_${gpu}_${cuda_version}_${run_name}_detail_cpi.json
-res_sim_sched_cpi_json=${ppt_gpu_dir}/tmp/res_${model}_${gpu}_${cuda_version}_${run_name}_sched_cpi.json
+res_sim_cpi_json=${ppt_gpu_dir}/tmp/res_${model}_${gpu}_${cuda_version}_${GPU_PROFILE}_${run_name}_cpi.json
+res_sim_detail_cpi_json=${ppt_gpu_dir}/tmp/res_${model}_${gpu}_${cuda_version}_${GPU_PROFILE}_${run_name}_detail_cpi.json
+res_sim_sched_cpi_json=${ppt_gpu_dir}/tmp/res_${model}_${gpu}_${cuda_version}_${GPU_PROFILE}_${run_name}_sched_cpi.json
 
 # run memory
 memory_model=${memory_model:-"ppt-gpu"} # sdcm, simulator
-res_memory_prefix=${ppt_gpu_dir}/tmp/res_memory_${gpu}_${cuda_version}_${run_name}_
+res_memory_prefix=${ppt_gpu_dir}/tmp/res_memory_${gpu}_${cuda_version}_${GPU_PROFILE}_${run_name}_
 
 # draw
-draw_output=${ppt_gpu_dir}/tmp_draw/draw_${model}_${gpu}_${cuda_version}_${run_name}
+draw_output=${ppt_gpu_dir}/tmp_draw/draw_${model}_${gpu}_${cuda_version}_${GPU_PROFILE}_${run_name}
 
 ## run single app
 # single_app=rodinia-2.0-ft
@@ -122,6 +126,7 @@ print_summary(){
     echo "app cuda_version: $CUDA_VERSION"
     echo "nvcc cuda_version: $curr_cuda_version"
     echo "gpu: $gpu [${GPU}]"
+    echo "Simulation GPU Profile: $GPU_PROFILE"
     echo "run_name: $run_name"
     echo "apps_yaml: $apps_yaml"
     echo "benchmarks: $benchmarks"
@@ -131,6 +136,7 @@ print_summary(){
     echo "res_sim_json: $res_sim_json"
     echo "report_dir: $report_dir"
     echo "draw_output: $draw_output"
+    echo "res_memory_prefix: $res_memory_prefix"
     echo "memory_model: $memory_model"
 }
 
@@ -141,6 +147,7 @@ unset_env(){
     unset trace_dir_base
     unset ppt_gpu_version
     unset memory_model
+    unset GPU_PROFILE
 }
 
 print_summary
