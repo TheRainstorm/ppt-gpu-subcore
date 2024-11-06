@@ -280,7 +280,7 @@ def private_SM_computation(SM_id, kernel_id, grid_size, num_SMs, mem_trace_dir_p
 
 
 def get_memory_perf(kernel_id, mem_trace_dir_path, grid_size, num_SMs, l1_cache_size, l1_cache_line_size, l1_cache_associativity,\
-                    l2_cache_size, l2_cache_line_size, l2_cache_associativity, gmem_reqs, max_blocks_per_SM_orig, max_blocks_per_SM_new, cache_ref_data=None):
+                    l2_cache_size, l2_cache_line_size, l2_cache_associativity, gmem_reqs, allocted_block_per_sm, block_per_sm_simulate, cache_ref_data=None):
 
     blck_id = -1
     shared_trace = []
@@ -351,7 +351,7 @@ def get_memory_perf(kernel_id, mem_trace_dir_path, grid_size, num_SMs, l1_cache_
     #         SMs_output_list = pickle.load(f)
     # else:
     #     SMs_output_list = Parallel(n_jobs=num_jobs, prefer="processes")(delayed(private_SM_computation)(i, kernel_id, grid_size,\
-    #                                                                                                 num_SMs, mem_trace_dir_path, max_blocks_per_SM_new,\
+    #                                                                                                 num_SMs, mem_trace_dir_path, block_per_sm_simulate,\
     #                                                                                                 l1_cache_size, l1_cache_line_size,\
     #                                                                                                 l1_cache_associativity)\
     #                                                                                                 for i in range(parallel_comp))
@@ -359,7 +359,7 @@ def get_memory_perf(kernel_id, mem_trace_dir_path, grid_size, num_SMs, l1_cache_
     #     print("write to pickle")
     #     pickle.dump(SMs_output_list, f)
     SMs_output_list = Parallel(n_jobs=num_jobs, prefer="processes")(delayed(private_SM_computation)(i, kernel_id, grid_size,\
-                                                                                                num_SMs, mem_trace_dir_path, max_blocks_per_SM_new,\
+                                                                                                num_SMs, mem_trace_dir_path, block_per_sm_simulate,\
                                                                                                 l1_cache_size, l1_cache_line_size,\
                                                                                                 l1_cache_associativity)\
                                                                                                 for i in range(parallel_comp))
@@ -420,15 +420,15 @@ def get_memory_perf(kernel_id, mem_trace_dir_path, grid_size, num_SMs, l1_cache_
         memory_stats["gmem_hit_rate"] = sum(gmem_hit_rates_list) / len(gmem_hit_rates_list)
     else:
         memory_stats["gmem_hit_rate"] = memory_stats["umem_hit_rate"]
-    memory_stats["gmem_ld_reqs"] = int((sum(gmem_ld_reqs_list) * max_blocks_per_SM_orig) / max_blocks_per_SM_new)
-    memory_stats["gmem_st_reqs"] = int((sum(gmem_st_reqs_list) * max_blocks_per_SM_orig) / max_blocks_per_SM_new)
+    memory_stats["gmem_ld_reqs"] = int((sum(gmem_ld_reqs_list) * allocted_block_per_sm) / block_per_sm_simulate)
+    memory_stats["gmem_st_reqs"] = int((sum(gmem_st_reqs_list) * allocted_block_per_sm) / block_per_sm_simulate)
     memory_stats["gmem_tot_reqs"] = memory_stats["gmem_ld_reqs"] + memory_stats["gmem_st_reqs"]
-    memory_stats["gmem_ld_trans"] = int((sum(gmem_ld_trans_list) * max_blocks_per_SM_orig) / max_blocks_per_SM_new)
+    memory_stats["gmem_ld_trans"] = int((sum(gmem_ld_trans_list) * allocted_block_per_sm) / block_per_sm_simulate)
     gmem_sm_ld_trans = int(sum(gmem_ld_trans_list) / len(gmem_ld_trans_list))
-    memory_stats["gmem_sm_ld_trans"] = int((gmem_sm_ld_trans * max_blocks_per_SM_orig) / max_blocks_per_SM_new)
-    memory_stats["gmem_st_trans"] = int((sum(gmem_st_trans_list) * max_blocks_per_SM_orig) / max_blocks_per_SM_new)
+    memory_stats["gmem_sm_ld_trans"] = int((gmem_sm_ld_trans * allocted_block_per_sm) / block_per_sm_simulate)
+    memory_stats["gmem_st_trans"] = int((sum(gmem_st_trans_list) * allocted_block_per_sm) / block_per_sm_simulate)
     gmem_sm_st_trans = int(sum(gmem_st_trans_list) / len(gmem_st_trans_list))
-    memory_stats["gmem_sm_st_trans"] = int((gmem_sm_st_trans * max_blocks_per_SM_orig) / max_blocks_per_SM_new)
+    memory_stats["gmem_sm_st_trans"] = int((gmem_sm_st_trans * allocted_block_per_sm) / block_per_sm_simulate)
     memory_stats["gmem_tot_trans"] = memory_stats["gmem_ld_trans"] + memory_stats["gmem_st_trans"]
     memory_stats["l1_sm_trans_gmem"] =  memory_stats["gmem_sm_ld_trans"] + memory_stats["gmem_sm_st_trans"]
 

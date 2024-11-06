@@ -207,16 +207,17 @@ def run(trace_files, ):
 def cache_simulate(cache_line_access, cache_parameter):
     cache = LRUCache(cache_parameter)
     
+    L2_req = []
     for inst_id, mem_id, warp_id, address in cache_line_access:
         mem_width = 4
         write = inst_id == '1'
         addr = address * cache_parameter['cache_line_size']
 
         hit = cache.access(mem_width, write, addr)
-        # print(hit)
-    
+        if not hit:
+            L2_req.append([inst_id, mem_id, warp_id, address])
     # print(json.dumps(cache.get_hit_info(), indent=4))
-    return cache.get_hit_info()['hit_ratio']
+    return cache.get_hit_info()['hit_ratio'], L2_req
     
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(
