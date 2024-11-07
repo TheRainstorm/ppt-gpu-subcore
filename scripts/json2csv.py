@@ -37,7 +37,10 @@ def dump_to_csv_general(json_data, output_file='output.csv'):
         for i, kernel_res in enumerate(app_res):
             row = [app_arg, i+1]
             for col in columns[2:]:
-                row.append(kernel_res[col])
+                if type(kernel_res[col]) == list:
+                    row.append("ListSkip")
+                else:
+                    row.append(kernel_res[col])
             csv_writer.writerow(row)
     
 def dump_to_csv(json_data, output_file='output.csv', select=JSON2CSV.NCU):

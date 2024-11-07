@@ -213,7 +213,7 @@ def memory_model_warpper(gpu_model, app_path, model, kernel_id=-1, granularity=2
         
         app_res.append(kernel_res)
     
-    return app_res
+    return app_res, gpu_config
     
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(
@@ -245,7 +245,7 @@ if __name__ == "__main__":
                     help='use sm level trace')
     args = parser.parse_args()
     
-    app_res = memory_model_warpper(args.config, args.app_path, args.model, kernel_id=args.kernel_id, granularity=args.granularity, use_sm_trace=args.use_sm_trace)
+    app_res, _ = memory_model_warpper(args.config, args.app_path, args.model, kernel_id=args.kernel_id, granularity=args.granularity, use_sm_trace=args.use_sm_trace)
     print(app_res)
     print("Done")
     

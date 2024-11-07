@@ -77,14 +77,17 @@ def get_kernel_stat(json_data, stat_key, app_filter='', func=None):
             continue
         
         for j,kernel_res in enumerate(kernels_res):
-            app_short_name = app.replace('_', '')
-            app_short_name = app_short_name[:3]+app_short_name[-10:]
-            X.append(f"{app_short_name}-{j}-{kernel_res['kernel_name']}")
+            if 'kernel_name' not in kernel_res:
+                X.append(f"{app}-{j}")
+            else:
+                app_short_name = app.replace('_', '')
+                app_short_name = app_short_name[:3]+app_short_name[-10:]
+                X.append(f"{app_short_name}-{j}-{kernel_res['kernel_name']}")
             if func:
                 Y.append(func(kernel_res[stat_key]))
             else:
                 Y.append(kernel_res[stat_key])
-    return X, Y
+    return np.array(X), np.array(Y)
 
 def get_app_stat(json_data, stat_key, app_filter='', func=None, avg=False):
     '''
@@ -118,7 +121,7 @@ def get_app_stat(json_data, stat_key, app_filter='', func=None, avg=False):
             accum /= len(kernels_res)
         Y.append(accum)
         
-    return X, Y
+    return np.array(X), np.array(Y)
 
 # global var
 overwrite = False
@@ -238,6 +241,56 @@ def draw_side2side(stat, save_img, draw_kernel=False, sim_res_func=None, avg=Tru
     fig.savefig(save_img_path)
     plt.close(fig)
 
+def draw_correl(stat, save_img, draw_kernel=True, sim_res_func=None, avg=True, hw_stat=""):
+    global overwrite, app_filter
+    # save_img_path = os.path.join(args.output_dir, save_img)
+    save_img_path = os.path.join(os.getcwd(), save_img)
+    if os.path.exists(save_img_path) and not overwrite:
+        return
+    if not os.path.exists(os.path.dirname(save_img_path)):
+        os.makedirs(os.path.dirname(save_img_path))
+    print(f"draw correl {'kernel' if draw_kernel else 'app'} {stat}")
+    
+    hw_stat_key = key_map[stat] if not hw_stat else hw_stat
+    scale = 1
+    if type(hw_stat_key) == list:
+        hw_stat_key, scale = hw_stat_key
+    if not draw_kernel:
+        x1, y1 = get_app_stat(hw_res, hw_stat_key, app_filter=app_filter, func=lambda x: x*scale, avg=avg)
+        _, y2 = get_app_stat(sim_res, stat, app_filter=app_filter, func=sim_res_func, avg=avg)
+    else:
+        x1, y1 = get_kernel_stat(hw_res, hw_stat_key, app_filter=app_filter, func=lambda x: x*scale)
+        _, y2 = get_kernel_stat(sim_res, stat, app_filter=app_filter, func=sim_res_func)
+    
+    corr = np.corrcoef(y1, y2)[0, 1]
+    MAE = np.mean(np.abs(np.array(y2) - np.array(y1))/np.array(y1))
+    t = np.array(y2) - np.array(y1)
+    RMSE = np.sqrt(np.mean(t**2))
+    NRMSE = RMSE/np.mean(np.abs(y1))
+    NRMSE_max_min = RMSE/(np.max(y1)-np.min(y1))
+        
+    fig, ax = plt.subplots()
+    ax.scatter(y1, y2, label=f"corr={corr:.2f} error={MAE:.2f}", color='blue')
+    
+    min_val = min(y1.min(), y2.min())
+    max_val = max(y1.max(), y2.max())
+    
+    ax.plot([min_val, max_val], [min_val, max_val], color='red')
+    
+    # plt.xlim(min_val, max_val)
+    # plt.ylim(min_val, max_val)
+    ax.set_xlim(min_val, max_val)
+    ax.set_ylim(min_val, max_val)
+
+    ax.set_aspect('equal', adjustable='box')
+    # add some text for labels, title and axes ticks
+    ax.set_xlabel(f"HW {stat}")
+    ax.set_ylabel(f"Sim {stat}")
+    ax.set_title(f"{stat} Correl, corr={corr:.2f}, MAE={MAE:.2f}, NRMSE={NRMSE:.2f}")
+    ax.legend()
+    fig.savefig(save_img_path)
+    plt.close(fig)
+    
 def truncate_kernel(sim_res, num):
     sim_res_new = {}
     for app, kernels_res in sim_res.items():
@@ -443,7 +496,7 @@ if __name__ == "__main__":
             
             draw_side2side("l1_hit_rate", f"bar_6_l1_hit_rate.png", draw_kernel=True)
             draw_side2side("l2_hit_rate", f"bar_6_l2_hit_rate.png", draw_kernel=True)
-    elif 'memory' in args.command:
+    elif args.command=='memory':
         print(f"\ncommand: {args.command}:")
         args.dir_name = args.dir_name if args.dir_name else args.command
         os.makedirs(args.dir_name, exist_ok=True)  # save image in seperate dir
@@ -460,12 +513,19 @@ if __name__ == "__main__":
         # set each bench as filter
         l1_hw_stat = "tex_cache_hit_rate" if args.gtx1080ti else ("l1_hit_rate" if args.command == 'memory-sim' else "global_hit_rate")
         l2_hw_stat = "l2_hit_rate" if args.command == 'memory-sim' else "l2_tex_hit_rate"
+        
+        # total kernel
+        draw_correl("l1_hit_rate", f"correl_6_l1_hit_rate.png", hw_stat=l1_hw_stat, avg=True, draw_kernel=True)
+        draw_correl("l2_hit_rate", f"correl_6_l2_hit_rate.png", hw_stat=l2_hw_stat, avg=True, draw_kernel=True)
         for bench in benchs:
             app_filter = bench
             draw_error("l1_hit_rate", f"{bench}_error_6_l1_hit_rate.png", hw_stat=l1_hw_stat, avg=True)
             draw_side2side("l1_hit_rate", f"{bench}_bar_6_l1_hit_rate.png", hw_stat=l1_hw_stat)
             draw_error("l2_hit_rate", f"{bench}_error_6_l2_hit_rate.png", hw_stat=l2_hw_stat, avg=True)
             draw_side2side("l2_hit_rate", f"{bench}_bar_6_l2_hit_rate.png", hw_stat=l2_hw_stat)
+            
+            draw_correl("l1_hit_rate", f"{bench}_correl_6_l1_hit_rate.png", hw_stat=l1_hw_stat, avg=True, draw_kernel=True)
+            draw_correl("l2_hit_rate", f"{bench}_correl_6_l2_hit_rate.png", hw_stat=l2_hw_stat, avg=True, draw_kernel=True)
     elif args.command == 'memory_kernels':
         overwrite = True
         print(f"\ncommand: {args.command}:")
