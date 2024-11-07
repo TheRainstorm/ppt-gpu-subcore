@@ -99,7 +99,8 @@ res_sim_sched_cpi_json=${ppt_gpu_dir}/tmp/res_${model}_${gpu}_${cuda_version}_${
 
 # run memory
 memory_model=${memory_model:-"ppt-gpu"} # sdcm, simulator
-res_memory_json=${ppt_gpu_dir}/tmp/res_memory_${gpu}_${cuda_version}_${GPU_PROFILE}_${run_name}_${memory_model}.json
+memory_suffix=${memory_suffix:-""}  # distinguish different run with the same memory model
+res_memory_json=${ppt_gpu_dir}/tmp/res_memory_${gpu}_${cuda_version}_${GPU_PROFILE}_${run_name}_${memory_model}${memory_suffix}.json
 
 # draw
 draw_output=${ppt_gpu_dir}/tmp_draw/draw_${model}_${gpu}_${cuda_version}_${GPU_PROFILE}_${run_name}
@@ -153,6 +154,7 @@ print_summary(){
 
     echo "[Memory]:"
     echo "memory_model: $memory_model"
+    echo "memory_suffix: $memory_suffix"
     echo "granularity: $granularity, filter_l2: $filter_l2, use_approx: $use_approx, use_sm_trace: $use_sm_trace"
 }
 
@@ -164,7 +166,7 @@ unset_env(){
     unset ppt_gpu_version
     unset memory_model
     unset GPU_PROFILE
-    unset granularity filter_l2 use_approx use_sm_trace
+    unset granularity filter_l2 use_approx use_sm_trace memory_suffix
 }
 
 print_summary

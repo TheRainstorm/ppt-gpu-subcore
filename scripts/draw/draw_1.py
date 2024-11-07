@@ -466,4 +466,24 @@ if __name__ == "__main__":
             draw_side2side("l1_hit_rate", f"{bench}_bar_6_l1_hit_rate.png", hw_stat=l1_hw_stat)
             draw_error("l2_hit_rate", f"{bench}_error_6_l2_hit_rate.png", hw_stat=l2_hw_stat, avg=True)
             draw_side2side("l2_hit_rate", f"{bench}_bar_6_l2_hit_rate.png", hw_stat=l2_hw_stat)
+    elif args.command == 'memory_kernels':
+        overwrite = True
+        print(f"\ncommand: {args.command}:")
+        args.dir_name = args.dir_name if args.dir_name else args.command
+        os.makedirs(args.dir_name, exist_ok=True)  # save image in seperate dir
+        os.chdir(args.dir_name)
+        
+        app_list_all = sim_res.keys()
+        l1_hw_stat = "tex_cache_hit_rate" if args.gtx1080ti else ("l1_hit_rate" if args.command == 'memory-sim' else "global_hit_rate")
+        l2_hw_stat = "l2_hit_rate" if args.command == 'memory-sim' else "l2_tex_hit_rate"
+        for i,app_arg in enumerate(app_list_all):
+            app_filter=app_arg  # set global filter to single app
+            
+            app_name_safe = app_arg.replace('/', '_')
+            draw_error("l1_hit_rate", f"{i:2d}_{app_name_safe}_error_6_l1_hit_rate.png", hw_stat=l1_hw_stat, avg=True, draw_kernel=True)
+            draw_side2side("l1_hit_rate", f"{i:2d}_{app_name_safe}_bar_6_l1_hit_rate.png", hw_stat=l1_hw_stat, draw_kernel=True)
+            draw_error("l2_hit_rate", f"{i:2d}_{app_name_safe}_error_6_l2_hit_rate.png", hw_stat=l2_hw_stat, avg=True, draw_kernel=True)
+            draw_side2side("l2_hit_rate", f"{i:2d}_{app_name_safe}_bar_6_l2_hit_rate.png", hw_stat=l2_hw_stat, draw_kernel=True)
+    else:
+        print(f"ERROR: command {args.command} not supported")
     os.chdir(run_dir)
