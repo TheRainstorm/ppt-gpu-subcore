@@ -62,12 +62,16 @@ def process_trace(block_trace, l1_cache_line_size):
     S["atom_reqs"] = 0
     S["red_reqs"] = 0
     S["atom_red_trans"] = 0
+    
+    S["umem_ld_sectors"] = 0
+    S["umem_st_sectors"] = 0
 
     warp_id = 0 ## warp counter for l2 inclusion
     is_store = 0 ## LD=0 - ST=1
-    is_local = 2  ## Global=0 - Local=1
+    is_local = 0  ## Global=0 - Local=1
 
     cache_line_access = []
+    sector_access = []
     for items in block_trace:
         addrs = items.strip().split(" ")
         access_type = addrs[0]
@@ -110,12 +114,22 @@ def process_trace(block_trace, l1_cache_line_size):
                 is_store = 1
                 S["lmem_st_reqs"] += 1
                 S["lmem_st_trans"] += len(line_addrs)
-
+        
+        if is_store == 1:
+            S["umem_st_sectors"] += len(sector_addrs)
+        else:
+            S["umem_ld_sectors"] += len(sector_addrs)
+            
         for individual_addrs in line_addrs:
             cache_line_access.append([is_store, is_local, warp_id, individual_addrs])
-    
+        for individual_addrs in sector_addrs:
+            sector_access.append([is_store, is_local, warp_id, individual_addrs])
+    S["umem_ld_reqs"] =  S["gmem_ld_reqs"]  + S["lmem_ld_reqs"] # + tex + surface
+    S["umem_st_reqs"] =  S["gmem_st_reqs"]  + S["lmem_st_reqs"] 
+    S["umem_ld_trans"] = S["gmem_ld_trans"] + S["lmem_ld_trans"]
+    S["umem_st_trans"] = S["gmem_st_trans"] + S["lmem_st_trans"]
     # print(f"[INFO]: {trace_file} req,warp_inst,ratio: {len(cache_line_access)},{len(block_trace)},{len(cache_line_access)/len(block_trace)}")
-    return S, cache_line_access
+    return S, sector_access
 
 # @timeit
 def get_cache_line_access_from_raw_trace(trace_file, l1_cache_line_size):
@@ -180,7 +194,7 @@ def get_sdd_dict(SD, cache_line_access):
     ld_count = 0
     for i, sd in enumerate(SD):
         is_store = cache_line_access[i][0]
-        if is_store:
+        if is_store == 0:
             ld_count += 1
             sd_ld_counter[sd] = sd_ld_counter.get(sd, 0) + 1
         else:

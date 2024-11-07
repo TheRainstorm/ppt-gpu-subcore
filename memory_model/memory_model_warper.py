@@ -97,13 +97,22 @@ def run_L1(smi, trace_dir, kernel_id, grid_size, num_SMs, max_blocks_per_sm, gpu
             sm_stats['l1_hit_rate'] = hit_rate_dict['tot']
             sm_stats['l1_hit_rate_ld'] = hit_rate_dict['ld']
             sm_stats['l1_hit_rate_st'] = hit_rate_dict['st']
+            sm_stats['umem_ld_sectors_hit'] = sm_stats['umem_ld_sectors'] * hit_rate_dict['ld']
+            sm_stats['umem_ld_sectors_miss'] = sm_stats['umem_ld_sectors'] - sm_stats['umem_ld_sectors_hit']
+            sm_stats['umem_st_sectors_hit'] = sm_stats['umem_st_sectors'] * hit_rate_dict['st']
+            sm_stats['umem_st_sectors_miss'] = sm_stats['umem_st_sectors'] - sm_stats['umem_st_sectors_hit']
         else:
-            hit_rate, L2_req = cache_simulate(smi_trace, {'capacity': gpu_config['l1_cache_size'], 'cache_line_size': gpu_config['l1_cache_line_size'], 'associativity': gpu_config['l1_cache_associativity']})
+            hit_rate_dict, L2_req = cache_simulate(smi_trace, {'capacity': gpu_config['l1_cache_size'], 'cache_line_size': gpu_config['l1_cache_line_size'], 'associativity': gpu_config['l1_cache_associativity']})
             if filter_L2:
                 smi_trace = L2_req
-            sm_stats['l1_hit_rate'] = hit_rate
-            sm_stats['l1_hit_rate_ld'] = hit_rate
-    
+            sm_stats['l1_hit_rate'] = hit_rate_dict['tot']
+            sm_stats['l1_hit_rate_ld'] = hit_rate_dict['ld']
+            sm_stats['l1_hit_rate_st'] = hit_rate_dict['st']
+            sm_stats['umem_ld_sectors_hit'] = sm_stats['umem_ld_sectors'] * hit_rate_dict['ld']
+            sm_stats['umem_ld_sectors_miss'] = sm_stats['umem_ld_sectors'] - sm_stats['umem_ld_sectors_hit']
+            sm_stats['umem_st_sectors_hit'] = sm_stats['umem_st_sectors'] * hit_rate_dict['st']
+            sm_stats['umem_st_sectors_miss'] = sm_stats['umem_st_sectors'] - sm_stats['umem_st_sectors_hit']
+            
     return flag_active, sm_stats, smi_trace
 
 def sdcm_model_warpper_parallel(kernel_id, trace_dir,
@@ -144,10 +153,18 @@ def sdcm_model_warpper_parallel(kernel_id, trace_dir,
             if flag:
                 sm_traces.append(smi_trace)
                 sm_stats_list.append(sm_stats)
+    # serial for debugging
+    # for i in range(active_sm):
+    #     flag, sm_stats, smi_trace = run_L1(i, trace_dir, kernel_id, grid_size, num_SMs, block_per_sm_simulate, gpu_config, is_sdcm, use_approx, granularity, filter_L2, use_sm_trace)
+    #     if flag:
+    #         sm_traces.append(smi_trace)
+    #         sm_stats_list.append(sm_stats)
+    
     K = process_dict_list(sm_stats_list, op='sum', scale=scale)
     K['l1_hit_rate_list'] = [sm_stats['l1_hit_rate'] for sm_stats in sm_stats_list]
-    K['l1_hit_rate'] = sum(K['l1_hit_rate_list'])/len(sm_stats_list)
-    K['l1_hit_rate_ld'] = sum([sm_stats['l1_hit_rate_ld'] for sm_stats in sm_stats_list]) / len(sm_stats_list)
+    K['l1_hit_rate_ld'] = K['umem_ld_sectors_hit'] / K['umem_ld_sectors'] if K['umem_ld_sectors'] > 0 else 0
+    K['l1_hit_rate_st'] = K['umem_st_sectors_hit'] / K['umem_st_sectors'] if K['umem_st_sectors'] > 0 else 0
+    K['l1_hit_rate'] = (K['umem_ld_sectors_hit'] + K['umem_st_sectors_hit']) / (K['umem_ld_sectors'] + K['umem_st_sectors']) if K['umem_ld_sectors'] + K['umem_st_sectors'] > 0 else 0
     
     # reuse distance model for L2
     l2_trace = interleave_trace(sm_traces)
@@ -157,12 +174,14 @@ def sdcm_model_warpper_parallel(kernel_id, trace_dir,
         l2_hit_rate_dict = sdcm_model(l2_trace, l2_param)
         K['l2_hit_rate'] = l2_hit_rate_dict['tot']
     else:
-        l2_hit_rate, _ = granularity=granularity(l2_trace, l2_param)
-        K['l2_hit_rate'] = l2_hit_rate
+        l2_hit_rate_dict, _ = cache_simulate(l2_trace, l2_param)
+        K['l2_hit_rate'] = l2_hit_rate_dict['tot']
     
     # global memory
     K['gmem_tot_reqs'] = K['gmem_ld_reqs'] + K['gmem_st_reqs']
     K['gmem_tot_trans'] = K['gmem_ld_trans'] + K['gmem_st_trans']
+    K['umem_tot_reqs'] = K['umem_ld_reqs'] + K['umem_st_reqs']
+    K['umem_tot_trans'] = K['umem_ld_trans'] + K['umem_st_trans']
     K['gmem_ld_diverg'] = K['gmem_ld_trans'] / K['gmem_ld_reqs'] if K['gmem_ld_reqs'] > 0 else 0
     K['gmem_st_diverg'] = K['gmem_st_trans'] / K['gmem_st_reqs'] if K['gmem_st_reqs'] > 0 else 0
     K['gmem_tot_diverg'] = K['gmem_tot_trans'] / K['gmem_tot_reqs'] if K['gmem_tot_reqs'] > 0 else 0

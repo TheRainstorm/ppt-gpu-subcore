@@ -208,16 +208,25 @@ def cache_simulate(cache_line_access, cache_parameter):
     cache = LRUCache(cache_parameter)
     
     L2_req = []
-    for inst_id, mem_id, warp_id, address in cache_line_access:
+    for is_store, is_local, warp_id, address in cache_line_access:
         mem_width = 4
-        write = inst_id == '1'
-        addr = address * cache_parameter['cache_line_size']
+        # addr = address * cache_parameter['cache_line_size']
+        addr = address * 32  # sector size 32B
 
-        hit = cache.access(mem_width, write, addr)
+        hit = cache.access(mem_width, is_store, addr)
+        if hit:
+            if is_store:
+                L2_req.append([is_store, is_local, warp_id, address])
         if not hit:
-            L2_req.append([inst_id, mem_id, warp_id, address])
+            L2_req.append([is_store, is_local, warp_id, address])
     # print(json.dumps(cache.get_hit_info(), indent=4))
-    return cache.get_hit_info()['hit_ratio'], L2_req
+    hit_rate_dict = {}
+    cache_info = cache.get_hit_info()
+    hit_rate_dict['tot'] = cache_info['hit_ratio']
+    hit_rate_dict['ld'] = 1 - cache_info['read_miss_raito']
+    hit_rate_dict['st'] = 1 - cache_info['write_miss_raito']
+    
+    return hit_rate_dict, L2_req
     
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(
