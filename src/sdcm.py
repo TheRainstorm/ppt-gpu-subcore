@@ -24,15 +24,15 @@ def timeit(func):
         return result
     return wrapper
 
-def get_line_adresses(addresses, l1_cache_line_size):
+def get_line_adresses(addresses, l1_cache_line_size, sector_size=32):
     '''
     coalescing the addresses of the warp
     '''
     line_idx = int(math.log(l1_cache_line_size,2))
     sector_size = 32
     sector_idx = int(math.log(sector_size,2))
-    line_mask = ~(2**line_idx - 1)
-    sector_mask = ~(2**sector_idx - 1)
+    # line_mask = ~(2**line_idx - 1)
+    # sector_mask = ~(2**sector_idx - 1)
     
     cache_line_set = set()
     sector_set = set()  # count sector number
@@ -48,7 +48,7 @@ def get_line_adresses(addresses, l1_cache_line_size):
     
     return list(cache_line_set), list(sector_set)
 
-def process_trace(block_trace, l1_cache_line_size):
+def process_trace(block_trace, l1_cache_line_size, sector_size=32):
     S = {}
     S["gmem_ld_reqs"] = 0
     S["gmem_st_reqs"] = 0
@@ -77,7 +77,7 @@ def process_trace(block_trace, l1_cache_line_size):
     for items in block_trace:
         addrs = items.strip().split(" ")
         access_type = addrs[0]
-        line_addrs, sector_addrs = get_line_adresses(addrs[1:], l1_cache_line_size)
+        line_addrs, sector_addrs = get_line_adresses(addrs[1:], l1_cache_line_size, sector_size)
 
         ## global reduction operations
         if "RED" in access_type:
@@ -307,8 +307,6 @@ def sdcm_dict(sdd_dict, cache_line_size, cache_size, associativity, use_approx=F
     
     hit_rate_dict = {}
     hit_rate_dict['tot'] = 0
-    hit_rate_dict['ld'] = 0
-    hit_rate_dict['st'] = 0
     for categ, v in sdd_dict.items():
         sdd = v['sdd']
         ratio = v['ratio']
@@ -316,10 +314,8 @@ def sdcm_dict(sdd_dict, cache_line_size, cache_size, associativity, use_approx=F
         
         hit_rate_dict[categ] = hit_rate
         hit_rate_dict['tot'] += hit_rate * ratio
-        if 'ld' in categ:
-            hit_rate_dict['ld'] += hit_rate * ratio
-        else:
-            hit_rate_dict['st'] += hit_rate * ratio
+    hit_rate_dict['ld'] = hit_rate_dict['ldl'] + hit_rate_dict['ldg']
+    hit_rate_dict['st'] = hit_rate_dict['stl'] + hit_rate_dict['stg']
     return hit_rate_dict
 
 def sdcm_model(cache_line_access, cache_parameter, use_approx=True, granularity=2):

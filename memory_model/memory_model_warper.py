@@ -85,17 +85,22 @@ def run_L1(smi, trace_dir, kernel_id, grid_size, num_SMs, max_blocks_per_sm, gpu
                 smi_blocks_interleave = f.readlines()
     
     inst_count = {}
-    sm_stats, smi_trace = process_trace(smi_blocks_interleave, gpu_config['l1_cache_line_size']) # warp level to cache line level
+    sm_stats, smi_trace = process_trace(smi_blocks_interleave, gpu_config['l1_cache_line_size'], gpu_config['l1_sector_size']) # warp level to cache line level
     
     flag_active = False
     hit_rate = 0
     if smi_trace:
         flag_active = True
+        # import json
+        # with open('smi_trace.json', 'w') as f:
+        #     json.dump(smi_trace, f, indent=4)
+        # use sector size as cache line size
+        l1_param = {'capacity': gpu_config['l1_cache_size'], 'cache_line_size': gpu_config['l1_sector_size'], 'associativity': gpu_config['l1_cache_associativity']}
         if is_sdcm:
-            hit_rate_dict = sdcm_model(smi_trace, {'capacity': gpu_config['l1_cache_size'], 'cache_line_size': gpu_config['l1_cache_line_size'], 'associativity': gpu_config['l1_cache_associativity']},
+            hit_rate_dict = sdcm_model(smi_trace, l1_param,
                             use_approx=use_approx, granularity=granularity)
         else:
-            hit_rate_dict, L2_req = cache_simulate(smi_trace, {'capacity': gpu_config['l1_cache_size'], 'cache_line_size': gpu_config['l1_cache_line_size'], 'associativity': gpu_config['l1_cache_associativity']})
+            hit_rate_dict, L2_req = cache_simulate(smi_trace, l1_param)
             if filter_L2:
                 smi_trace = L2_req
         sm_stats['l1_hit_rate'] = hit_rate_dict['tot']
@@ -144,7 +149,7 @@ def sdcm_model_warpper_parallel(kernel_id, trace_dir,
             if flag:
                 sm_traces.append(smi_trace)
                 sm_stats_list.append(sm_stats)
-    # serial for debugging
+    # # serial for debugging
     # for i in range(active_sm):
     #     flag, sm_stats, smi_trace = run_L1(i, trace_dir, kernel_id, grid_size, num_SMs, block_per_sm_simulate, gpu_config, is_sdcm, use_approx, granularity, filter_L2, use_sm_trace)
     #     if flag:
@@ -269,4 +274,13 @@ if __name__ == "__main__":
     app_res, _ = memory_model_warpper(args.config, args.app_path, args.model, kernel_id=args.kernel_id, granularity=args.granularity, use_sm_trace=args.use_sm_trace)
     print(app_res)
     print("Done")
+
+if __name__=="__main__2":
+    import json
+    with open('smi_trace.json') as f:
+        smi_trace = json.load(f)
+    l1_cache_parameter = {'capacity':  96*1024*1024,  'cache_line_size': 32,'associativity': 4}
+    hit_rate_dict1 = sdcm_model(smi_trace, l1_cache_parameter)
     
+    hit_rate_dict2, L2_req = cache_simulate(smi_trace, l1_cache_parameter)
+    print("Done")

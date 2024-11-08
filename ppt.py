@@ -114,7 +114,7 @@ def get_current_kernel_info(kernel_id, app_name, app_path, app_config, instructi
     
     return current_kernel_info
 
-def get_gpu_config(gpu_config, repo_path=None):
+def get_gpu_config(gpu_config):
     # sys.path.append(repo_path)
     # get hw configuaration
     try:
