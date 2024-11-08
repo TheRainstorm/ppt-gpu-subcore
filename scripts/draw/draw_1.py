@@ -1,5 +1,6 @@
 import argparse
 import json
+import operator
 import os
 import numpy as np
 import matplotlib.pyplot as plt
@@ -49,9 +50,10 @@ key_map = {
         
         "ipc": "ipc",
         
-        "l1_hit_rate": "global_hit_rate",
+        "l1_hit_rate": ["global_hit_rate", '/', '100'],
         # "l1_hit_rate": "tex_cache_hit_rate",
-        "l2_hit_rate": "l2_tex_hit_rate",
+        # "l2_hit_rate": "l2_tex_hit_rate",
+        "l2_hit_rate": ["l2_tex_hit_rate", '/', '100'],
         "gmem_read_requests": "global_load_requests",
         "gmem_write_requests": "global_store_requests",
         "gmem_read_trans": "gld_transactions",
@@ -59,9 +61,80 @@ key_map = {
         "l2_read_trans": "l2_read_transactions",
         "l2_write_trans": "l2_write_transactions",
         "dram_total_trans": "dram_total_transactions",
+        
+        "gmem_tot_reqs": ["global_load_requests", "global_store_requests"],
+        "gmem_ld_reqs": "global_load_requests",
+        "gmem_st_reqs": "global_store_requests",
+        "gmem_tot_sectors": ["gld_transactions", "gst_transactions"],
+        "gmem_ld_sectors": "gld_transactions",
+        "gmem_st_sectors": "gst_transactions",
+        "l2_tot_trans": ["l2_read_transactions", "l2_write_transactions"],
+        "l2_ld_trans": "l2_read_transactions",
+        "l2_st_trans": "l2_write_transactions",
+        "dram_tot_trans": ["dram_read_transactions", "dram_write_transactions"],
+        "dram_ld_trans": "dram_read_transactions",
+        "dram_st_trans": "dram_write_transactions",
     }
 
-def get_kernel_stat(json_data, stat_key, app_filter='', func=None):
+# 定义操作符的优先级
+precedence = {
+    '+': 1,
+    '-': 1,
+    '*': 2,
+    '/': 2
+}
+
+# 定义每个操作符的操作
+operations = {
+    '+': operator.add,
+    '-': operator.sub,
+    '*': operator.mul,
+    '/': operator.truediv
+}
+
+def infix_to_postfix(tokens):
+    """将中缀表达式转换为后缀表达式"""
+    output = []
+    operators = []
+    
+    for token in tokens:
+        if token.isdigit():  # 操作数直接加入输出
+            output.append(token)
+        elif token in precedence:  # 操作符
+            while (operators and operators[-1] in precedence and
+                   precedence[operators[-1]] >= precedence[token]):
+                output.append(operators.pop())
+            operators.append(token)
+        elif token == '(':  # 左括号入栈
+            operators.append(token)
+        elif token == ')':  # 右括号出栈直到遇到左括号
+            while operators and operators[-1] != '(':
+                output.append(operators.pop())
+            operators.pop()  # 弹出左括号
+        else: # symbol
+            output.append(token)
+    
+    while operators:  # 处理剩余的操作符
+        output.append(operators.pop())
+    
+    return output
+
+def evaluate_postfix(postfix, data):
+    """计算后缀表达式的值"""
+    stack = []
+    for token in postfix:
+        if token.isdigit():  # 操作数直接入栈
+            stack.append(int(token))
+        elif token in operations:  # 操作符，弹出两个操作数进行计算
+            b = stack.pop()
+            a = stack.pop()
+            result = operations[token](a, b)
+            stack.append(result)
+        else: # symbol
+            stack.append(data[token])
+    return stack[0]
+
+def get_kernel_stat(json_data, stat_key, app_filter='', func=None, key_is_expression=False):
     '''
     construct X, Y. X: kernel name, Y: stat
     '''
@@ -83,13 +156,20 @@ def get_kernel_stat(json_data, stat_key, app_filter='', func=None):
                 app_short_name = app.replace('_', '')
                 app_short_name = app_short_name[:3]+app_short_name[-10:]
                 X.append(f"{app_short_name}-{j}-{kernel_res['kernel_name']}")
-            if func:
-                Y.append(func(kernel_res[stat_key]))
+            # app_short_name = app.replace('_', '')
+            # app_short_name = app_short_name[:3]+app_short_name[-10:]
+            # X.append(f"{app_short_name}-{j}-{kernel_res['kernel_name']}")
+            if key_is_expression:
+                value = evaluate_postfix(infix_to_postfix(stat_key), kernel_res)
             else:
-                Y.append(kernel_res[stat_key])
+                value = kernel_res[stat_key]
+            if func:
+                value = func(value)
+            Y.append(value)
+
     return np.array(X), np.array(Y)
 
-def get_app_stat(json_data, stat_key, app_filter='', func=None, avg=False):
+def get_app_stat(json_data, stat_key, app_filter='', func=None, avg=False, key_is_expression=False):
     '''
     construct X, Y. X: app name, Y: app stat (sum of kernel stat)
     '''
@@ -109,10 +189,13 @@ def get_app_stat(json_data, stat_key, app_filter='', func=None, avg=False):
         accum = 0
         try:
             for kernel_res in kernels_res:
-                if func:
-                    accum += func(kernel_res[stat_key])
+                if key_is_expression:
+                    value = evaluate_postfix(infix_to_postfix(stat_key), kernel_res)
                 else:
-                    accum += kernel_res[stat_key]
+                    value = kernel_res[stat_key]
+                if func:
+                    value = func(value)
+                accum += value
         except Exception as e:
             print(f"Exception: {e}")
             print(f"ERROR: {app} {stat_key} {kernel_res}")
@@ -126,6 +209,37 @@ def get_app_stat(json_data, stat_key, app_filter='', func=None, avg=False):
 # global var
 overwrite = False
 app_filter = ''
+
+def draw_helper(msg, stat, save_img, draw_kernel=False, sim_res_func=None, avg=False, hw_stat=""):
+    global overwrite, app_filter
+    save_img_path = os.path.join(os.getcwd(), save_img)
+    if os.path.exists(save_img_path) and not overwrite:
+        return False, None
+    if not os.path.exists(os.path.dirname(save_img_path)):
+        os.makedirs(os.path.dirname(save_img_path))
+    print(f"draw {msg} {stat}: {save_img[-60:]}")
+    
+    hw_stat_key = key_map[stat] if not hw_stat else hw_stat
+    key_is_expression = False
+    if type(hw_stat_key) == list:
+        key_is_expression = True
+    if not draw_kernel:
+        x1, y1 = get_app_stat(hw_res, hw_stat_key, app_filter=app_filter, avg=avg, key_is_expression=key_is_expression)
+        _, y2 = get_app_stat(sim_res, stat, app_filter=app_filter, func=sim_res_func, avg=avg)
+    else:
+        x1, y1 = get_kernel_stat(hw_res, hw_stat_key, app_filter=app_filter, key_is_expression=key_is_expression)
+        _, y2 = get_kernel_stat(sim_res, stat, app_filter=app_filter, func=sim_res_func)
+
+    MAE = np.mean(np.abs(y1 - y2)/y1)
+    t = y2 - y1
+    RMSE = np.sqrt(np.mean(t**2))
+    NRMSE = RMSE/np.mean(np.abs(y1))
+    NRMSE_max_min = RMSE/(np.max(y1)-np.min(y1))
+    # correlation
+    corr = np.corrcoef(y1, y2)[0, 1]
+    
+    return True, [x1, y1, y2, MAE, NRMSE, corr, save_img_path]
+    
 def draw_error(stat, save_img, draw_kernel=False, sim_res_func=None, error_text=True, avg=False, hw_stat="", abs=False):
     '''
     stat: the stat to compare (simulate res and hw res)
@@ -133,15 +247,28 @@ def draw_error(stat, save_img, draw_kernel=False, sim_res_func=None, error_text=
     sim_res_func: function to process sim res
     hw_stat: don't use key map, force hw_stat key
     '''
-    global overwrite, app_filter
-    # save_img_path = os.path.join(args.output_dir, save_img)
-    save_img_path = os.path.join(os.getcwd(), save_img)
-    if os.path.exists(save_img_path) and not overwrite:
+    flag, data = draw_helper("error", stat, save_img, draw_kernel, sim_res_func, avg, hw_stat)
+    if not flag:
         return
-    if not os.path.exists(os.path.dirname(save_img_path)):
-        os.makedirs(os.path.dirname(save_img_path))
-    print(f"draw error {'kernel' if draw_kernel else 'app'} {stat}: {save_img[-60:]}")
+    x1, y1, y2, MAE, NRMSE, corr, save_img_path = data
+    # save_img_path = os.path.join(os.getcwd(), save_img)
+    # if os.path.exists(save_img_path) and not overwrite:
+    #     return
+    # if not os.path.exists(os.path.dirname(save_img_path)):
+    #     os.makedirs(os.path.dirname(save_img_path))
+    # print(f"draw error {'kernel' if draw_kernel else 'app'} {stat}: {save_img[-60:]}")
     
+    # hw_stat_key = key_map[stat] if not hw_stat else hw_stat
+    # key_is_expression = False
+    # if type(hw_stat_key) == list:
+    #     key_is_expression = True
+    # if not draw_kernel:
+    #     x1, y1 = get_app_stat(hw_res, hw_stat_key, app_filter=app_filter, avg=avg, key_is_expression=key_is_expression)
+    #     _, y2 = get_app_stat(sim_res, stat, app_filter=app_filter, func=sim_res_func, avg=avg)
+    # else:
+    #     x1, y1 = get_kernel_stat(hw_res, hw_stat_key, app_filter=app_filter, key_is_expression=key_is_expression)
+    #     _, y2 = get_kernel_stat(sim_res, stat, app_filter=app_filter, func=sim_res_func)
+
     def bar_overlay(ax, bars, x):
         i = 0
         for bar in bars:
@@ -149,31 +276,12 @@ def draw_error(stat, save_img, draw_kernel=False, sim_res_func=None, error_text=
             ax.text(bar.get_x() + bar.get_width() / 2, bar.get_y() + height, f'{x[i]:.2f}', 
                     ha='center', va='bottom', fontsize=8, rotation=-90)
             i += 1
-    
-    hw_stat_key = key_map[stat] if not hw_stat else hw_stat
-    scale = 1
-    if type(hw_stat_key) == list:
-        hw_stat_key, scale = hw_stat_key
-    if not draw_kernel:
-        x1, y1 = get_app_stat(hw_res, hw_stat_key, app_filter=app_filter, func=lambda x: x*scale, avg=avg)
-        _, y2 = get_app_stat(sim_res, stat, app_filter=app_filter, func=sim_res_func, avg=avg)
-    else:
-        x1, y1 = get_kernel_stat(hw_res, hw_stat_key, app_filter=app_filter, func=lambda x: x*scale)
-        _, y2 = get_kernel_stat(sim_res, stat, app_filter=app_filter, func=sim_res_func)
-
+        
     if abs:
-        error_y = np.abs(np.array(y2) - np.array(y1))/np.array(y1)
+        error_y = np.abs(y2 - y1)/y1
     else:
-        error_y = (np.array(y2) - np.array(y1))/np.array(y1)
-    MAE = np.mean(np.abs(error_y))
-    t = np.array(y2) - np.array(y1)
-    RMSE = np.sqrt(np.mean(t**2))
-    NRMSE = RMSE/np.mean(np.abs(y1))
-    NRMSE_max_min = RMSE/(np.max(y1)-np.min(y1))
-    
-    # correlation
-    corr = np.corrcoef(y1, y2)[0, 1]
-    
+        error_y = (y2 - y1)/y1
+
     fig, ax = plt.subplots()
     bars = ax.bar(x1, error_y)
     if error_text:
@@ -190,33 +298,11 @@ def draw_error(stat, save_img, draw_kernel=False, sim_res_func=None, error_text=
     plt.close(fig)
 
 def draw_side2side(stat, save_img, draw_kernel=False, sim_res_func=None, avg=True, hw_stat=""):
-    global overwrite, app_filter
-    # save_img_path = os.path.join(args.output_dir, save_img)
-    save_img_path = os.path.join(os.getcwd(), save_img)
-    if os.path.exists(save_img_path) and not overwrite:
+    flag, data = draw_helper("bar", stat, save_img, draw_kernel, sim_res_func, avg, hw_stat)
+    if not flag:
         return
-    if not os.path.exists(os.path.dirname(save_img_path)):
-        os.makedirs(os.path.dirname(save_img_path))
-    print(f"draw s2s {'kernel' if draw_kernel else 'app'} {stat}: {save_img[-60:]}")
+    x1, y1, y2, MAE, NRMSE, corr, save_img_path = data
     
-    hw_stat_key = key_map[stat] if not hw_stat else hw_stat
-    scale = 1
-    if type(hw_stat_key) == list:
-        hw_stat_key, scale = hw_stat_key
-    if not draw_kernel:
-        x1, y1 = get_app_stat(hw_res, hw_stat_key, app_filter=app_filter, func=lambda x: x*scale, avg=avg)
-        _, y2 = get_app_stat(sim_res, stat, app_filter=app_filter, func=sim_res_func, avg=avg)
-    else:
-        x1, y1 = get_kernel_stat(hw_res, hw_stat_key, app_filter=app_filter, func=lambda x: x*scale)
-        _, y2 = get_kernel_stat(sim_res, stat, app_filter=app_filter, func=sim_res_func)
-    
-    corr = np.corrcoef(y1, y2)[0, 1]
-    MAE = np.mean(np.abs(np.array(y2) - np.array(y1))/np.array(y1))
-    t = np.array(y2) - np.array(y1)
-    RMSE = np.sqrt(np.mean(t**2))
-    NRMSE = RMSE/np.mean(np.abs(y1))
-    NRMSE_max_min = RMSE/(np.max(y1)-np.min(y1))
-        
     N = len(x1)
     ind = np.arange(N) + .15 # the x locations for the groups
     width = 0.35       # the width of the bars
@@ -242,32 +328,10 @@ def draw_side2side(stat, save_img, draw_kernel=False, sim_res_func=None, avg=Tru
     plt.close(fig)
 
 def draw_correl(stat, save_img, draw_kernel=True, sim_res_func=None, avg=True, hw_stat=""):
-    global overwrite, app_filter
-    # save_img_path = os.path.join(args.output_dir, save_img)
-    save_img_path = os.path.join(os.getcwd(), save_img)
-    if os.path.exists(save_img_path) and not overwrite:
+    flag, data = draw_helper("correl", stat, save_img, draw_kernel, sim_res_func, avg, hw_stat)
+    if not flag:
         return
-    if not os.path.exists(os.path.dirname(save_img_path)):
-        os.makedirs(os.path.dirname(save_img_path))
-    print(f"draw correl {'kernel' if draw_kernel else 'app'} {stat}")
-    
-    hw_stat_key = key_map[stat] if not hw_stat else hw_stat
-    scale = 1
-    if type(hw_stat_key) == list:
-        hw_stat_key, scale = hw_stat_key
-    if not draw_kernel:
-        x1, y1 = get_app_stat(hw_res, hw_stat_key, app_filter=app_filter, func=lambda x: x*scale, avg=avg)
-        _, y2 = get_app_stat(sim_res, stat, app_filter=app_filter, func=sim_res_func, avg=avg)
-    else:
-        x1, y1 = get_kernel_stat(hw_res, hw_stat_key, app_filter=app_filter, func=lambda x: x*scale)
-        _, y2 = get_kernel_stat(sim_res, stat, app_filter=app_filter, func=sim_res_func)
-    
-    corr = np.corrcoef(y1, y2)[0, 1]
-    MAE = np.mean(np.abs(np.array(y2) - np.array(y1))/np.array(y1))
-    t = np.array(y2) - np.array(y1)
-    RMSE = np.sqrt(np.mean(t**2))
-    NRMSE = RMSE/np.mean(np.abs(y1))
-    NRMSE_max_min = RMSE/(np.max(y1)-np.min(y1))
+    x1, y1, y2, MAE, NRMSE, corr, save_img_path = data
         
     fig, ax = plt.subplots()
     ax.scatter(y1, y2, label=f"corr={corr:.2f} error={MAE:.2f}", color='blue')
@@ -277,10 +341,11 @@ def draw_correl(stat, save_img, draw_kernel=True, sim_res_func=None, avg=True, h
     
     ax.plot([min_val, max_val], [min_val, max_val], color='red')
     
-    # plt.xlim(min_val, max_val)
-    # plt.ylim(min_val, max_val)
     ax.set_xlim(min_val, max_val)
     ax.set_ylim(min_val, max_val)
+    
+    ax.set_xscale('log')
+    ax.set_yscale('log')
 
     ax.set_aspect('equal', adjustable='box')
     # add some text for labels, title and axes ticks
@@ -510,40 +575,79 @@ if __name__ == "__main__":
                 benchs.add(suite_info['map'][app_arg][0])
             except:
                 print(f"Warning: {app_arg} not found in suite_info, skip")
-        # set each bench as filter
-        l1_hw_stat = "tex_cache_hit_rate" if args.gtx1080ti else ("l1_hit_rate" if args.command == 'memory-sim' else "global_hit_rate")
-        l2_hw_stat = "l2_hit_rate" if args.command == 'memory-sim' else "l2_tex_hit_rate"
+        l1_hw_stat = "l1_hit_rate" if args.command == 'memory-sim' else key_map['l1_hit_rate']
+        l2_hw_stat = "l2_hit_rate" if args.command == 'memory-sim' else key_map['l2_hit_rate']
         
         # total kernel
-        draw_correl("l1_hit_rate", f"correl_6_l1_hit_rate.png", hw_stat=l1_hw_stat, avg=True, draw_kernel=True)
-        draw_correl("l2_hit_rate", f"correl_6_l2_hit_rate.png", hw_stat=l2_hw_stat, avg=True, draw_kernel=True)
+        draw_correl("l1_hit_rate", f"correl_6_l1_hit_rate.png", hw_stat=l1_hw_stat, draw_kernel=True)
+        draw_correl("l2_hit_rate", f"correl_6_l2_hit_rate.png", hw_stat=l2_hw_stat, draw_kernel=True)
         for bench in benchs:
+            # set each bench as filter
             app_filter = bench
             draw_error("l1_hit_rate", f"{bench}_error_6_l1_hit_rate.png", hw_stat=l1_hw_stat, avg=True)
             draw_side2side("l1_hit_rate", f"{bench}_bar_6_l1_hit_rate.png", hw_stat=l1_hw_stat)
             draw_error("l2_hit_rate", f"{bench}_error_6_l2_hit_rate.png", hw_stat=l2_hw_stat, avg=True)
             draw_side2side("l2_hit_rate", f"{bench}_bar_6_l2_hit_rate.png", hw_stat=l2_hw_stat)
             
-            draw_correl("l1_hit_rate", f"{bench}_correl_6_l1_hit_rate.png", hw_stat=l1_hw_stat, avg=True, draw_kernel=True)
-            draw_correl("l2_hit_rate", f"{bench}_correl_6_l2_hit_rate.png", hw_stat=l2_hw_stat, avg=True, draw_kernel=True)
+            draw_side2side("gmem_st_reqs", f"{bench}_correl_7_gmem_st_reqs.png", draw_kernel=True)
+            draw_side2side("gmem_tot_reqs", f"{bench}_correl_7_gmem_tot_reqs.png", draw_kernel=True)
+            draw_side2side("gmem_ld_sectors", f"{bench}_correl_7_gmem_ld_sectors.png", draw_kernel=True)
+            draw_side2side("gmem_st_sectors", f"{bench}_correl_7_gmem_st_sectors.png", draw_kernel=True)
+            draw_side2side("gmem_tot_sectors", f"{bench}_correl_7_gmem_tot_sectors.png", draw_kernel=True)
+            draw_side2side("l2_ld_trans", f"{bench}_correl_8_l2_ld_trans.png", draw_kernel=True)
+            draw_side2side("l2_st_trans", f"{bench}_correl_8_l2_st_trans.png", draw_kernel=True)
+            draw_side2side("l2_tot_trans", f"{bench}_correl_8_l2_tot_trans.png", draw_kernel=True)
+            draw_side2side("dram_ld_trans", f"{bench}_correl_9_dram_ld_trans.png", draw_kernel=True)
+            draw_side2side("dram_st_trans", f"{bench}_correl_9_dram_st_trans.png", draw_kernel=True)
+            draw_side2side("dram_tot_trans", f"{bench}_correl_9_dram_tot_trans.png", draw_kernel=True)
+            
+            draw_correl("l1_hit_rate", f"{bench}_correl_6_l1_hit_rate.png", hw_stat=l1_hw_stat, draw_kernel=True)
+            draw_correl("l2_hit_rate", f"{bench}_correl_6_l2_hit_rate.png", hw_stat=l2_hw_stat, draw_kernel=True)
+            
+            draw_correl("gmem_ld_reqs", f"{bench}_correl_7_gmem_ld_reqs.png", draw_kernel=True)
+            draw_correl("gmem_st_reqs", f"{bench}_correl_7_gmem_st_reqs.png", draw_kernel=True)
+            draw_correl("gmem_tot_reqs", f"{bench}_correl_7_gmem_tot_reqs.png", draw_kernel=True)
+            draw_correl("gmem_ld_sectors", f"{bench}_correl_7_gmem_ld_sectors.png", draw_kernel=True)
+            draw_correl("gmem_st_sectors", f"{bench}_correl_7_gmem_st_sectors.png", draw_kernel=True)
+            draw_correl("gmem_tot_sectors", f"{bench}_correl_7_gmem_tot_sectors.png", draw_kernel=True)
+            draw_correl("l2_ld_trans", f"{bench}_correl_8_l2_ld_trans.png", draw_kernel=True)
+            draw_correl("l2_st_trans", f"{bench}_correl_8_l2_st_trans.png", draw_kernel=True)
+            draw_correl("l2_tot_trans", f"{bench}_correl_8_l2_tot_trans.png", draw_kernel=True)
+            draw_correl("dram_ld_trans", f"{bench}_correl_9_dram_ld_trans.png", draw_kernel=True)
+            draw_correl("dram_st_trans", f"{bench}_correl_9_dram_st_trans.png", draw_kernel=True)
+            draw_correl("dram_tot_trans", f"{bench}_correl_9_dram_tot_trans.png", draw_kernel=True)
+            
     elif args.command == 'memory_kernels':
         overwrite = True
         print(f"\ncommand: {args.command}:")
         args.dir_name = args.dir_name if args.dir_name else args.command
         os.makedirs(args.dir_name, exist_ok=True)  # save image in seperate dir
         os.chdir(args.dir_name)
+        cwd = os.getcwd()
         
         app_list_all = sim_res.keys()
-        l1_hw_stat = "tex_cache_hit_rate" if args.gtx1080ti else ("l1_hit_rate" if args.command == 'memory-sim' else "global_hit_rate")
-        l2_hw_stat = "l2_hit_rate" if args.command == 'memory-sim' else "l2_tex_hit_rate"
+        l1_hw_stat = "l1_hit_rate" if args.command == 'memory-sim' else key_map['l1_hit_rate']
+        l2_hw_stat = "l2_hit_rate" if args.command == 'memory-sim' else key_map['l2_hit_rate']
         for i,app_arg in enumerate(app_list_all):
             app_filter=app_arg  # set global filter to single app
             
             app_name_safe = app_arg.replace('/', '_')
-            draw_error("l1_hit_rate", f"{i:2d}_{app_name_safe}_error_6_l1_hit_rate.png", hw_stat=l1_hw_stat, avg=True, draw_kernel=True)
-            draw_side2side("l1_hit_rate", f"{i:2d}_{app_name_safe}_bar_6_l1_hit_rate.png", hw_stat=l1_hw_stat, draw_kernel=True)
-            draw_error("l2_hit_rate", f"{i:2d}_{app_name_safe}_error_6_l2_hit_rate.png", hw_stat=l2_hw_stat, avg=True, draw_kernel=True)
-            draw_side2side("l2_hit_rate", f"{i:2d}_{app_name_safe}_bar_6_l2_hit_rate.png", hw_stat=l2_hw_stat, draw_kernel=True)
+            prefix = f"{i:2d}_{app_name_safe}"
+            os.chdir(cwd)
+            os.makedirs(prefix, exist_ok=True)  # save image in seperate dir
+            os.chdir(prefix)
+            
+            # draw_error("l1_hit_rate", f"{prefix}_error_6_l1_hit_rate.png", hw_stat=l1_hw_stat, avg=True, draw_kernel=True)
+            draw_side2side("l1_hit_rate", f"{prefix}_bar_6_l1_hit_rate.png", hw_stat=l1_hw_stat, draw_kernel=True)
+            # draw_error("l2_hit_rate", f"{prefix}_error_6_l2_hit_rate.png", hw_stat=l2_hw_stat, avg=True, draw_kernel=True)
+            draw_side2side("l2_hit_rate", f"{prefix}_bar_6_l2_hit_rate.png", hw_stat=l2_hw_stat, draw_kernel=True)
+            
+            draw_list = ["gmem_ld_reqs","gmem_st_reqs","gmem_tot_reqs","gmem_ld_sectors","gmem_st_sectors","gmem_tot_sectors","l2_ld_trans","l2_st_trans","l2_tot_trans","dram_ld_trans","dram_st_trans","dram_tot_trans"]
+            
+            for stat in draw_list:
+                draw_side2side(stat, f"bar_{stat}.png", draw_kernel=True)
+                draw_correl(stat, f"correl_{stat}.png", draw_kernel=True)
+            
     else:
         print(f"ERROR: command {args.command} not supported")
     os.chdir(run_dir)

@@ -63,6 +63,8 @@ def process_trace(block_trace, l1_cache_line_size):
     S["red_reqs"] = 0
     S["atom_red_trans"] = 0
     
+    S["gmem_ld_sectors"] = 0
+    S["gmem_st_sectors"] = 0
     S["umem_ld_sectors"] = 0
     S["umem_st_sectors"] = 0
 
@@ -80,13 +82,13 @@ def process_trace(block_trace, l1_cache_line_size):
         ## global reduction operations
         if "RED" in access_type:
             S["red_reqs"] += 1
-            S["atom_red_trans"] += len(line_addrs)
+            S["atom_red_trans"] += len(sector_addrs)
             continue
 
         ## global atomic operations
         if "ATOM" in access_type:
             S["atom_reqs"] += 1
-            S["atom_red_trans"] += len(line_addrs)
+            S["atom_red_trans"] += len(sector_addrs)
             continue
 
         warp_id += 1
@@ -97,10 +99,12 @@ def process_trace(block_trace, l1_cache_line_size):
                 is_store = 0
                 S["gmem_ld_reqs"] += 1
                 S["gmem_ld_trans"] += len(line_addrs)
+                S["gmem_ld_sectors"] += len(sector_addrs)
             elif "STG" in access_type:
                 is_store = 1
                 S["gmem_st_reqs"] += 1
                 S["gmem_st_trans"] += len(line_addrs)
+                S["gmem_st_sectors"] += len(sector_addrs)
         
         ## local memory access
         elif "LDL" in access_type or "STL" in access_type:
@@ -188,27 +192,23 @@ def get_stack_distance_1(cache_line_access):
     return SD
 
 def get_sdd_dict(SD, cache_line_access):
-    sd_st_counter = {}
-    sd_ld_counter = {}
-    st_count = 0
-    ld_count = 0
-    for i, sd in enumerate(SD):
-        is_store = cache_line_access[i][0]
-        if is_store == 0:
-            ld_count += 1
-            sd_ld_counter[sd] = sd_ld_counter.get(sd, 0) + 1
-        else:
-            st_count += 1
-            sd_st_counter[sd] = sd_st_counter.get(sd, 0) + 1
+    catges = ['ldl', 'ldg', 'stl', 'stg']
+    sdd = {c: {} for c in catges}
+    counter = {c: 0 for c in catges}
     
-    sdd_st = [(sd, count, count/st_count) for sd, count in sd_st_counter.items()]
-    sdd_ld = [(sd, count, count/ld_count) for sd, count in sd_ld_counter.items()]
-
-    T = len(SD)
-    return {
-        'st': {'sdd': sdd_st, 'ratio': st_count/T}, 
-        'ld': {'sdd': sdd_ld, 'ratio': ld_count/T}
-        }
+    for i, sd in enumerate(SD):
+        is_store, is_local, warp_id, addr = cache_line_access[i]
+        idx1 = 'ld' if is_store == 0 else 'st'
+        idx2 = 'l' if is_local == 1 else 'g'
+        idx = idx1 + idx2
+        counter[idx] += 1
+        sdd[idx][sd] = sdd[idx].get(sd, 0) + 1
+    
+    res = {}
+    for c in catges:
+        sdd_new = [(sd, count, count/counter[c]) for sd, count in sdd[c].items()]
+        res[c] = {'sdd': sdd_new, 'ratio': counter[c]/len(SD)}
+    return res
 
 # @timeit
 def get_csdd(SD):
@@ -307,6 +307,8 @@ def sdcm_dict(sdd_dict, cache_line_size, cache_size, associativity, use_approx=F
     
     hit_rate_dict = {}
     hit_rate_dict['tot'] = 0
+    hit_rate_dict['ld'] = 0
+    hit_rate_dict['st'] = 0
     for categ, v in sdd_dict.items():
         sdd = v['sdd']
         ratio = v['ratio']
@@ -314,6 +316,10 @@ def sdcm_dict(sdd_dict, cache_line_size, cache_size, associativity, use_approx=F
         
         hit_rate_dict[categ] = hit_rate
         hit_rate_dict['tot'] += hit_rate * ratio
+        if 'ld' in categ:
+            hit_rate_dict['ld'] += hit_rate * ratio
+        else:
+            hit_rate_dict['st'] += hit_rate * ratio
     return hit_rate_dict
 
 def sdcm_model(cache_line_access, cache_parameter, use_approx=True, granularity=2):

@@ -39,8 +39,8 @@ def ppt_gpu_model_warpper(kernel_id, trace_dir,
                                 gpu_config['l2_cache_size'], gpu_config['l2_cache_line_size'], gpu_config['l2_cache_associativity'],\
                                 gmem_reqs, avg_block_per_sm, block_per_sm_simulate)
     # rename
-    memory_stats['l1_hit_rate'] = memory_stats['umem_hit_rate'] * 100
-    memory_stats['l2_hit_rate'] = memory_stats['hit_rate_l2'] * 100
+    memory_stats['l1_hit_rate'] = memory_stats['umem_hit_rate']
+    memory_stats['l2_hit_rate'] = memory_stats['hit_rate_l2']
     return memory_stats
 
 def process_dict_list(dict_list, op='sum', scale=1):
@@ -94,24 +94,15 @@ def run_L1(smi, trace_dir, kernel_id, grid_size, num_SMs, max_blocks_per_sm, gpu
         if is_sdcm:
             hit_rate_dict = sdcm_model(smi_trace, {'capacity': gpu_config['l1_cache_size'], 'cache_line_size': gpu_config['l1_cache_line_size'], 'associativity': gpu_config['l1_cache_associativity']},
                             use_approx=use_approx, granularity=granularity)
-            sm_stats['l1_hit_rate'] = hit_rate_dict['tot']
-            sm_stats['l1_hit_rate_ld'] = hit_rate_dict['ld']
-            sm_stats['l1_hit_rate_st'] = hit_rate_dict['st']
-            sm_stats['umem_ld_sectors_hit'] = sm_stats['umem_ld_sectors'] * hit_rate_dict['ld']
-            sm_stats['umem_ld_sectors_miss'] = sm_stats['umem_ld_sectors'] - sm_stats['umem_ld_sectors_hit']
-            sm_stats['umem_st_sectors_hit'] = sm_stats['umem_st_sectors'] * hit_rate_dict['st']
-            sm_stats['umem_st_sectors_miss'] = sm_stats['umem_st_sectors'] - sm_stats['umem_st_sectors_hit']
         else:
             hit_rate_dict, L2_req = cache_simulate(smi_trace, {'capacity': gpu_config['l1_cache_size'], 'cache_line_size': gpu_config['l1_cache_line_size'], 'associativity': gpu_config['l1_cache_associativity']})
             if filter_L2:
                 smi_trace = L2_req
-            sm_stats['l1_hit_rate'] = hit_rate_dict['tot']
-            sm_stats['l1_hit_rate_ld'] = hit_rate_dict['ld']
-            sm_stats['l1_hit_rate_st'] = hit_rate_dict['st']
-            sm_stats['umem_ld_sectors_hit'] = sm_stats['umem_ld_sectors'] * hit_rate_dict['ld']
-            sm_stats['umem_ld_sectors_miss'] = sm_stats['umem_ld_sectors'] - sm_stats['umem_ld_sectors_hit']
-            sm_stats['umem_st_sectors_hit'] = sm_stats['umem_st_sectors'] * hit_rate_dict['st']
-            sm_stats['umem_st_sectors_miss'] = sm_stats['umem_st_sectors'] - sm_stats['umem_st_sectors_hit']
+        sm_stats['l1_hit_rate'] = hit_rate_dict['tot']
+        sm_stats['gmem_ld_sectors_hit'] = sm_stats['gmem_ld_sectors'] * hit_rate_dict['ldg']
+        sm_stats['gmem_st_sectors_hit'] = sm_stats['gmem_st_sectors'] * hit_rate_dict['stg']
+        sm_stats['umem_ld_sectors_hit'] = sm_stats['umem_ld_sectors'] * hit_rate_dict['ld']
+        sm_stats['umem_st_sectors_hit'] = sm_stats['umem_st_sectors'] * hit_rate_dict['st']
             
     return flag_active, sm_stats, smi_trace
 
@@ -165,6 +156,9 @@ def sdcm_model_warpper_parallel(kernel_id, trace_dir,
     K['l1_hit_rate_ld'] = K['umem_ld_sectors_hit'] / K['umem_ld_sectors'] if K['umem_ld_sectors'] > 0 else 0
     K['l1_hit_rate_st'] = K['umem_st_sectors_hit'] / K['umem_st_sectors'] if K['umem_st_sectors'] > 0 else 0
     K['l1_hit_rate'] = (K['umem_ld_sectors_hit'] + K['umem_st_sectors_hit']) / (K['umem_ld_sectors'] + K['umem_st_sectors']) if K['umem_ld_sectors'] + K['umem_st_sectors'] > 0 else 0
+    K['l1_hit_rate_ldg'] = K['gmem_ld_sectors_hit'] / K['gmem_ld_sectors'] if K['gmem_ld_sectors'] > 0 else 0
+    K['l1_hit_rate_stg'] = K['gmem_st_sectors_hit'] / K['gmem_st_sectors'] if K['gmem_st_sectors'] > 0 else 0
+    K['l1_hit_rate_g'] = (K['gmem_ld_sectors_hit'] + K['gmem_st_sectors_hit']) / (K['gmem_ld_sectors'] + K['gmem_st_sectors']) if K['gmem_ld_sectors'] + K['gmem_st_sectors'] > 0 else 0
     
     # reuse distance model for L2
     l2_trace = interleave_trace(sm_traces)
@@ -172,35 +166,42 @@ def sdcm_model_warpper_parallel(kernel_id, trace_dir,
     l2_param = {'capacity': gpu_config['l2_cache_size'], 'cache_line_size': gpu_config['l2_cache_line_size'], 'associativity': gpu_config['l2_cache_associativity']}
     if is_sdcm:
         l2_hit_rate_dict = sdcm_model(l2_trace, l2_param)
-        K['l2_hit_rate'] = l2_hit_rate_dict['tot']
     else:
         l2_hit_rate_dict, _ = cache_simulate(l2_trace, l2_param)
-        K['l2_hit_rate'] = l2_hit_rate_dict['tot']
+    K['l2_hit_rate'] = l2_hit_rate_dict['tot']
+    K['l2_hit_rate_ld'] = l2_hit_rate_dict['ld']
+    K['l2_hit_rate_st'] = l2_hit_rate_dict['st']
     
     # global memory
     K['gmem_tot_reqs'] = K['gmem_ld_reqs'] + K['gmem_st_reqs']
     K['gmem_tot_trans'] = K['gmem_ld_trans'] + K['gmem_st_trans']
+    K['gmem_tot_sectors'] = K['gmem_ld_sectors'] + K['gmem_st_sectors']
+    K['gmem_ld_diverg'] = K['gmem_ld_sectors'] / K['gmem_ld_reqs'] if K['gmem_ld_reqs'] > 0 else 0
+    K['gmem_st_diverg'] = K['gmem_st_sectors'] / K['gmem_st_reqs'] if K['gmem_st_reqs'] > 0 else 0
+    K['gmem_tot_diverg'] = K['gmem_tot_sectors'] / K['gmem_tot_reqs'] if K['gmem_tot_reqs'] > 0 else 0
+    
     K['umem_tot_reqs'] = K['umem_ld_reqs'] + K['umem_st_reqs']
     K['umem_tot_trans'] = K['umem_ld_trans'] + K['umem_st_trans']
-    K['gmem_ld_diverg'] = K['gmem_ld_trans'] / K['gmem_ld_reqs'] if K['gmem_ld_reqs'] > 0 else 0
-    K['gmem_st_diverg'] = K['gmem_st_trans'] / K['gmem_st_reqs'] if K['gmem_st_reqs'] > 0 else 0
-    K['gmem_tot_diverg'] = K['gmem_tot_trans'] / K['gmem_tot_reqs'] if K['gmem_tot_reqs'] > 0 else 0
+    K['umem_tot_sectors'] = K['umem_ld_sectors'] + K['umem_st_sectors']
     # l2
-    K['l2_ld_trans_gmem'] = K['gmem_ld_trans'] * (1 - K['l1_hit_rate_ld'])
+    K['l2_ld_trans'] = K['umem_ld_sectors'] * (1 - K['l1_hit_rate_ld'])
+    # K['l2_ld_trans_gmem'] = K['gmem_ld_sectors'] * (1 - K['l1_hit_rate_ldg'])
     if l1_write_through:
-        K['l2_st_trans_gmem'] = K['gmem_st_trans']                                 # write through
+        K['l2_st_trans'] = K['umem_st_sectors']
+        # K['l2_st_trans_gmem'] = K['gmem_st_sectors']
     else:
-        write_ratio = K['gmem_st_trans'] / K['gmem_tot_trans']
-        l1_hit_rate_st = (K['l1_hit_rate'] - K['l1_hit_rate_ld'] * (1 - write_ratio))/write_ratio
-        K['l2_st_trans_gmem'] = K['gmem_st_trans'] * (1 - l1_hit_rate_st)
-    K['l2_tot_trans_gmem'] = K['l2_ld_trans_gmem'] + K['l2_st_trans_gmem']
+        K['l2_st_trans'] = K['umem_st_sectors'] * (1 - K['l1_hit_rate_st'])
+        # K['l2_st_trans_gmem'] = K['gmem_st_sectors'] * (1 - K['l1_hit_rate_stg'])
+    K['l2_tot_trans'] = K['l2_ld_trans'] + K['l2_st_trans']
+    # K['l2_tot_trans_gmem'] = K['l2_ld_trans_gmem'] + K['l2_st_trans_gmem']
     # DRAM
-    K["dram_tot_trans_gmem"] = K["l2_tot_trans_gmem"] * (1 - K["l2_hit_rate"])
-    K["dram_ld_trans_gmem"] =  K["l2_ld_trans_gmem"] * (1 - K["l2_hit_rate"])
-    K["dram_st_trans_gmem"] =  K["l2_st_trans_gmem"] * (1 - K["l2_hit_rate"])
-    
-    K['l1_hit_rate'] *= 100
-    K['l2_hit_rate'] *= 100
+    K["dram_tot_trans"] = K["l2_tot_trans"] * (1 - K["l2_hit_rate"])
+    K["dram_ld_trans"] = K["l2_ld_trans"] * (1 - K["l2_hit_rate_ld"])
+    K["dram_st_trans"] = K["l2_st_trans"] * (1 - K["l2_hit_rate_st"])
+    # K["dram_tot_trans_gmem"] = K["l2_tot_trans_gmem"] * (1 - K["l2_hit_rate"])
+    # K["dram_ld_trans_gmem"] =  K["l2_ld_trans_gmem"] * (1 - K["l2_hit_rate"])
+    # K["dram_st_trans_gmem"] =  K["l2_st_trans_gmem"] * (1 - K["l2_hit_rate"])
+
     return K
 
 def memory_model_warpper(gpu_model, app_path, model, kernel_id=-1, granularity=2, use_sm_trace=False, 
@@ -230,6 +231,7 @@ def memory_model_warpper(gpu_model, app_path, model, kernel_id=-1, granularity=2
         else:
             raise ValueError(f"model {model} is not supported")
         
+        kernel_res['kernel_name'] = kernel_param['kernel_name']
         app_res.append(kernel_res)
     
     return app_res, gpu_config

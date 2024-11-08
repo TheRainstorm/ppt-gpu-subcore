@@ -153,6 +153,7 @@ print_summary(){
     echo ""
 
     echo "[Memory]:"
+    echo "run_name: $run_name"
     echo "memory_model: $memory_model"
     echo "memory_suffix: $memory_suffix"
     echo "granularity: $granularity, filter_l2: $filter_l2, use_approx: $use_approx, use_sm_trace: $use_sm_trace"
