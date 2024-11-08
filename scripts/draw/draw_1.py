@@ -62,16 +62,16 @@ key_map = {
         "l2_write_trans": "l2_write_transactions",
         "dram_total_trans": "dram_total_transactions",
         
-        "gmem_tot_reqs": ["global_load_requests", "global_store_requests"],
+        "gmem_tot_reqs": ["global_load_requests", '+', "global_store_requests"],
         "gmem_ld_reqs": "global_load_requests",
         "gmem_st_reqs": "global_store_requests",
-        "gmem_tot_sectors": ["gld_transactions", "gst_transactions"],
+        "gmem_tot_sectors": ["gld_transactions", '+', "gst_transactions"],
         "gmem_ld_sectors": "gld_transactions",
         "gmem_st_sectors": "gst_transactions",
-        "l2_tot_trans": ["l2_read_transactions", "l2_write_transactions"],
+        "l2_tot_trans": ["l2_read_transactions", '+', "l2_write_transactions"],
         "l2_ld_trans": "l2_read_transactions",
         "l2_st_trans": "l2_write_transactions",
-        "dram_tot_trans": ["dram_read_transactions", "dram_write_transactions"],
+        "dram_tot_trans": ["dram_read_transactions", '+', "dram_write_transactions"],
         "dram_ld_trans": "dram_read_transactions",
         "dram_st_trans": "dram_write_transactions",
     }
@@ -338,14 +338,17 @@ def draw_correl(stat, save_img, draw_kernel=True, sim_res_func=None, avg=True, h
     
     min_val = min(y1.min(), y2.min())
     max_val = max(y1.max(), y2.max())
+    min_val -= 0.1*(max_val - min_val)
+    max_val += 0.1*(max_val - min_val)
     
     ax.plot([min_val, max_val], [min_val, max_val], color='red')
     
     ax.set_xlim(min_val, max_val)
     ax.set_ylim(min_val, max_val)
     
-    ax.set_xscale('log')
-    ax.set_yscale('log')
+    if max_val / (min_val+1e-6) > 1000:
+        ax.set_xscale('log')
+        ax.set_yscale('log')
 
     ax.set_aspect('equal', adjustable='box')
     # add some text for labels, title and axes ticks
@@ -410,6 +413,7 @@ if __name__ == "__main__":
                         # choices=["app", "kernel", "kernel_by_app", "app_by_bench", "single", "memory"],
                         help="draw app or kernel. app: to get overview error of cycle, memory performance and etc. at granurality of apps. kernel: draw all error bar in granurality of kernel. single: draw seperate app in single dir, it's useful when we want to get single app info mation")
     parser.add_argument('--gtx1080ti', action='store_true', help='1080ti l1 hit should use tex_cache_hit_rate')
+    parser.add_argument('-N', '--not-overwrite', dest='overwrite', action='store_false', help='not overwrite')
 
     args = parser.parse_args()
     
@@ -440,9 +444,9 @@ if __name__ == "__main__":
     run_dir = os.getcwd()
     os.chdir(args.output_dir)
     
+    overwrite = args.overwrite
     if args.command=="app":
         print(f"\ncommand: {args.command}:")
-        overwrite = True
         app_filter = args.app_filter
         args.dir_name = args.dir_name if args.dir_name else args.command
         os.makedirs(args.dir_name, exist_ok=True)  # save image in app dir
@@ -492,7 +496,6 @@ if __name__ == "__main__":
         draw_side2side("l2_write_trans",        "bar_6_l2_write_trans.png")
         draw_side2side("dram_total_trans",      "bar_6_dram_total_trans.png")
     elif args.command=="app_by_bench":
-        overwrite = True
         args.dir_name = args.dir_name if args.dir_name else args.command
         os.makedirs(args.dir_name, exist_ok=True)  # save image in seperate dir
         os.chdir(args.dir_name)
@@ -519,7 +522,6 @@ if __name__ == "__main__":
         os.makedirs(args.dir_name, exist_ok=True)  # save image in seperate dir
         os.chdir(args.dir_name)
         
-        overwrite = True
         app_filter = args.app_filter
         draw_error("my_gpu_active_cycle_max", "error_4_my_gpu_active_cycle_max.png", draw_kernel=True)
         draw_side2side("my_gpu_active_cycle_max", f"bar_4_my_gpu_active_cycle_max.png", draw_kernel=True)
@@ -541,7 +543,6 @@ if __name__ == "__main__":
             draw_side2side("warp_inst_executed", f"bar_{app_name_safe}_1_my_warp_inst_executed.png", draw_kernel=True)
     elif args.command == 'single':
         print(f"\ncommand: {args.command}:")
-        overwrite = True
         app_list_all = sim_res.keys()
         app_list = filter_app_list(app_list_all, args.app_filter)  # convert coord filter to app_and_arg filter
         print(f"will draw: {app_list}")
@@ -566,7 +567,6 @@ if __name__ == "__main__":
         args.dir_name = args.dir_name if args.dir_name else args.command
         os.makedirs(args.dir_name, exist_ok=True)  # save image in seperate dir
         os.chdir(args.dir_name)
-        overwrite = True
         # get all bench
         app_list_all = sim_res.keys()
         benchs = set()
@@ -618,7 +618,6 @@ if __name__ == "__main__":
             draw_correl("dram_tot_trans", f"{bench}_correl_9_dram_tot_trans.png", draw_kernel=True)
             
     elif args.command == 'memory_kernels':
-        overwrite = True
         print(f"\ncommand: {args.command}:")
         args.dir_name = args.dir_name if args.dir_name else args.command
         os.makedirs(args.dir_name, exist_ok=True)  # save image in seperate dir
@@ -643,10 +642,13 @@ if __name__ == "__main__":
             draw_side2side("l2_hit_rate", f"{prefix}_bar_6_l2_hit_rate.png", hw_stat=l2_hw_stat, draw_kernel=True)
             
             draw_list = ["gmem_ld_reqs","gmem_st_reqs","gmem_tot_reqs","gmem_ld_sectors","gmem_st_sectors","gmem_tot_sectors","l2_ld_trans","l2_st_trans","l2_tot_trans","dram_ld_trans","dram_st_trans","dram_tot_trans"]
-            
+            # draw_list = ["dram_st_trans"]
             for stat in draw_list:
-                draw_side2side(stat, f"bar_{stat}.png", draw_kernel=True)
-                draw_correl(stat, f"correl_{stat}.png", draw_kernel=True)
+                try:
+                    draw_side2side(stat, f"bar_{stat}.png", draw_kernel=True)
+                    draw_correl(stat, f"correl_{stat}.png", draw_kernel=True)
+                except:
+                    print(f"ERROR: {app_arg} {stat} failed")
             
     else:
         print(f"ERROR: command {args.command} not supported")
