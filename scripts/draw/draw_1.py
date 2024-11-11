@@ -52,8 +52,13 @@ key_map = {
         
         "l1_hit_rate": ["global_hit_rate", '/', '100'],
         # "l1_hit_rate": "tex_cache_hit_rate",
-        # "l2_hit_rate": "l2_tex_hit_rate",
+        "l1_hit_rate_ld": ["global_hit_rate_ld", '/', '100'],
+        "l1_hit_rate_st": ["global_hit_rate_st", '/', '100'],
+        
         "l2_hit_rate": ["l2_tex_hit_rate", '/', '100'],
+        "l2_hit_rate_ld": ["l2_tex_read_hit_rate", '/', '100'],
+        "l2_hit_rate_st": ["l2_tex_write_hit_rate", '/', '100'],
+        
         "gmem_read_requests": "global_load_requests",
         "gmem_write_requests": "global_store_requests",
         "gmem_read_trans": "gld_transactions",
@@ -68,6 +73,8 @@ key_map = {
         "gmem_tot_sectors": ["gld_transactions", '+', "gst_transactions"],
         "gmem_ld_sectors": "gld_transactions",
         "gmem_st_sectors": "gst_transactions",
+        "gmem_tot_diverg": "gld_transactions_per_request",
+        
         "l2_tot_trans": ["l2_read_transactions", '+', "l2_write_transactions"],
         "l2_ld_trans": "l2_read_transactions",
         "l2_st_trans": "l2_write_transactions",
@@ -230,7 +237,8 @@ def draw_helper(msg, stat, save_img, draw_kernel=False, sim_res_func=None, avg=F
         x1, y1 = get_kernel_stat(hw_res, hw_stat_key, app_filter=app_filter, key_is_expression=key_is_expression)
         _, y2 = get_kernel_stat(sim_res, stat, app_filter=app_filter, func=sim_res_func)
 
-    MAE = np.mean(np.abs(y1 - y2)/y1)
+    non_zero_idxs = y1 != 0
+    MAE = np.mean(np.abs(y1[non_zero_idxs] - y2[non_zero_idxs])/y1[non_zero_idxs])
     t = y2 - y1
     RMSE = np.sqrt(np.mean(t**2))
     NRMSE = RMSE/np.mean(np.abs(y1))
@@ -276,11 +284,16 @@ def draw_error(stat, save_img, draw_kernel=False, sim_res_func=None, error_text=
             ax.text(bar.get_x() + bar.get_width() / 2, bar.get_y() + height, f'{x[i]:.2f}', 
                     ha='center', va='bottom', fontsize=8, rotation=-90)
             i += 1
-        
-    if abs:
-        error_y = np.abs(y2 - y1)/y1
-    else:
-        error_y = (y2 - y1)/y1
+    
+    error_y = []
+    for i in range(len(y1)):
+        if y1[i] == 0:
+            error_y.append(0)
+        else:
+            if abs:
+                error_y.append(np.abs(y2[i] - y1[i])/y1[i])
+            else:
+                error_y.append((y2[i] - y1[i])/y1[i])
 
     fig, ax = plt.subplots()
     bars = ax.bar(x1, error_y)
@@ -327,7 +340,7 @@ def draw_side2side(stat, save_img, draw_kernel=False, sim_res_func=None, avg=Tru
     fig.savefig(save_img_path)
     plt.close(fig)
 
-def draw_correl(stat, save_img, draw_kernel=True, sim_res_func=None, avg=True, hw_stat=""):
+def draw_correl(stat, save_img, draw_kernel=False, sim_res_func=None, avg=True, hw_stat=""):
     flag, data = draw_helper("correl", stat, save_img, draw_kernel, sim_res_func, avg, hw_stat)
     if not flag:
         return
@@ -575,47 +588,27 @@ if __name__ == "__main__":
                 benchs.add(suite_info['map'][app_arg][0])
             except:
                 print(f"Warning: {app_arg} not found in suite_info, skip")
-        l1_hw_stat = "l1_hit_rate" if args.command == 'memory-sim' else key_map['l1_hit_rate']
-        l2_hw_stat = "l2_hit_rate" if args.command == 'memory-sim' else key_map['l2_hit_rate']
         
         # total kernel
-        draw_correl("l1_hit_rate", f"correl_6_l1_hit_rate.png", hw_stat=l1_hw_stat, draw_kernel=True)
-        draw_correl("l2_hit_rate", f"correl_6_l2_hit_rate.png", hw_stat=l2_hw_stat, draw_kernel=True)
+        draw_correl("l1_hit_rate", f"6_l1_hit_rate_correl.png")
+        draw_correl("l2_hit_rate", f"6_l2_hit_rate_correl.png")
+        draw_correl("l1_hit_rate", f"6_l1_hit_rate_correl_all_kernel.png", draw_kernel=True)
+        draw_correl("l2_hit_rate", f"6_l2_hit_rate_correl_all_kernel.png", draw_kernel=True)
         for bench in benchs:
             # set each bench as filter
             app_filter = bench
-            draw_error("l1_hit_rate", f"{bench}_error_6_l1_hit_rate.png", hw_stat=l1_hw_stat, avg=True)
-            draw_side2side("l1_hit_rate", f"{bench}_bar_6_l1_hit_rate.png", hw_stat=l1_hw_stat)
-            draw_error("l2_hit_rate", f"{bench}_error_6_l2_hit_rate.png", hw_stat=l2_hw_stat, avg=True)
-            draw_side2side("l2_hit_rate", f"{bench}_bar_6_l2_hit_rate.png", hw_stat=l2_hw_stat)
             
-            draw_side2side("gmem_st_reqs", f"{bench}_correl_7_gmem_st_reqs.png", draw_kernel=True)
-            draw_side2side("gmem_tot_reqs", f"{bench}_correl_7_gmem_tot_reqs.png", draw_kernel=True)
-            draw_side2side("gmem_ld_sectors", f"{bench}_correl_7_gmem_ld_sectors.png", draw_kernel=True)
-            draw_side2side("gmem_st_sectors", f"{bench}_correl_7_gmem_st_sectors.png", draw_kernel=True)
-            draw_side2side("gmem_tot_sectors", f"{bench}_correl_7_gmem_tot_sectors.png", draw_kernel=True)
-            draw_side2side("l2_ld_trans", f"{bench}_correl_8_l2_ld_trans.png", draw_kernel=True)
-            draw_side2side("l2_st_trans", f"{bench}_correl_8_l2_st_trans.png", draw_kernel=True)
-            draw_side2side("l2_tot_trans", f"{bench}_correl_8_l2_tot_trans.png", draw_kernel=True)
-            draw_side2side("dram_ld_trans", f"{bench}_correl_9_dram_ld_trans.png", draw_kernel=True)
-            draw_side2side("dram_st_trans", f"{bench}_correl_9_dram_st_trans.png", draw_kernel=True)
-            draw_side2side("dram_tot_trans", f"{bench}_correl_9_dram_tot_trans.png", draw_kernel=True)
-            
-            draw_correl("l1_hit_rate", f"{bench}_correl_6_l1_hit_rate.png", hw_stat=l1_hw_stat, draw_kernel=True)
-            draw_correl("l2_hit_rate", f"{bench}_correl_6_l2_hit_rate.png", hw_stat=l2_hw_stat, draw_kernel=True)
-            
-            draw_correl("gmem_ld_reqs", f"{bench}_correl_7_gmem_ld_reqs.png", draw_kernel=True)
-            draw_correl("gmem_st_reqs", f"{bench}_correl_7_gmem_st_reqs.png", draw_kernel=True)
-            draw_correl("gmem_tot_reqs", f"{bench}_correl_7_gmem_tot_reqs.png", draw_kernel=True)
-            draw_correl("gmem_ld_sectors", f"{bench}_correl_7_gmem_ld_sectors.png", draw_kernel=True)
-            draw_correl("gmem_st_sectors", f"{bench}_correl_7_gmem_st_sectors.png", draw_kernel=True)
-            draw_correl("gmem_tot_sectors", f"{bench}_correl_7_gmem_tot_sectors.png", draw_kernel=True)
-            draw_correl("l2_ld_trans", f"{bench}_correl_8_l2_ld_trans.png", draw_kernel=True)
-            draw_correl("l2_st_trans", f"{bench}_correl_8_l2_st_trans.png", draw_kernel=True)
-            draw_correl("l2_tot_trans", f"{bench}_correl_8_l2_tot_trans.png", draw_kernel=True)
-            draw_correl("dram_ld_trans", f"{bench}_correl_9_dram_ld_trans.png", draw_kernel=True)
-            draw_correl("dram_st_trans", f"{bench}_correl_9_dram_st_trans.png", draw_kernel=True)
-            draw_correl("dram_tot_trans", f"{bench}_correl_9_dram_tot_trans.png", draw_kernel=True)
+            draw_list = ["l1_hit_rate", "l1_hit_rate_ld", "l1_hit_rate_st", "l2_hit_rate", "l2_hit_rate_ld", "l2_hit_rate_st",
+                         "gmem_ld_reqs","gmem_st_reqs","gmem_tot_reqs","gmem_ld_sectors","gmem_st_sectors","gmem_tot_sectors", "gmem_tot_diverg",
+                         "l2_ld_trans","l2_st_trans","l2_tot_trans","dram_ld_trans","dram_st_trans","dram_tot_trans"]
+            for stat in draw_list:
+                try:
+                    draw_side2side(stat, f"{bench}_{stat}_bar.png")
+                    draw_correl(stat, f"{bench}_{stat}_correl.png")
+                    draw_correl(stat, f"{bench}_{stat}_correl_all_kernel.png", draw_kernel=True)  # not avg
+                except:
+                    print(f"ERROR: {app_arg} {stat} failed")
+                    exit(1)
             
     elif args.command == 'memory_kernels':
         print(f"\ncommand: {args.command}:")
@@ -636,20 +629,16 @@ if __name__ == "__main__":
             os.makedirs(prefix, exist_ok=True)  # save image in seperate dir
             os.chdir(prefix)
             
-            # draw_error("l1_hit_rate", f"{prefix}_error_6_l1_hit_rate.png", hw_stat=l1_hw_stat, avg=True, draw_kernel=True)
-            draw_side2side("l1_hit_rate", f"{prefix}_bar_6_l1_hit_rate.png", hw_stat=l1_hw_stat, draw_kernel=True)
-            # draw_error("l2_hit_rate", f"{prefix}_error_6_l2_hit_rate.png", hw_stat=l2_hw_stat, avg=True, draw_kernel=True)
-            draw_side2side("l2_hit_rate", f"{prefix}_bar_6_l2_hit_rate.png", hw_stat=l2_hw_stat, draw_kernel=True)
-            
-            draw_list = ["gmem_ld_reqs","gmem_st_reqs","gmem_tot_reqs","gmem_ld_sectors","gmem_st_sectors","gmem_tot_sectors","l2_ld_trans","l2_st_trans","l2_tot_trans","dram_ld_trans","dram_st_trans","dram_tot_trans"]
-            # draw_list = ["dram_st_trans"]
+            draw_list = ["l1_hit_rate", "l1_hit_rate_ld", "l1_hit_rate_st", "l2_hit_rate", "l2_hit_rate_ld", "l2_hit_rate_st",
+                         "gmem_ld_reqs","gmem_st_reqs","gmem_tot_reqs","gmem_ld_sectors","gmem_st_sectors","gmem_tot_sectors", "gmem_tot_diverg",
+                         "l2_ld_trans","l2_st_trans","l2_tot_trans","dram_ld_trans","dram_st_trans","dram_tot_trans"]
             for stat in draw_list:
                 try:
-                    draw_side2side(stat, f"bar_{stat}.png", draw_kernel=True)
-                    draw_correl(stat, f"correl_{stat}.png", draw_kernel=True)
+                    draw_side2side(stat, f"{stat}_bar.png", draw_kernel=True)
+                    draw_correl(stat, f"{stat}_correl.png", draw_kernel=True)
                 except:
                     print(f"ERROR: {app_arg} {stat} failed")
-            
+                    exit(1)
     else:
         print(f"ERROR: command {args.command} not supported")
     os.chdir(run_dir)

@@ -1,6 +1,11 @@
 import json
 import argparse
 
+def divide_or_zero(a, b):
+    if b == 0:
+        return 0
+    return a/b
+
 def convert_ncu_to_nvprof(data):
     res_json = {}
     for app_arg, app_res in data.items():
@@ -25,11 +30,14 @@ def convert_ncu_to_nvprof(data):
             kernel_res['active_warps'] = k['sm__warps_active.sum']
             kernel_res['achieved_occupancy'] = k['sm__warps_active.avg.pct_of_peak_sustained_active']/100
             
-            try:
-                kernel_res['global_hit_rate'] = (k['l1tex__t_sectors_pipe_lsu_mem_global_op_ld_lookup_hit.sum'] + k['l1tex__t_sectors_pipe_lsu_mem_global_op_st_lookup_hit.sum'] + k['l1tex__t_sectors_pipe_lsu_mem_global_op_red_lookup_hit.sum'] + k['l1tex__t_sectors_pipe_lsu_mem_global_op_atom_lookup_hit.sum']) / (k['l1tex__t_sectors_pipe_lsu_mem_global_op_ld.sum'] + k['l1tex__t_sectors_pipe_lsu_mem_global_op_st.sum'] + k['l1tex__t_sectors_pipe_lsu_mem_global_op_red.sum'] + k['l1tex__t_sectors_pipe_lsu_mem_global_op_atom.sum'])
-                kernel_res['global_hit_rate'] *= 100  # all cache hit rate use percentage
-            except ZeroDivisionError:
-                kernel_res['global_hit_rate'] = 0
+            kernel_res['global_hit_rate'] = 100*divide_or_zero(k['l1tex__t_sectors_pipe_lsu_mem_global_op_ld_lookup_hit.sum'] + k['l1tex__t_sectors_pipe_lsu_mem_global_op_st_lookup_hit.sum'] +
+                                                            k['l1tex__t_sectors_pipe_lsu_mem_global_op_red_lookup_hit.sum'] + k['l1tex__t_sectors_pipe_lsu_mem_global_op_atom_lookup_hit.sum'],
+                                                            k['l1tex__t_sectors_pipe_lsu_mem_global_op_ld.sum'] + k['l1tex__t_sectors_pipe_lsu_mem_global_op_st.sum'] +
+                                                            k['l1tex__t_sectors_pipe_lsu_mem_global_op_red.sum'] + k['l1tex__t_sectors_pipe_lsu_mem_global_op_atom.sum'])
+            
+            kernel_res['global_hit_rate_ld'] = 100*divide_or_zero(k['l1tex__t_sectors_pipe_lsu_mem_global_op_ld_lookup_hit.sum'], k['l1tex__t_sectors_pipe_lsu_mem_global_op_ld.sum'])
+            kernel_res['global_hit_rate_st'] = 100*divide_or_zero(k['l1tex__t_sectors_pipe_lsu_mem_global_op_st_lookup_hit.sum'], k['l1tex__t_requests_pipe_lsu_mem_global_op_st.sum'])
+            
             kernel_res['tex_cache_hit_rate'] = k['l1tex__t_sector_hit_rate.pct']
             kernel_res['l2_tex_hit_rate'] = k['lts__t_sector_hit_rate.pct']
             kernel_res['l2_tex_read_hit_rate'] = k['lts__t_sector_op_read_hit_rate.pct']
