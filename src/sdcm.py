@@ -2,6 +2,7 @@ import argparse
 import json
 import math
 import os
+import random
 import matplotlib.pyplot as plt
 
 import time
@@ -137,7 +138,7 @@ def process_trace(block_trace, l1_cache_line_size, sector_size=32):
 # @timeit
 def get_cache_line_access_from_raw_trace(trace_file, l1_cache_line_size):
     block_trace = open(trace_file,'r').readlines()
-    return process_trace(block_trace, l1_cache_line_size)
+    return process_trace(block_trace, l1_cache_line_size)[1]
 
 # @timeit
 def get_cache_line_access_from_file(file_path):
@@ -239,6 +240,28 @@ def get_csdd(SD):
     csdd_avg = [(sd, accum/T) for sd, accum in csdd]
     return sdd, csdd_avg
 
+def filter_trace(cache_line_access, SD, A, B, use_approx=True):
+    # rand seed
+    random.seed(0)
+    
+    l2_trace = []
+    for i, sd in enumerate(SD):
+        is_store, is_local, warp_id, address = cache_line_access[i]
+        if sd==0:
+            p_hit = 1
+        elif sd==-1:
+            p_hit = 0
+        else:
+            if use_approx:
+                p_hit = calculate_p_hit_approx(A, B, sd)
+            else:
+                p_hit = calculate_p_hit(A, B, sd)
+        # random drop
+        r = random.random()
+        if r > p_hit:
+            l2_trace.append([is_store, is_local, warp_id, address])
+    return l2_trace
+        
 def calculate_p_hit(A, B, D):
     p_hit = 0.0
     for a in range(A):
@@ -315,7 +338,7 @@ def sdcm_dict(sdd_dict, cache_line_size, cache_size, associativity, use_approx=F
         hit_rate_dict['tot'] += hit_rate * ratio
     hit_rate_dict['ld'] = hit_rate_dict['ldl'] + hit_rate_dict['ldg']
     hit_rate_dict['st'] = hit_rate_dict['stl'] + hit_rate_dict['stg']
-    return hit_rate_dict
+    return hit_rate_dict, A, B
 
 def sdcm_model(cache_line_access, cache_parameter, use_approx=True, granularity=2):
     SD = get_stack_distance(cache_line_access)
@@ -330,6 +353,9 @@ def sdcm_model(cache_line_access, cache_parameter, use_approx=True, granularity=
     #         hit_rate = 0 if sd == -1 else 1 if sd == 0 else calculate_p_hit_approx(A, B, sd)
     #         f.write(f"{i+1},{is_store},{is_local},{warp_id},{address},{sd},{hit_rate}\n")
     
+    hit_rate_dict, A, B = sdcm_dict(sdd_dict, cache_parameter['cache_line_size'], cache_parameter['capacity'], cache_parameter['associativity'], use_approx=use_approx)
+    l2_trace = filter_trace(cache_line_access, SD, A, B)
+    return hit_rate_dict, l2_trace
     
 def draw_csdd(csdd, img_path):
     import matplotlib.pyplot as plt

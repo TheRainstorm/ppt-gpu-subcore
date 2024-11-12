@@ -117,12 +117,13 @@ def run_L1(smi, trace_dir, kernel_id, grid_size, num_SMs, max_blocks_per_sm, gpu
         # use sector size as cache line size
         l1_param = {'capacity': gpu_config['l1_cache_size'], 'cache_line_size': gpu_config['l1_sector_size'], 'associativity': gpu_config['l1_cache_associativity']}
         if is_sdcm:
-            hit_rate_dict = sdcm_model(smi_trace, l1_param,
+            hit_rate_dict, L2_req = sdcm_model(smi_trace, l1_param,
                             use_approx=use_approx, granularity=granularity)
         else:
             hit_rate_dict, L2_req = cache_simulate(smi_trace, l1_param)
-            if filter_L2:
-                smi_trace = L2_req
+        
+        if filter_L2:
+            smi_trace = L2_req
         sm_stats['l1_hit_rate'] = hit_rate_dict['tot']
         sm_stats['gmem_ld_sectors_hit'] = sm_stats['gmem_ld_sectors'] * hit_rate_dict['ldg']
         sm_stats['gmem_st_sectors_hit'] = sm_stats['gmem_st_sectors'] * hit_rate_dict['stg']
@@ -190,7 +191,7 @@ def sdcm_model_warpper_parallel(kernel_id, trace_dir,
     
     l2_param = {'capacity': gpu_config['l2_cache_size'], 'cache_line_size': gpu_config['l2_cache_line_size'], 'associativity': gpu_config['l2_cache_associativity']}
     if is_sdcm:
-        l2_hit_rate_dict = sdcm_model(l2_trace, l2_param)
+        l2_hit_rate_dict, _ = sdcm_model(l2_trace, l2_param)
     else:
         l2_hit_rate_dict, _ = cache_simulate(l2_trace, l2_param)
     K['l2_hit_rate'] = l2_hit_rate_dict['tot']
