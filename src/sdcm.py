@@ -340,18 +340,20 @@ def sdcm_dict(sdd_dict, cache_line_size, cache_size, associativity, use_approx=F
     hit_rate_dict['st'] = hit_rate_dict['stl'] + hit_rate_dict['stg']
     return hit_rate_dict, A, B
 
-def sdcm_model(cache_line_access, cache_parameter, use_approx=True, granularity=2):
+def sdcm_model(cache_line_access, cache_parameter, use_approx=True, granularity=2, dump_trace=''):
     SD = get_stack_distance(cache_line_access)
     sdd_dict = get_sdd_dict(SD, cache_line_access)
     
-    # with open('debug.csv', 'w') as f:
-    #     cache_line_size, cache_size, associativity = cache_parameter['cache_line_size'], cache_parameter['capacity'], cache_parameter['associativity']
-    #     B = cache_size // cache_line_size
-    #     A = associativity
-    #     for i, (is_store, is_local, warp_id, address) in enumerate(cache_line_access):
-    #         sd = SD[i]
-    #         hit_rate = 0 if sd == -1 else 1 if sd == 0 else calculate_p_hit_approx(A, B, sd)
-    #         f.write(f"{i+1},{is_store},{is_local},{warp_id},{address},{sd},{hit_rate}\n")
+    if dump_trace:
+        with open(dump_trace, 'w') as f:
+            f.write("id,is_store,is_local,warp_id,address,sd,hit_rate\n")
+            cache_line_size, cache_size, associativity = cache_parameter['cache_line_size'], cache_parameter['capacity'], cache_parameter['associativity']
+            B = cache_size // cache_line_size
+            A = associativity
+            for i, (is_store, is_local, warp_id, address) in enumerate(cache_line_access):
+                sd = SD[i]
+                hit_rate = 0 if sd == -1 else 1 if sd == 0 else calculate_p_hit_approx(A, B, sd)
+                f.write(f"{i+1},{is_store},{is_local},{warp_id},{address},{sd},{hit_rate}\n")
     
     hit_rate_dict, A, B = sdcm_dict(sdd_dict, cache_parameter['cache_line_size'], cache_parameter['capacity'], cache_parameter['associativity'], use_approx=use_approx)
     l2_trace = filter_trace(cache_line_access, SD, A, B)

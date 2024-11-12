@@ -4,7 +4,7 @@ import json
 import os
 import sys
 
-from memory_model_warper import memory_model_warpper
+from memory_model_warper import memory_model_warpper, BlockMapping
 from scripts.common import *
 
 parser = argparse.ArgumentParser(
@@ -41,8 +41,14 @@ parser.add_argument('--filter-l2',
 parser.add_argument('--use-sm-trace', 
                     action='store_true',
                     help='use sm level trace')
+parser.add_argument('--block-mapping',
+                    type=int,
+                    default=BlockMapping.mod_block_mapping,
+                    help='chose different block mapping strategy. 1: mod, 2: randoom, 3: use sm trace instead(hw true mapping)')
 args = parser.parse_args()
-
+if args.use_sm_trace:
+        args.block_mapping = BlockMapping.sm_block_mapping
+        
 apps = gen_apps_from_suite_list(args.benchmark_list)
 app_and_arg_list = get_app_arg_list(apps)
 args.apps = filter_app_list(app_and_arg_list, args.app_filter)
@@ -74,8 +80,9 @@ for app_and_arg in app_and_arg_list:
         continue
     
     logging(f"{app_and_arg} start")
-    app_res, gpu_config = memory_model_warpper(args.config, app_trace_dir, args.model, use_approx=args.use_approx, granularity=args.granularity,
-                                   filter_L2=args.filter_l2, use_sm_trace=args.use_sm_trace)
+    app_res, gpu_config = memory_model_warpper(args.config, app_trace_dir, args.model, granularity=args.granularity, use_approx=args.use_approx,
+                        filter_L2=args.filter_l2, block_mapping=args.block_mapping,
+                        l1_dump_trace=False, l2_dump_trace='')
     avg_l1_hit_rate = sum([res['l1_hit_rate'] for res in app_res]) / len(app_res)
     avg_l2_hit_rate = sum([res['l2_hit_rate'] for res in app_res]) / len(app_res)
     print(f"avg_l1_hit_rate: {avg_l1_hit_rate}, avg_l2_hit_rate: {avg_l2_hit_rate}")
