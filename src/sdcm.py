@@ -29,7 +29,6 @@ def get_line_adresses(addresses, l1_cache_line_size, sector_size=32):
     coalescing the addresses of the warp
     '''
     line_idx = int(math.log(l1_cache_line_size,2))
-    sector_size = 32
     sector_idx = int(math.log(sector_size,2))
     # line_mask = ~(2**line_idx - 1)
     # sector_mask = ~(2**sector_idx - 1)
@@ -321,8 +320,16 @@ def sdcm_dict(sdd_dict, cache_line_size, cache_size, associativity, use_approx=F
 def sdcm_model(cache_line_access, cache_parameter, use_approx=True, granularity=2):
     SD = get_stack_distance(cache_line_access)
     sdd_dict = get_sdd_dict(SD, cache_line_access)
-    hit_rate_dict = sdcm_dict(sdd_dict, cache_parameter['cache_line_size'], cache_parameter['capacity'], cache_parameter['associativity'], use_approx=use_approx)
-    return hit_rate_dict
+    
+    # with open('debug.csv', 'w') as f:
+    #     cache_line_size, cache_size, associativity = cache_parameter['cache_line_size'], cache_parameter['capacity'], cache_parameter['associativity']
+    #     B = cache_size // cache_line_size
+    #     A = associativity
+    #     for i, (is_store, is_local, warp_id, address) in enumerate(cache_line_access):
+    #         sd = SD[i]
+    #         hit_rate = 0 if sd == -1 else 1 if sd == 0 else calculate_p_hit_approx(A, B, sd)
+    #         f.write(f"{i+1},{is_store},{is_local},{warp_id},{address},{sd},{hit_rate}\n")
+    
     
 def draw_csdd(csdd, img_path):
     import matplotlib.pyplot as plt
@@ -371,6 +378,7 @@ def draw_sdd(sdd, img_path):
     ax.plot(x, y)
     
     # add some text for labels, title and axes ticks
+    ax.set_xlim(0, 2000)
     ax.set_xlabel("Stack Distance")
     ax.set_ylabel("percentage")
     fig.savefig(img_path)
@@ -403,6 +411,14 @@ def read_sdd_from_pardax_output(file):
             sdd.append((sd, cnt, prop))
 
     return sdd
+if __name__ == "__main__":
+    with open('sdd_dict.json') as f:
+        sdd_dict = json.load(f)
+    
+    sdd_ldg = sdd_dict['ldg']['sdd']
+    sort_sdd = sorted(sdd_ldg, key=lambda x: x[0])
+    draw_sdd(sort_sdd, 'sdd_ldg.png')
+
 if __name__ == "__main__2":
     # sdd = read_sdd('K1_GMEM_SM0_lds.rp')
     sdd = read_sdd_from_pardax_output('K1_UMEM_SM0.rp')
@@ -411,7 +427,7 @@ if __name__ == "__main__2":
     hit_rate = sdcm(sdd, 32, 32*1024, 64, use_approx=False)
     print(hit_rate)
     
-if __name__ == "__main__":
+if __name__ == "__main__3":
     parser = argparse.ArgumentParser(
         description='')
     parser.add_argument("-f", "--trace-files",

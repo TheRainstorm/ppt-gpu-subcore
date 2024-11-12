@@ -260,7 +260,7 @@ def memory_model_warpper(gpu_model, app_path, model, kernel_id=-1, granularity=2
         app_res.append(kernel_res)
     
     return app_res, gpu_config
-    
+
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(
         description='ppt-gpu memory model'
@@ -275,9 +275,6 @@ if __name__ == "__main__":
                     type=int,
                     default=2,
                     help='1=One Thread Block per SM or 2=Active Thread Blocks per SM or 3=All Thread Blocks per SM')
-    parser.add_argument('--use-approx', 
-                    action='store_true',
-                    help='sdcm use approx')
     parser.add_argument('-k', "--kernel", dest="kernel_id",
                     type=int,
                     default=-1,
@@ -286,21 +283,28 @@ if __name__ == "__main__":
                     choices=['ppt-gpu', 'sdcm', 'simulator'],
                     default='ppt-gpu',
                     help='change memory model')
-    parser.add_argument('--use-sm-trace', 
+    parser.add_argument('--use-approx', 
                     action='store_true',
-                    help='use sm level trace')
+                    help='sdcm use approx')
+    parser.add_argument('--filter-l2', 
+                        action='store_true',
+                        help='L1 hit bypass L2')
+    parser.add_argument('--use-sm-trace', 
+                        action='store_true',
+                        help='use sm level trace')
     args = parser.parse_args()
-    
-    app_res, _ = memory_model_warpper(args.config, args.app_path, args.model, kernel_id=args.kernel_id, granularity=args.granularity, use_sm_trace=args.use_sm_trace)
+    app_res, _ = memory_model_warpper(args.config, args.app_path, args.model, kernel_id=args.kernel_id, granularity=args.granularity, use_approx=args.use_approx,
+                        filter_L2=args.filter_l2, use_sm_trace=args.use_sm_trace)
     print(app_res)
     print("Done")
 
-if __name__=="__main__2":
-    import json
-    with open('smi_trace.json') as f:
-        smi_trace = json.load(f)
-    l1_cache_parameter = {'capacity':  96*1024*1024,  'cache_line_size': 32,'associativity': 4}
-    hit_rate_dict1 = sdcm_model(smi_trace, l1_cache_parameter)
-    
+if __name__ == "__main__2":
+    with open('smi_trace_0.json') as f:
+        smi_trace_ = json.load(f)
+    smi_trace = smi_trace_
+    l1_cache_parameter = {'capacity':  128*10,  'cache_line_size': 32,'associativity': 4}
+    # hit_rate_dict1 = sdcm_model(smi_trace, l1_cache_parameter)
+    # print(hit_rate_dict1)
     hit_rate_dict2, L2_req = cache_simulate(smi_trace, l1_cache_parameter)
+    print(hit_rate_dict2)
     print("Done")

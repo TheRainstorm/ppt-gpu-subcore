@@ -2,10 +2,10 @@ import argparse
 import json
 import math
 import os
-import matplotlib.pyplot as plt
 import math
 import time
 from functools import wraps
+import bisect
 
 def timeit(func):
     """
@@ -21,6 +21,41 @@ def timeit(func):
         return result
     return wrapper
 
+def generate_primes(limit):
+    """生成不超过 limit 的素数列表"""
+    is_prime = [True] * (limit + 1)
+    is_prime[0], is_prime[1] = False, False
+    primes = []
+    
+    for num in range(2, limit + 1):
+        if is_prime[num]:
+            primes.append(num)
+            for multiple in range(num * 2, limit + 1, num):
+                is_prime[multiple] = False
+    return primes
+
+# 生成前100万的素数
+primes_list = generate_primes(1200000)
+
+def find_nearest_prime(primes, number):
+    """找到最接近给定数字的素数"""
+    pos = bisect.bisect_left(primes, number)
+    
+    # 如果数字在素数列表的范围之外，返回边界值
+    if pos == 0:
+        return primes[0]
+    if pos == len(primes):
+        return primes[-1]
+    
+    # 找到最接近的素数
+    before = primes[pos - 1]
+    return before
+    # after = primes[pos]
+    # if abs(number - before) <= abs(after - number):
+    #     return before
+    # else:
+    #     return after
+
 class Node:
     # 提高访问属性的速度，并节省内存
     __slots__ = 'prev', 'next', 'key', 'value'
@@ -33,13 +68,15 @@ class LRUCache:
         self.associativity = int(cache_parameter['associativity'])
         self.capacity = int(cache_parameter['capacity'])
         self.cache_line_size = int(cache_parameter['cache_line_size'])
-        self.cache_set_num = self.capacity // self.associativity // self.cache_line_size
+        cache_set = self.capacity // self.associativity // self.cache_line_size
+        self.cache_set_num = find_nearest_prime(primes_list, cache_set)  # prime to avoid conflict on single set
         
         # helper
-        self.blk_bits = int(math.log2(self.cache_line_size))
-        self.idx_bits = int(math.log2(self.cache_set_num))
-        
-        self.idx_mask = (1 << self.idx_bits) - 1
+        # self.blk_bits = int(math.log2(self.cache_line_size))
+        # self.idx_bits = ceil(math.log2(self.cache_set_num))  # 向上取整
+        # self.idx_mask = (1 << self.idx_bits) - 1
+        # 不用像硬件一样存储 tag（避免存储冗余的部分），直接存储整个 addr 即可
+        # idx 部分直接取模 cache set 数即可
         
         # cache
         self.cache_set_list = [{} for i in range(self.cache_set_num)]
@@ -54,8 +91,8 @@ class LRUCache:
         self.clear_statics()
     
     def access(self, mem_width, write, addr):
-        idx = (addr >> self.blk_bits) & self.idx_mask
-        tag = addr >> (self.blk_bits + self.idx_bits)
+        idx = (addr // self.cache_line_size) % self.cache_set_num
+        tag = addr
         
         self.read_cnt += 0 if write else 1
         self.write_cnt += 1 if write else 0
@@ -125,62 +162,8 @@ class LRUCache:
             "total_access": total_access
         }
 
-# @timeit
-def get_cache_line_access_from_raw_trace(trace_file, l1_cache_line_size):
-    def get_line_adresses(addresses, l1_cache_line_size):
-        '''
-        coalescing the addresses of the warp
-        '''
-        line_idx = int(math.log(l1_cache_line_size,2))
-        sector_size = 32
-        sector_idx = int(math.log(sector_size,2))
-        line_mask = ~(2**line_idx - 1)
-        sector_mask = ~(2**sector_idx - 1)
-        
-        cache_line_set = set()
-        sector_set = set()  # count sector number
-        
-        for addr in addresses:
-            # 排除 0 ？
-            if addr:
-                addr = int(addr, base=16)
-                cache_line = addr >> line_idx
-                cache_line_set.add(cache_line)
-                sector = addr >> sector_idx
-                sector_set.add(sector)
-        
-        return list(cache_line_set), list(sector_set)
-    cache_line_access = []
-    # block_trace = open(trace_file,'r').read().strip().split("\n=====\n")
-    block_trace = open(trace_file,'r').readlines()
-    for trace_line in block_trace:
-        trace_line_splited = trace_line.strip().split(' ')
-        inst = trace_line_splited[0]
-        addrs = trace_line_splited[1:]
-        line_addrs, sector_addrs = get_line_adresses(addrs, l1_cache_line_size)
-        
-        for individual_addrs in line_addrs:
-            cache_line_access.append([0, 0, 0, individual_addrs])
-    print(f"[INFO]: {trace_file} req,warp_inst,ratio: {len(cache_line_access)},{len(block_trace)},{len(cache_line_access)/len(block_trace)}")
-    return cache_line_access
-
-def interleave_trace(block_trace_list):
-    '''
-    block_trace_list: list of block trace
-    return interleaved list
-    '''
-    if len(block_trace_list) == 1:
-        return block_trace_list[0]
-    
-    max_len = len(max(block_trace_list, key=len))
-    interleaved_trace = []
-    for i in range(max_len):
-        for j in range(len(block_trace_list)):
-            if i < len(block_trace_list[j]):
-                interleaved_trace.append(block_trace_list[j][i])
-
-    return interleaved_trace
-
+from sdcm import get_cache_line_access_from_raw_trace
+from memory_model import interleave_trace
 # @timeit
 def get_merged_line_access_from_raw_trace_list(trace_file_list, l1_cache_line_size):
     block_trace_list = []
@@ -211,7 +194,11 @@ def cache_simulate(cache_line_access, cache_parameter):
     
     read_g, write_g = 0, 0
     read_hit_g, write_hit_g = 0, 0
+    
+    cnt = 0
+    # debug_file = open('debug2.csv', 'w')
     for is_store, is_local, warp_id, address in cache_line_access:
+        cnt += 1
         mem_width = 4
         # addr = address * cache_parameter['cache_line_size']
         addr = address * 32  # sector size 32B
@@ -221,6 +208,7 @@ def cache_simulate(cache_line_access, cache_parameter):
             write_g += 1 if is_store else 0
         
         hit = cache.access(mem_width, is_store, addr)
+        # debug_file.write(f"{cnt},{is_store},{is_local},{warp_id},{address},{hit}\n")
         
         if hit:
             if not is_local:
