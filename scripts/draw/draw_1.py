@@ -73,7 +73,7 @@ key_map = {
         "gmem_tot_sectors": ["gld_transactions", '+', "gst_transactions"],
         "gmem_ld_sectors": "gld_transactions",
         "gmem_st_sectors": "gst_transactions",
-        "gmem_tot_diverg": "gld_transactions_per_request",
+        "gmem_ld_diverg": "gld_transactions_per_request",
         
         "l2_tot_trans": ["l2_read_transactions", '+', "l2_write_transactions"],
         "l2_ld_trans": "l2_read_transactions",
@@ -204,9 +204,9 @@ def get_app_stat(json_data, stat_key, app_filter='', func=None, avg=False, key_i
                     value = func(value)
                 accum += value
         except Exception as e:
-            print(f"Exception: {e}")
-            print(f"ERROR: {app} {stat_key} {kernel_res}")
-            exit(-1)
+            # print(f"Exception: {e}")
+            print(f"ERROR in get_app_stat: {app} {stat_key}")
+            raise e
         if avg:
             accum /= len(kernels_res)
         Y.append(accum)
@@ -329,6 +329,7 @@ def draw_side2side(stat, save_img, draw_kernel=False, sim_res_func=None, avg=Tru
     ax.set_xticklabels( x1 )
     
     # add some text for labels, title and axes ticks
+    fig.subplots_adjust(bottom=0.4)
     ax.set_xlabel("app")
     ax.set_ylabel(stat)
     ax.set_title(f"{stat} side by side")
@@ -371,6 +372,13 @@ def draw_correl(stat, save_img, draw_kernel=False, sim_res_func=None, avg=True, 
     ax.legend()
     fig.savefig(save_img_path)
     plt.close(fig)
+    return {
+        stat: {
+            'MAE': MAE,
+            'NRMSE': NRMSE,
+            'corr': corr,
+        }
+    }
     
 def truncate_kernel(sim_res, num):
     sim_res_new = {}
@@ -594,22 +602,44 @@ if __name__ == "__main__":
         draw_correl("l2_hit_rate", f"6_l2_hit_rate_correl.png")
         draw_correl("l1_hit_rate", f"6_l1_hit_rate_correl_all_kernel.png", draw_kernel=True)
         draw_correl("l2_hit_rate", f"6_l2_hit_rate_correl_all_kernel.png", draw_kernel=True)
+        
+        MAE_res = {'apps': {}, 'kernels': {}}
         for bench in benchs:
+            apps_res = {}  # app level
+            kernels_res = {} # kernel level
+            MAE_res['apps'][bench] = apps_res
+            MAE_res['kernels'][bench] = kernels_res
+            
             # set each bench as filter
             app_filter = bench
             
             draw_list = ["l1_hit_rate", "l1_hit_rate_ld", "l1_hit_rate_st", "l2_hit_rate", "l2_hit_rate_ld", "l2_hit_rate_st",
-                         "gmem_ld_reqs","gmem_st_reqs","gmem_tot_reqs","gmem_ld_sectors","gmem_st_sectors","gmem_tot_sectors", "gmem_tot_diverg",
+                         "gmem_ld_reqs","gmem_st_reqs","gmem_tot_reqs","gmem_ld_sectors","gmem_st_sectors","gmem_tot_sectors", "gmem_ld_diverg",
                          "l2_ld_trans","l2_st_trans","l2_tot_trans","dram_ld_trans","dram_st_trans","dram_tot_trans"]
-            for stat in draw_list:
+            for i, stat in enumerate(draw_list):
                 try:
-                    draw_side2side(stat, f"{bench}_{stat}_bar.png")
-                    draw_correl(stat, f"{bench}_{stat}_correl.png")
-                    draw_correl(stat, f"{bench}_{stat}_correl_all_kernel.png", draw_kernel=True)  # not avg
+                    draw_side2side(stat, f"{bench}_{i}_{stat}_bar.png")
+                    app_res = draw_correl(stat, f"{bench}_{i}_{stat}_correl.png")
+                    kernel_res = draw_correl(stat, f"{bench}_{i}_{stat}_correl_all_kernel.png", draw_kernel=True)  # not avg
+                    
+                    apps_res.update(app_res)
+                    kernels_res.update(kernel_res)
                 except:
-                    print(f"ERROR: {app_arg} {stat} failed")
-                    exit(1)
-            
+                    print(f"ERROR: draw memory {app_arg} {stat} failed")
+                    continue
+        
+        import csv
+        # write csv
+        csvfile = open('memory_res.csv', 'w', newline='')
+        csv_writer = csv.writer(csvfile, delimiter=',',
+                            quotechar='|', quoting=csv.QUOTE_MINIMAL)
+        csv_writer.writerow(['level', 'bench', 'stat', 'MAE', 'NRMSE', 'corr'])
+        for level in ['apps', 'kernels']:
+            for bench in benchs:
+                for stat in MAE_res[level][bench].keys():
+                    csv_writer.writerow([level, bench, stat, MAE_res[level][bench][stat]['MAE'], MAE_res[level][bench][stat]['NRMSE'], MAE_res[level][bench][stat]['corr']])
+        csvfile.close()
+        
     elif args.command == 'memory_kernels':
         print(f"\ncommand: {args.command}:")
         args.dir_name = args.dir_name if args.dir_name else args.command
@@ -630,15 +660,15 @@ if __name__ == "__main__":
             os.chdir(prefix)
             
             draw_list = ["l1_hit_rate", "l1_hit_rate_ld", "l1_hit_rate_st", "l2_hit_rate", "l2_hit_rate_ld", "l2_hit_rate_st",
-                         "gmem_ld_reqs","gmem_st_reqs","gmem_tot_reqs","gmem_ld_sectors","gmem_st_sectors","gmem_tot_sectors", "gmem_tot_diverg",
+                         "gmem_ld_reqs","gmem_st_reqs","gmem_tot_reqs","gmem_ld_sectors","gmem_st_sectors","gmem_tot_sectors", "gmem_ld_diverg",
                          "l2_ld_trans","l2_st_trans","l2_tot_trans","dram_ld_trans","dram_st_trans","dram_tot_trans"]
-            for stat in draw_list:
+            for i, stat in enumerate(draw_list):
                 try:
-                    draw_side2side(stat, f"{stat}_bar.png", draw_kernel=True)
-                    draw_correl(stat, f"{stat}_correl.png", draw_kernel=True)
+                    draw_side2side(stat, f"{i}_{stat}_bar.png", draw_kernel=True)
+                    # draw_correl(stat, f"{stat}_correl.png", draw_kernel=True)
                 except:
                     print(f"ERROR: {app_arg} {stat} failed")
-                    exit(1)
+                    continue
     else:
         print(f"ERROR: command {args.command} not supported")
     os.chdir(run_dir)

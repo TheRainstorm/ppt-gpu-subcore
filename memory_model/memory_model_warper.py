@@ -15,6 +15,11 @@ from src.cache_simulator import LRUCache, cache_simulate
 import concurrent.futures
 import multiprocessing
 
+def divide_or_zero(a, b):
+    if b == 0:
+        return 0
+    return a/b
+
 def ppt_gpu_model_warpper(kernel_id, trace_dir,
                          launch_params,
                          max_blocks_per_sm, 
@@ -39,8 +44,23 @@ def ppt_gpu_model_warpper(kernel_id, trace_dir,
                                 gpu_config['l2_cache_size'], gpu_config['l2_cache_line_size'], gpu_config['l2_cache_associativity'],\
                                 gmem_reqs, avg_block_per_sm, block_per_sm_simulate)
     # rename
-    memory_stats['l1_hit_rate'] = memory_stats['umem_hit_rate']
+    memory_stats['l1_hit_rate'] = memory_stats['gmem_hit_rate']
     memory_stats['l2_hit_rate'] = memory_stats['hit_rate_l2']
+    
+    memory_stats['l1_hit_rate_ld'] = memory_stats['gmem_hit_rate_lds']
+    memory_stats['l1_hit_rate_st'] = divide_or_zero(memory_stats['l1_hit_rate']*memory_stats['gmem_tot_trans'] - memory_stats['gmem_hit_rate_lds']*memory_stats['gmem_ld_trans'], memory_stats['gmem_st_trans'])
+    memory_stats['gmem_ld_sectors'] = memory_stats['gmem_ld_trans']  # ppt-gpu has no sector level
+    memory_stats['gmem_st_sectors'] = memory_stats['gmem_st_trans']
+    memory_stats['gmem_tot_sectors'] = memory_stats['gmem_tot_trans']
+    
+    memory_stats['l2_ld_trans'] = memory_stats['l2_ld_trans_gmem']
+    memory_stats['l2_st_trans'] = memory_stats['l2_st_trans_gmem']
+    memory_stats['l2_tot_trans'] = memory_stats['l2_tot_trans_gmem']
+    memory_stats['dram_ld_trans'] = memory_stats['dram_ld_trans_gmem']
+    memory_stats['dram_st_trans'] = memory_stats['dram_st_trans_gmem']
+    memory_stats['dram_tot_trans'] = memory_stats['dram_tot_trans_gmem']
+    # gmem_tot_diverg
+    
     return memory_stats
 
 def process_dict_list(dict_list, op='sum', scale=1):
@@ -236,7 +256,7 @@ def memory_model_warpper(gpu_model, app_path, model, kernel_id=-1, granularity=2
         else:
             raise ValueError(f"model {model} is not supported")
         
-        kernel_res['kernel_name'] = kernel_param['kernel_name']
+        kernel_res.update(kernel_param) # kernel name, grid size etc
         app_res.append(kernel_res)
     
     return app_res, gpu_config
