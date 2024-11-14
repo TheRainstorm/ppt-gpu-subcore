@@ -85,7 +85,6 @@ for app_and_arg in app_and_arg_list:
                         l1_dump_trace=False, l2_dump_trace='')
     avg_l1_hit_rate = sum([res['l1_hit_rate'] for res in app_res]) / len(app_res)
     avg_l2_hit_rate = sum([res['l2_hit_rate'] for res in app_res]) / len(app_res)
-    print(f"avg_l1_hit_rate: {avg_l1_hit_rate}, avg_l2_hit_rate: {avg_l2_hit_rate}")
     sim_res[app_and_arg] = app_res
     logging(f"{app_and_arg} finished")
 

@@ -4,6 +4,7 @@ import json
 import os
 import random
 import sys
+import prettytable as pt
 
 curr_dir = os.path.dirname(__file__)
 par_dir = os.path.dirname(curr_dir)
@@ -14,7 +15,7 @@ from src.kernels import get_max_active_block_per_sm
 from ppt import get_gpu_config, get_kernels_launch_params
 
 from src.sdcm import sdcm_model, process_trace
-from src.cache_simulator import LRUCache, cache_simulate
+from src.cache_simulator import LRUCache, cache_simulate, W
 import concurrent.futures
 import multiprocessing
 
@@ -119,13 +120,17 @@ def run_L1(smi, trace_dir, kernel_id, grid_size, num_SMs, max_blocks_per_sm, gpu
             with open(f'smi_trace_{smi}.json', 'w') as f:
                 json.dump(smi_trace, f)
         # use sector size as cache line size
-        l1_param = {'capacity': gpu_config['l1_cache_size'], 'cache_line_size': gpu_config['l1_sector_size'], 'associativity': gpu_config['l1_cache_associativity']}
         if is_sdcm:
+            l1_param = {'cache_line_size': gpu_config['l1_sector_size'],
+                        'capacity': gpu_config['l1_cache_size'], 'associativity': gpu_config['l1_cache_associativity'],
+                        'write_allocate': False, 'write_strategy': W.write_through}
             hit_rate_dict, L2_req = sdcm_model(smi_trace, l1_param,
                             use_approx=use_approx, granularity=granularity)
         else:
-            hit_rate_dict, L2_req = cache_simulate(smi_trace, l1_param)
-        
+            l1_param = {'cache_line_size': gpu_config['l1_cache_line_size'], 'sector_size': gpu_config['l1_sector_size'],
+                        'capacity': gpu_config['l1_cache_size'], 'associativity': gpu_config['l1_cache_associativity'],
+                        'write_allocate': False, 'write_strategy': W.write_through}
+            hit_rate_dict, L2_req = cache_simulate(smi_trace, l1_param, keep_traffic=True)
         if filter_L2:
             smi_trace = L2_req
         sm_stats['l1_hit_rate'] = hit_rate_dict['tot']
@@ -133,7 +138,7 @@ def run_L1(smi, trace_dir, kernel_id, grid_size, num_SMs, max_blocks_per_sm, gpu
         sm_stats['gmem_st_sectors_hit'] = sm_stats['gmem_st_sectors'] * hit_rate_dict['stg']
         sm_stats['umem_ld_sectors_hit'] = sm_stats['umem_ld_sectors'] * hit_rate_dict['ld']
         sm_stats['umem_st_sectors_hit'] = sm_stats['umem_st_sectors'] * hit_rate_dict['st']
-    # print(hit_rate_dict)
+    
     return flag_active, sm_stats, smi_trace
 
 def sdcm_model_warpper_parallel(kernel_id, trace_dir,
@@ -162,7 +167,6 @@ def sdcm_model_warpper_parallel(kernel_id, trace_dir,
         block_per_sm_simulate = max_blocks_per_sm
     elif granularity == 3:
         block_per_sm_simulate = avg_block_per_sm
-    
     # scale
     scale = avg_block_per_sm / block_per_sm_simulate
     
@@ -173,6 +177,7 @@ def sdcm_model_warpper_parallel(kernel_id, trace_dir,
             if trace_file.startswith(f"kernel_{kernel_id}_sm_"):
                 smi = int(trace_file.split('_')[-1].split('.')[0])
                 sm_map.append([smi])
+        scale = 1  # sm trace is already at sm level
     elif block_mapping==BlockMapping.mod_block_mapping:
         for smi in range(active_sm):
             smi_blocks = []
@@ -207,66 +212,107 @@ def sdcm_model_warpper_parallel(kernel_id, trace_dir,
                 
     # # serial for debugging
     # for i in range(active_sm):
-    #     flag, sm_stats, smi_trace = run_L1(i, trace_dir, kernel_id, grid_size, num_SMs, block_per_sm_simulate, gpu_config, is_sdcm, use_approx, granularity, filter_L2, use_sm_trace)
+    #     flag, sm_stats, smi_trace = run_L1(i, trace_dir, kernel_id, grid_size, num_SMs, block_per_sm_simulate,
+    #                                        gpu_config, is_sdcm, use_approx, granularity, filter_L2, block_mapping, sm_map, l1_dump_trace)
     #     if flag:
     #         sm_traces.append(smi_trace)
     #         sm_stats_list.append(sm_stats)
     
     K = process_dict_list(sm_stats_list, op='sum', scale=scale)
+    # caculate average L1 hit rate for all SMs
     K['l1_hit_rate_list'] = [sm_stats['l1_hit_rate'] for sm_stats in sm_stats_list]
-    K['l1_hit_rate_ld'] = K['umem_ld_sectors_hit'] / K['umem_ld_sectors'] if K['umem_ld_sectors'] > 0 else 0
-    K['l1_hit_rate_st'] = K['umem_st_sectors_hit'] / K['umem_st_sectors'] if K['umem_st_sectors'] > 0 else 0
-    K['l1_hit_rate'] = (K['umem_ld_sectors_hit'] + K['umem_st_sectors_hit']) / (K['umem_ld_sectors'] + K['umem_st_sectors']) if K['umem_ld_sectors'] + K['umem_st_sectors'] > 0 else 0
-    K['l1_hit_rate_ldg'] = K['gmem_ld_sectors_hit'] / K['gmem_ld_sectors'] if K['gmem_ld_sectors'] > 0 else 0
-    K['l1_hit_rate_stg'] = K['gmem_st_sectors_hit'] / K['gmem_st_sectors'] if K['gmem_st_sectors'] > 0 else 0
-    K['l1_hit_rate_g'] = (K['gmem_ld_sectors_hit'] + K['gmem_st_sectors_hit']) / (K['gmem_ld_sectors'] + K['gmem_st_sectors']) if K['gmem_ld_sectors'] + K['gmem_st_sectors'] > 0 else 0
+    K['l1_hit_rate_ld'] = divide_or_zero(K['umem_ld_sectors_hit'], K['umem_ld_sectors'])
+    K['l1_hit_rate_st'] = divide_or_zero(K['umem_st_sectors_hit'], K['umem_st_sectors'])
+    K['l1_hit_rate'] = divide_or_zero((K['umem_ld_sectors_hit'] + K['umem_st_sectors_hit']), (K['umem_ld_sectors'] + K['umem_st_sectors']))
+    K['l1_hit_rate_ldg'] = divide_or_zero(K['gmem_ld_sectors_hit'], K['gmem_ld_sectors'])
+    K['l1_hit_rate_stg'] = divide_or_zero(K['gmem_st_sectors_hit'], K['gmem_st_sectors'])
+    K['l1_hit_rate_g'] = divide_or_zero((K['gmem_ld_sectors_hit'] + K['gmem_st_sectors_hit']), (K['gmem_ld_sectors'] + K['gmem_st_sectors']))
     
-    # print(K)
     # reuse distance model for L2
     l2_trace = interleave_trace(sm_traces)
     if l2_dump_trace:
         with open(l2_dump_trace.replace('.csv', '.json'), 'w') as f:
             json.dump(l2_trace, f)
     
-    l2_param = {'capacity': gpu_config['l2_cache_size'], 'cache_line_size': gpu_config['l2_cache_line_size'], 'associativity': gpu_config['l2_cache_associativity']}
+    l2_param = {'capacity': gpu_config['l2_cache_size'], 'cache_line_size': gpu_config['l2_cache_line_size'], 'sector_size': gpu_config['l2_sector_size'], 'associativity': gpu_config['l2_cache_associativity'],
+                'write_allocate': True, 'write_strategy': W.write_back}
     if is_sdcm:
         l2_hit_rate_dict, _ = sdcm_model(l2_trace, l2_param, dump_trace=l2_dump_trace)
+        K['l2_hit_rate'] = l2_hit_rate_dict['tot']
+        K['l2_hit_rate_ld'] = l2_hit_rate_dict['ld']
+        K['l2_hit_rate_st'] = l2_hit_rate_dict['st']
     else:
         l2_hit_rate_dict, _ = cache_simulate(l2_trace, l2_param, dump_trace=l2_dump_trace)
-    K['l2_hit_rate'] = l2_hit_rate_dict['tot']
-    K['l2_hit_rate_ld'] = l2_hit_rate_dict['ld']
-    K['l2_hit_rate_st'] = l2_hit_rate_dict['st']
+        # K['l2_hit_rate'] = l2_hit_rate_dict['tot']
+        # K['l2_hit_rate_ld'] = l2_hit_rate_dict['ld']
+        # K['l2_hit_rate_st'] = l2_hit_rate_dict['st']
+        K['l2_hit_rate'] = l2_hit_rate_dict['tot_tag']
+        K['l2_hit_rate_ld'] = l2_hit_rate_dict['ld_tag']
+        K['l2_hit_rate_st'] = l2_hit_rate_dict['st_tag']
+        K['l2_hit_rate_tag'] = l2_hit_rate_dict['tot_tag']
+        K['l2_hit_rate_ld_tag'] = l2_hit_rate_dict['ld_tag']
+        K['l2_hit_rate_st_tag'] = l2_hit_rate_dict['st_tag']
     
-    # global memory
+    # L1/TEX
     K['gmem_tot_reqs'] = K['gmem_ld_reqs'] + K['gmem_st_reqs']
-    K['gmem_tot_trans'] = K['gmem_ld_trans'] + K['gmem_st_trans']
+    # K['gmem_tot_trans'] = K['gmem_ld_trans'] + K['gmem_st_trans']
     K['gmem_tot_sectors'] = K['gmem_ld_sectors'] + K['gmem_st_sectors']
     K['gmem_ld_diverg'] = K['gmem_ld_sectors'] / K['gmem_ld_reqs'] if K['gmem_ld_reqs'] > 0 else 0
     K['gmem_st_diverg'] = K['gmem_st_sectors'] / K['gmem_st_reqs'] if K['gmem_st_reqs'] > 0 else 0
     K['gmem_tot_diverg'] = K['gmem_tot_sectors'] / K['gmem_tot_reqs'] if K['gmem_tot_reqs'] > 0 else 0
     
     K['umem_tot_reqs'] = K['umem_ld_reqs'] + K['umem_st_reqs']
-    K['umem_tot_trans'] = K['umem_ld_trans'] + K['umem_st_trans']
+    # K['umem_tot_trans'] = K['umem_ld_trans'] + K['umem_st_trans']
     K['umem_tot_sectors'] = K['umem_ld_sectors'] + K['umem_st_sectors']
-    # l2
-    K['l2_ld_trans'] = K['umem_ld_sectors'] * (1 - K['l1_hit_rate_ld'])
-    # K['l2_ld_trans_gmem'] = K['gmem_ld_sectors'] * (1 - K['l1_hit_rate_ldg'])
-    if l1_write_through:
-        K['l2_st_trans'] = K['umem_st_sectors']
-        # K['l2_st_trans_gmem'] = K['gmem_st_sectors']
+    
+    # L2
+    if is_sdcm:
+        K['l2_ld_trans'] = K['umem_ld_sectors'] * (1 - K['l1_hit_rate_ld'])
+        if l1_write_through:
+            K['l2_st_trans'] = K['umem_st_sectors']
+        else:
+            K['l2_st_trans'] = K['umem_st_sectors'] * (1 - K['l1_hit_rate_st'])
     else:
-        K['l2_st_trans'] = K['umem_st_sectors'] * (1 - K['l1_hit_rate_st'])
-        # K['l2_st_trans_gmem'] = K['gmem_st_sectors'] * (1 - K['l1_hit_rate_stg'])
+        K['l2_ld_trans'] = l2_hit_rate_dict['sectors_ld'] * scale
+        K['l2_st_trans'] = l2_hit_rate_dict['sectors_st'] * scale
+    
     K['l2_tot_trans'] = K['l2_ld_trans'] + K['l2_st_trans']
-    # K['l2_tot_trans_gmem'] = K['l2_ld_trans_gmem'] + K['l2_st_trans_gmem']
+    
     # DRAM
-    K["dram_tot_trans"] = K["l2_tot_trans"] * (1 - K["l2_hit_rate"])
-    K["dram_ld_trans"] = K["l2_ld_trans"] * (1 - K["l2_hit_rate_ld"])
-    K["dram_st_trans"] = K["l2_st_trans"] * (1 - K["l2_hit_rate_st"])
-    # K["dram_tot_trans_gmem"] = K["l2_tot_trans_gmem"] * (1 - K["l2_hit_rate"])
-    # K["dram_ld_trans_gmem"] =  K["l2_ld_trans_gmem"] * (1 - K["l2_hit_rate"])
-    # K["dram_st_trans_gmem"] =  K["l2_st_trans_gmem"] * (1 - K["l2_hit_rate"])
+    if is_sdcm:
+        K["dram_tot_trans"] = K["l2_tot_trans"] * (1 - K["l2_hit_rate"])
+        K["dram_ld_trans"] = K["l2_ld_trans"] * (1 - K["l2_hit_rate_ld"])
+        K["dram_st_trans"] = K["l2_st_trans"] * (1 - K["l2_hit_rate_st"])
+    else:
+        K['dram_ld_trans'] = l2_hit_rate_dict['sectors_ld_nextlv'] * scale
+        K['dram_st_trans'] = l2_hit_rate_dict['sectors_st_nextlv'] * scale
+        K['dram_tot_trans'] = K['dram_ld_trans'] + K['dram_st_trans']
+    K['scale'] = scale
 
+    # debug print
+    if kernel_id==1:
+        print("L1/TEX Cache")
+        tb = pt.PrettyTable()
+        tb.field_names = ["Type", "Instr/Requests", "Sectors", "Sectors/Req", "Hit Rate", "Bytes", "Sector Misses to L2"]
+        tb.add_row(["Global Load", K['gmem_ld_reqs'], K['gmem_ld_sectors'], K['gmem_ld_diverg'], K['l1_hit_rate_ld'], K['gmem_ld_sectors']*gpu_config['l1_sector_size'], 0])
+        tb.add_row(["Global Store", K['gmem_st_reqs'], K['gmem_st_sectors'], K['gmem_st_diverg'], K['l1_hit_rate_st'], K['gmem_st_sectors']*gpu_config['l1_sector_size'], 0])
+        tb.add_row(["Total", K['gmem_tot_reqs'], K['gmem_tot_sectors'], K['gmem_tot_diverg'], K['l1_hit_rate'], K['gmem_tot_sectors']*gpu_config['l1_sector_size'], 0])
+        print(tb)
+        print("L2 Cache")
+        tb = pt.PrettyTable()
+        tb.field_names = ["Type", "Requests", "Sectors", "Sectors/Req", "Hit Rate", "Bytes", "Sector Misses to Device"]
+        tb.add_row(["L1/TEX Load", K['gmem_ld_reqs'], K['l2_ld_trans'],  divide_or_zero(K['l2_ld_trans'],K['gmem_ld_reqs']), K['l2_hit_rate_ld'], K['l2_ld_trans']*gpu_config['l2_sector_size'], 0])
+        tb.add_row(["L1/TEX Store", K['gmem_st_reqs'], K['l2_st_trans'], divide_or_zero(K['l2_st_trans'],K['gmem_st_reqs']), K['l2_hit_rate_st'], K['l2_st_trans']*gpu_config['l2_sector_size'], 0])
+        tb.add_row(["L1/TEX Total", K['gmem_tot_reqs'], K['l2_tot_trans'], divide_or_zero(K['l2_tot_trans'],K['gmem_tot_reqs']), K['l2_hit_rate'], K['l2_tot_trans']*gpu_config['l2_sector_size'], 0])
+        print(tb)
+        print("Device Memory")
+        tb = pt.PrettyTable()
+        tb.field_names = ["Type", "Sectors", "Bytes"]
+        tb.add_row(["Load", K['dram_ld_trans'],  K['dram_ld_trans']*32])
+        tb.add_row(["Store", K['dram_st_trans'], K['dram_st_trans']*32])
+        tb.add_row(["Total", K['dram_tot_trans'],K['dram_tot_trans']*32])
+        print(tb)
+    
     return K
 
 def memory_model_warpper(gpu_model, app_path, model, kernel_id=-1, granularity=2,
@@ -283,7 +329,7 @@ def memory_model_warpper(gpu_model, app_path, model, kernel_id=-1, granularity=2
     for kernel_param in kernels_launch_params:
         occupancy_res = get_max_active_block_per_sm(gpu_config['cc_configs'], kernel_param, gpu_config['num_SMs'], gpu_config['shared_mem_size'])
         
-        print(f"kernel {kernel_param['kernel_id']} start")
+        # print(f"kernel {kernel_param['kernel_id']} start")
         
         if model == 'ppt-gpu':
             kernel_res = ppt_gpu_model_warpper(kernel_param['kernel_id'], app_path, kernel_param, occupancy_res['max_active_block_per_sm'], gpu_config,
@@ -342,10 +388,12 @@ if __name__ == "__main__":
     args = parser.parse_args()
     if args.use_sm_trace:
         args.block_mapping = BlockMapping.sm_block_mapping
-        
+    
+    l1_dump_trace, l2_dump_trace = False, ''
+    # l1_dump_trace, l2_dump_trace = True, 'l2_trace.csv'
     app_res, _ = memory_model_warpper(args.config, args.app_path, args.model, kernel_id=args.kernel_id, granularity=args.granularity, use_approx=args.use_approx,
                         filter_L2=args.filter_l2, block_mapping=args.block_mapping,
-                        l1_dump_trace=False, l2_dump_trace='l2_trace.csv')
+                        l1_dump_trace=l1_dump_trace, l2_dump_trace=l2_dump_trace)
     print(app_res)
     print("Done")
 
