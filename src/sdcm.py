@@ -41,9 +41,11 @@ def get_line_adresses(addresses, l1_cache_line_size, sector_size=32):
         # 排除 0 ？
         if addr:
             addr = int(addr, base=16)
-            cache_line = addr >> line_idx
+            cache_line = (addr >> line_idx) << line_idx
+            # cache_line = (addr >> line_idx)
             cache_line_set.add(cache_line)
-            sector = addr >> sector_idx
+            sector = (addr >> sector_idx) << sector_idx
+            # sector = (addr >> sector_idx)
             sector_set.add(sector)
     
     return list(cache_line_set), list(sector_set)

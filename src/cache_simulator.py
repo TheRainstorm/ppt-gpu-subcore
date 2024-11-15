@@ -311,7 +311,8 @@ def cache_simulate(cache_line_access, cache_parameter, dump_trace='', keep_traff
         
         cnt += 1
         mem_width = 4
-        addr = address * cache_parameter['sector_size']
+        # addr = address * cache_parameter['sector_size']
+        addr = address
 
         hit, traffics = cache.access(mem_width, is_store, addr)
         if dump_trace:
