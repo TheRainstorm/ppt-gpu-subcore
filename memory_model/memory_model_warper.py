@@ -242,6 +242,8 @@ def sdcm_model_warpper_parallel(kernel_id, trace_dir,
         K['l2_hit_rate'] = l2_hit_rate_dict['tot']
         K['l2_hit_rate_ld'] = l2_hit_rate_dict['ld']
         K['l2_hit_rate_st'] = l2_hit_rate_dict['st']
+        K['l2_ld_reqs'] = 0
+        K['l2_st_reqs'] =0
     else:
         l2_hit_rate_dict, _ = cache_simulate(l2_trace, l2_param, dump_trace=l2_dump_trace)
         # K['l2_hit_rate'] = l2_hit_rate_dict['tot']
@@ -253,6 +255,8 @@ def sdcm_model_warpper_parallel(kernel_id, trace_dir,
         K['l2_hit_rate_tag'] = l2_hit_rate_dict['tot_tag']
         K['l2_hit_rate_ld_tag'] = l2_hit_rate_dict['ld_tag']
         K['l2_hit_rate_st_tag'] = l2_hit_rate_dict['st_tag']
+        K['l2_ld_reqs'] = 0
+        K['l2_st_reqs'] = 0
     
     # L1/TEX
     K['gmem_tot_reqs'] = K['gmem_ld_reqs'] + K['gmem_st_reqs']
@@ -302,9 +306,9 @@ def sdcm_model_warpper_parallel(kernel_id, trace_dir,
         print("L2 Cache")
         tb = pt.PrettyTable()
         tb.field_names = ["Type", "Requests", "Sectors", "Sectors/Req", "Hit Rate", "Bytes", "Sector Misses to Device"]
-        tb.add_row(["L1/TEX Load", K['gmem_ld_reqs'], K['l2_ld_trans'],  divide_or_zero(K['l2_ld_trans'],K['gmem_ld_reqs']), K['l2_hit_rate_ld'], K['l2_ld_trans']*gpu_config['l2_sector_size'], 0])
-        tb.add_row(["L1/TEX Store", K['gmem_st_reqs'], K['l2_st_trans'], divide_or_zero(K['l2_st_trans'],K['gmem_st_reqs']), K['l2_hit_rate_st'], K['l2_st_trans']*gpu_config['l2_sector_size'], 0])
-        tb.add_row(["L1/TEX Total", K['gmem_tot_reqs'], K['l2_tot_trans'], divide_or_zero(K['l2_tot_trans'],K['gmem_tot_reqs']), K['l2_hit_rate'], K['l2_tot_trans']*gpu_config['l2_sector_size'], 0])
+        tb.add_row(["L1/TEX Load", K['l2_ld_reqs'], K['l2_ld_trans'],  divide_or_zero(K['l2_ld_trans'],K['l2_ld_reqs']), K['l2_hit_rate_ld'], K['l2_ld_trans']*gpu_config['l2_sector_size'], 0])
+        tb.add_row(["L1/TEX Store", K['l2_st_reqs'], K['l2_st_trans'], divide_or_zero(K['l2_st_trans'],K['l2_st_reqs']), K['l2_hit_rate_st'], K['l2_st_trans']*gpu_config['l2_sector_size'], 0])
+        tb.add_row(["L1/TEX Total", K['l2_ld_reqs']+K['l2_st_reqs'], K['l2_tot_trans'], divide_or_zero(K['l2_tot_trans'],K['l2_ld_reqs']+K['l2_st_reqs']), K['l2_hit_rate'], K['l2_tot_trans']*gpu_config['l2_sector_size'], 0])
         print(tb)
         print("Device Memory")
         tb = pt.PrettyTable()

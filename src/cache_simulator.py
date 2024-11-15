@@ -305,9 +305,16 @@ def cache_simulate(cache_line_access, cache_parameter, dump_trace='', keep_traff
     if dump_trace:
         debug_file = open(dump_trace, 'w')
     
+    def inc(d, key):
+        if key not in d:
+            d[key] = 0
+        d[key] += 1
+    warp_read = {}
+    warp_write = {}
     for is_store, is_local, warp_id, address in cache_line_access:
         scope = 'local' if is_local else 'global'
         cache.scope = scope
+        inc(warp_write if is_store else warp_read, warp_id)
         
         cnt += 1
         mem_width = 4
@@ -352,6 +359,8 @@ def cache_simulate(cache_line_access, cache_parameter, dump_trace='', keep_traff
     hit_rate_dict['sectors_st'] = cache_info['write_cnt']
     hit_rate_dict['sectors_ld_nextlv'] = cache_info['read_req']
     hit_rate_dict['sectors_st_nextlv'] = cache_info['write_req']
+    hit_rate_dict['line_read'] = len(warp_read)
+    hit_rate_dict['line_write'] = len(warp_write)
     
     return hit_rate_dict, req_nextlv
     
