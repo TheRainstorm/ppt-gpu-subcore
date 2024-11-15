@@ -9,16 +9,18 @@ curr_dir = os.path.dirname(__file__)
 par_dir = os.path.dirname(curr_dir)
 sys.path.insert(0, os.path.abspath(par_dir))
 
-cmp_list = ["l1_hit_rate", "l1_hit_rate_ld", "l1_hit_rate_st", "l2_hit_rate", "l2_hit_rate_ld", "l2_hit_rate_st",
-            "l2_ld_trans","l2_st_trans","l2_tot_trans","dram_ld_trans","dram_st_trans","dram_tot_trans"]
+cmp_list = ["l1_hit_rate", "l1_hit_rate_g", "l1_hit_rate_ldg", "l1_hit_rate_stg", "l2_hit_rate", "l2_hit_rate_ld", "l2_hit_rate_st",
+            "l2_ld_trans","l2_st_trans","l2_tot_trans","dram_ld_trans","dram_st_trans","dram_tot_trans",
+            "gmem_tot_reqs", "gmem_ld_sectors", "gmem_st_sectors", "gmem_tot_sectors", "gmem_ld_diverg"]
 
 def process_hw(hw_res):
     for app_arg, app_res in hw_res.items():
         for i, kernel_res in enumerate(app_res):
-            # # "l1_hit_rate": "tex_cache_hit_rate",
-            kernel_res['l1_hit_rate'] = kernel_res['global_hit_rate'] / 100
-            kernel_res['l1_hit_rate_ld'] = kernel_res['global_hit_rate_ld'] / 100
-            kernel_res['l1_hit_rate_st'] = kernel_res['global_hit_rate_st'] / 100
+            kernel_res['l1_hit_rate'] = kernel_res['tex_cache_hit_rate'] / 100
+            kernel_res['l1_hit_rate_g'] = kernel_res['global_hit_rate'] / 100
+            kernel_res['l1_hit_rate_ldg'] = kernel_res['global_hit_rate_ld'] / 100
+            kernel_res['l1_hit_rate_stg'] = kernel_res['global_hit_rate_st'] / 100
+            
             kernel_res['l2_hit_rate'] = kernel_res['l2_tex_hit_rate'] / 100
             kernel_res['l2_hit_rate_ld'] = kernel_res['l2_tex_read_hit_rate'] / 100
             kernel_res['l2_hit_rate_st'] = kernel_res['l2_tex_write_hit_rate'] / 100

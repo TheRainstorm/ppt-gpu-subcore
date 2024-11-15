@@ -50,10 +50,14 @@ key_map = {
         
         "ipc": "ipc",
         
-        "l1_hit_rate": ["global_hit_rate", '/', '100'],
-        # "l1_hit_rate": "tex_cache_hit_rate",
-        "l1_hit_rate_ld": ["global_hit_rate_ld", '/', '100'],
-        "l1_hit_rate_st": ["global_hit_rate_st", '/', '100'],
+        # umem
+        "l1_hit_rate": ["tex_cache_hit_rate", '/', '100'],
+        # "l1_hit_rate_ld": ["global_hit_rate_ld", '/', '100'],
+        # "l1_hit_rate_st": ["global_hit_rate_st", '/', '100'],
+        # global
+        "l1_hit_rate_g": ["global_hit_rate", '/', '100'],
+        "l1_hit_rate_ldg": ["global_hit_rate_ld", '/', '100'],
+        "l1_hit_rate_stg": ["global_hit_rate_st", '/', '100'],
         
         "l2_hit_rate": ["l2_tex_hit_rate", '/', '100'],
         "l2_hit_rate_ld": ["l2_tex_read_hit_rate", '/', '100'],
@@ -82,6 +86,10 @@ key_map = {
         "dram_ld_trans": "dram_read_transactions",
         "dram_st_trans": "dram_write_transactions",
     }
+
+draw_list = ["l1_hit_rate", "l1_hit_rate_g", "l1_hit_rate_ldg", "l1_hit_rate_stg", "l2_hit_rate", "l2_hit_rate_ld", "l2_hit_rate_st",
+            "l2_ld_trans","l2_st_trans","l2_tot_trans","dram_ld_trans","dram_st_trans","dram_tot_trans",
+            "gmem_tot_reqs", "gmem_ld_sectors", "gmem_st_sectors", "gmem_tot_sectors", "gmem_ld_diverg"]
 
 # 定义操作符的优先级
 precedence = {
@@ -217,14 +225,15 @@ def get_app_stat(json_data, stat_key, app_filter='', func=None, avg=False, key_i
 overwrite = False
 app_filter = ''
 
-def draw_helper(msg, stat, save_img, draw_kernel=False, sim_res_func=None, avg=False, hw_stat=""):
+def draw_helper(msg, stat, save_img, draw_kernel=False, sim_res_func=None, avg=False, hw_stat="", verbose=True):
     global overwrite, app_filter
     save_img_path = os.path.join(os.getcwd(), save_img)
     if os.path.exists(save_img_path) and not overwrite:
         return False, None
     if not os.path.exists(os.path.dirname(save_img_path)):
         os.makedirs(os.path.dirname(save_img_path))
-    print(f"draw {msg} {stat}: {save_img[-60:]}")
+    if verbose:
+        print(f"draw {msg} {stat}: {save_img[-60:]}")
     
     hw_stat_key = key_map[stat] if not hw_stat else hw_stat
     key_is_expression = False
@@ -310,8 +319,8 @@ def draw_error(stat, save_img, draw_kernel=False, sim_res_func=None, error_text=
     fig.savefig(save_img_path)
     plt.close(fig)
 
-def draw_side2side(stat, save_img, draw_kernel=False, sim_res_func=None, avg=True, hw_stat=""):
-    flag, data = draw_helper("bar", stat, save_img, draw_kernel, sim_res_func, avg, hw_stat)
+def draw_side2side(stat, save_img, draw_kernel=False, sim_res_func=None, avg=True, hw_stat="", verbose=True):
+    flag, data = draw_helper("bar", stat, save_img, draw_kernel, sim_res_func, avg, hw_stat, verbose=verbose)
     if not flag:
         return
     x1, y1, y2, MAE, NRMSE, corr, save_img_path = data
@@ -613,9 +622,6 @@ if __name__ == "__main__":
             # set each bench as filter
             app_filter = bench
             
-            draw_list = ["l1_hit_rate", "l1_hit_rate_ld", "l1_hit_rate_st", "l2_hit_rate", "l2_hit_rate_ld", "l2_hit_rate_st",
-                         "gmem_ld_reqs","gmem_st_reqs","gmem_tot_reqs","gmem_ld_sectors","gmem_st_sectors","gmem_tot_sectors", "gmem_ld_diverg",
-                         "l2_ld_trans","l2_st_trans","l2_tot_trans","dram_ld_trans","dram_st_trans","dram_tot_trans"]
             for i, stat in enumerate(draw_list):
                 try:
                     draw_side2side(stat, f"{bench}_{i}_{stat}_bar.png")
@@ -659,12 +665,9 @@ if __name__ == "__main__":
             os.makedirs(prefix, exist_ok=True)  # save image in seperate dir
             os.chdir(prefix)
             
-            draw_list = ["l1_hit_rate", "l1_hit_rate_ld", "l1_hit_rate_st", "l2_hit_rate", "l2_hit_rate_ld", "l2_hit_rate_st",
-                         "gmem_ld_reqs","gmem_st_reqs","gmem_tot_reqs","gmem_ld_sectors","gmem_st_sectors","gmem_tot_sectors", "gmem_ld_diverg",
-                         "l2_ld_trans","l2_st_trans","l2_tot_trans","dram_ld_trans","dram_st_trans","dram_tot_trans"]
             for i, stat in enumerate(draw_list):
                 try:
-                    draw_side2side(stat, f"{i}_{stat}_bar.png", draw_kernel=True)
+                    draw_side2side(stat, f"{i}_{stat}_bar.png", draw_kernel=True, verbose=False)
                     # draw_correl(stat, f"{stat}_correl.png", draw_kernel=True)
                 except:
                     print(f"ERROR: {app_arg} {stat} failed")
