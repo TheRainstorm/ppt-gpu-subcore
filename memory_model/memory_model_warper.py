@@ -52,12 +52,15 @@ def ppt_gpu_model_warpper(kernel_id, trace_dir,
                                 gpu_config['l2_cache_size'], gpu_config['l2_cache_line_size'], gpu_config['l2_cache_associativity'],\
                                 gmem_reqs, avg_block_per_sm, block_per_sm_simulate)
     # rename
-    memory_stats['l1_hit_rate'] = memory_stats['gmem_hit_rate']
+    memory_stats['l1_hit_rate'] = memory_stats['umem_hit_rate']
+    memory_stats['l1_hit_rate_g'] = memory_stats['gmem_hit_rate']
+    memory_stats['l1_hit_rate_l'] = memory_stats['lmem_hit_rate']
+    memory_stats['l1_hit_rate_ldg'] = memory_stats['gmem_hit_rate_lds']
+    memory_stats['l1_hit_rate_stg'] = divide_or_zero(memory_stats['l1_hit_rate']*memory_stats['gmem_tot_trans'] - memory_stats['gmem_hit_rate_lds']*memory_stats['gmem_ld_trans'], memory_stats['gmem_st_trans'])
+    
     memory_stats['l2_hit_rate'] = memory_stats['hit_rate_l2']
     memory_stats['l2_hit_rate_ld'] = memory_stats['l2_hit_rate_st'] = memory_stats['hit_rate_l2']
     
-    memory_stats['l1_hit_rate_ld'] = memory_stats['gmem_hit_rate_lds']
-    memory_stats['l1_hit_rate_st'] = divide_or_zero(memory_stats['l1_hit_rate']*memory_stats['gmem_tot_trans'] - memory_stats['gmem_hit_rate_lds']*memory_stats['gmem_ld_trans'], memory_stats['gmem_st_trans'])
     memory_stats['gmem_ld_sectors'] = memory_stats['gmem_ld_trans']  # ppt-gpu has no sector level
     memory_stats['gmem_st_sectors'] = memory_stats['gmem_st_trans']
     memory_stats['gmem_tot_sectors'] = memory_stats['gmem_tot_trans']
