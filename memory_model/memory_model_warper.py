@@ -146,11 +146,11 @@ def sdcm_model_warpper_parallel(kernel_id, trace_dir,
                 launch_params,
                 max_blocks_per_sm, 
                 gpu_config, # gpu config
-                is_sdcm=True,
+                l1_is_sdcm=True,
+                l2_is_sdcm=True,
                 use_approx=True,
                 granularity=2,
                 filter_L2=False,
-                l1_write_through=True,
                 block_mapping=BlockMapping.mod_block_mapping,
                 l1_dump_trace=False,l2_dump_trace=''):
     grid_size = launch_params['grid_size']
@@ -203,7 +203,7 @@ def sdcm_model_warpper_parallel(kernel_id, trace_dir,
     num_jobs = min(active_sm, multiprocessing.cpu_count())
     with concurrent.futures.ProcessPoolExecutor(max_workers=num_jobs) as executor:
         futures = [executor.submit(run_L1, i, trace_dir, kernel_id, grid_size, num_SMs, block_per_sm_simulate,
-                                   gpu_config, is_sdcm, use_approx, granularity, filter_L2, block_mapping, sm_map, l1_dump_trace)
+                                   gpu_config, l1_is_sdcm, use_approx, granularity, filter_L2, block_mapping, sm_map, l1_dump_trace)
                    for i in range(active_sm)]
         for future in concurrent.futures.as_completed(futures):
             flag, sm_stats, smi_trace = future.result()
@@ -214,7 +214,7 @@ def sdcm_model_warpper_parallel(kernel_id, trace_dir,
     # # serial for debugging
     # for i in range(active_sm):
     #     flag, sm_stats, smi_trace = run_L1(i, trace_dir, kernel_id, grid_size, num_SMs, block_per_sm_simulate,
-    #                                        gpu_config, is_sdcm, use_approx, granularity, filter_L2, block_mapping, sm_map, l1_dump_trace)
+    #                                        gpu_config, l1_is_sdcm, use_approx, granularity, filter_L2, block_mapping, sm_map, l1_dump_trace)
     #     if flag:
     #         sm_traces.append(smi_trace)
     #         sm_stats_list.append(sm_stats)
@@ -237,7 +237,7 @@ def sdcm_model_warpper_parallel(kernel_id, trace_dir,
     
     l2_param = {'capacity': gpu_config['l2_cache_size'], 'cache_line_size': gpu_config['l2_cache_line_size'], 'sector_size': gpu_config['l2_sector_size'], 'associativity': gpu_config['l2_cache_associativity'],
                 'write_allocate': True, 'write_strategy': W.write_back}
-    if is_sdcm:
+    if l2_is_sdcm:
         l2_hit_rate_dict, _ = sdcm_model(l2_trace, l2_param, dump_trace=l2_dump_trace)
         K['l2_hit_rate'] = l2_hit_rate_dict['tot']
         K['l2_hit_rate_ld'] = l2_hit_rate_dict['ld']
@@ -246,15 +246,9 @@ def sdcm_model_warpper_parallel(kernel_id, trace_dir,
         K['l2_st_reqs'] =0
     else:
         l2_hit_rate_dict, _ = cache_simulate(l2_trace, l2_param, dump_trace=l2_dump_trace)
-        # K['l2_hit_rate'] = l2_hit_rate_dict['tot']
-        # K['l2_hit_rate_ld'] = l2_hit_rate_dict['ld']
-        # K['l2_hit_rate_st'] = l2_hit_rate_dict['st']
-        K['l2_hit_rate'] = l2_hit_rate_dict['tot_tag']
-        K['l2_hit_rate_ld'] = l2_hit_rate_dict['ld_tag']
-        K['l2_hit_rate_st'] = l2_hit_rate_dict['st_tag']
-        K['l2_hit_rate_tag'] = l2_hit_rate_dict['tot_tag']
-        K['l2_hit_rate_ld_tag'] = l2_hit_rate_dict['ld_tag']
-        K['l2_hit_rate_st_tag'] = l2_hit_rate_dict['st_tag']
+        K['l2_hit_rate'] = l2_hit_rate_dict['tot']
+        K['l2_hit_rate_ld'] = l2_hit_rate_dict['ld']
+        K['l2_hit_rate_st'] = l2_hit_rate_dict['st']
         K['l2_ld_reqs'] = 0
         K['l2_st_reqs'] = 0
     
@@ -271,20 +265,14 @@ def sdcm_model_warpper_parallel(kernel_id, trace_dir,
     K['umem_tot_sectors'] = K['umem_ld_sectors'] + K['umem_st_sectors']
     
     # L2
-    if is_sdcm:
-        K['l2_ld_trans'] = K['umem_ld_sectors'] * (1 - K['l1_hit_rate_ld'])
-        if l1_write_through:
-            K['l2_st_trans'] = K['umem_st_sectors']
-        else:
-            K['l2_st_trans'] = K['umem_st_sectors'] * (1 - K['l1_hit_rate_st'])
-    else:
-        K['l2_ld_trans'] = l2_hit_rate_dict['sectors_ld'] * scale
-        K['l2_st_trans'] = l2_hit_rate_dict['sectors_st'] * scale
-    
+    # K['l2_ld_trans'] = K['umem_ld_sectors'] * (1 - K['l1_hit_rate_ld'])
+    # K['l2_st_trans'] = K['umem_st_sectors']
+    K['l2_ld_trans'] = l2_hit_rate_dict['sectors_ld'] * scale
+    K['l2_st_trans'] = l2_hit_rate_dict['sectors_st'] * scale
     K['l2_tot_trans'] = K['l2_ld_trans'] + K['l2_st_trans']
-    
+
     # DRAM
-    if is_sdcm:
+    if l2_is_sdcm:
         K["dram_tot_trans"] = K["l2_tot_trans"] * (1 - K["l2_hit_rate"])
         K["dram_ld_trans"] = K["l2_ld_trans"] * (1 - K["l2_hit_rate_ld"])
         K["dram_st_trans"] = K["l2_st_trans"] * (1 - K["l2_hit_rate_st"])
@@ -341,11 +329,15 @@ def memory_model_warpper(gpu_model, app_path, model, kernel_id=-1, granularity=2
                                         granularity=granularity)
         elif model == 'sdcm':
             kernel_res = sdcm_model_warpper_parallel(kernel_param['kernel_id'], app_path, kernel_param, occupancy_res['max_active_block_per_sm'], gpu_config,
-                                        granularity=granularity, block_mapping=block_mapping, use_approx=use_approx, filter_L2=filter_L2,
+                                        l1_is_sdcm=True, l2_is_sdcm=True, granularity=granularity, block_mapping=block_mapping, use_approx=use_approx, filter_L2=filter_L2,
+                                        l1_dump_trace=l1_dump_trace, l2_dump_trace=l2_dump_trace)
+        elif model == 'sdcmL1':
+            kernel_res = sdcm_model_warpper_parallel(kernel_param['kernel_id'], app_path, kernel_param, occupancy_res['max_active_block_per_sm'], gpu_config,
+                                        l1_is_sdcm=True, l2_is_sdcm=False, granularity=granularity, block_mapping=block_mapping, use_approx=use_approx, filter_L2=filter_L2,
                                         l1_dump_trace=l1_dump_trace, l2_dump_trace=l2_dump_trace)
         elif model == 'simulator':
             kernel_res = sdcm_model_warpper_parallel(kernel_param['kernel_id'], app_path, kernel_param, occupancy_res['max_active_block_per_sm'], gpu_config,
-                                        is_sdcm=False, granularity=granularity, block_mapping=block_mapping, filter_L2=filter_L2,
+                                        l1_is_sdcm=False, l2_is_sdcm=False, granularity=granularity, block_mapping=block_mapping, filter_L2=filter_L2,
                                         l1_dump_trace=l1_dump_trace, l2_dump_trace=l2_dump_trace)
         else:
             raise ValueError(f"model {model} is not supported")
@@ -355,7 +347,7 @@ def memory_model_warpper(gpu_model, app_path, model, kernel_id=-1, granularity=2
     
     return app_res, gpu_config
 
-if __name__ == "__main__":
+if __name__ == "__main__1":
     parser = argparse.ArgumentParser(
         description='ppt-gpu memory model'
     )
