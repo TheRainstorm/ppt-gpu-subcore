@@ -209,7 +209,7 @@ def get_sdd_dict(SD, cache_line_access):
     res = {}
     for c in catges:
         sdd_new = [(sd, count, count/counter[c]) for sd, count in sdd[c].items()]
-        res[c] = {'sdd': sdd_new, 'ratio': counter[c]/len(SD)}
+        res[c] = {'sdd': sdd_new, 'ratio': counter[c]/len(SD), 'count': counter[c]}
     return res
 
 # @timeit
@@ -249,6 +249,11 @@ def filter_trace(cache_line_access, SD, A, B, use_approx=True):
     l2_trace = []
     for i, sd in enumerate(SD):
         is_store, is_local, warp_id, address = cache_line_access[i]
+        
+        if is_store: # write through
+            l2_trace.append([is_store, is_local, warp_id, address])
+            continue
+        
         if sd==0:
             p_hit = 1
         elif sd==-1:
@@ -263,7 +268,7 @@ def filter_trace(cache_line_access, SD, A, B, use_approx=True):
         if r > p_hit:
             l2_trace.append([is_store, is_local, warp_id, address])
     return l2_trace
-        
+
 def calculate_p_hit(A, B, D):
     p_hit = 0.0
     for a in range(A):
@@ -329,20 +334,34 @@ def sdcm_dict(sdd_dict, cache_line_size, cache_size, associativity, use_approx=F
     B = cache_size // cache_line_size
     A = associativity
     
+    read_cnt, write_cnt = 0, 0
+    read_hit, write_hit = 0, 0
+    
     hit_rate_dict = {}
     hit_rate_dict['tot'] = 0
+    hit_rate_dict['ld'] = 0
+    hit_rate_dict['st'] = 0
     for categ, v in sdd_dict.items():
         sdd = v['sdd']
         ratio = v['ratio']
+        count = v['count']
         hit_rate = get_hit_rate_from_sdd(sdd, A, B, use_approx, exclude_last=False)
         
         hit_rate_dict[categ] = hit_rate
         hit_rate_dict['tot'] += hit_rate * ratio
-    hit_rate_dict['ld'] = hit_rate_dict['ldl'] + hit_rate_dict['ldg']
-    hit_rate_dict['st'] = hit_rate_dict['stl'] + hit_rate_dict['stg']
-    return hit_rate_dict, A, B
+        
+        if 'ld' in categ:  # ldl, ldg
+            read_hit += hit_rate * count
+            read_cnt += count
+        if 'st' in categ:
+            write_hit += hit_rate * count
+            write_cnt += count
+    
+    hit_rate_dict['ld'] = (read_hit / read_cnt) if read_cnt else 0
+    hit_rate_dict['st'] = (write_hit / write_cnt) if write_cnt else 0
+    return hit_rate_dict, A, B, read_cnt, write_cnt
 
-def sdcm_model(cache_line_access, cache_parameter, use_approx=True, granularity=2, dump_trace=''):
+def sdcm_model(cache_line_access, cache_parameter, use_approx=True, granularity=2, filter_L2=False, dump_trace=''):
     SD = get_stack_distance(cache_line_access)
     sdd_dict = get_sdd_dict(SD, cache_line_access)
     
@@ -357,8 +376,14 @@ def sdcm_model(cache_line_access, cache_parameter, use_approx=True, granularity=
                 hit_rate = 0 if sd == -1 else 1 if sd == 0 else calculate_p_hit_approx(A, B, sd)
                 f.write(f"{i+1},{is_store},{is_local},{warp_id},{address},{sd},{hit_rate}\n")
     
-    hit_rate_dict, A, B = sdcm_dict(sdd_dict, cache_parameter['cache_line_size'], cache_parameter['capacity'], cache_parameter['associativity'], use_approx=use_approx)
-    l2_trace = filter_trace(cache_line_access, SD, A, B)
+    hit_rate_dict, A, B, read_cnt, write_cnt = sdcm_dict(sdd_dict, cache_parameter['cache_line_size'], cache_parameter['capacity'], cache_parameter['associativity'], use_approx=use_approx)
+    
+    if filter_L2:
+        l2_trace = filter_trace(cache_line_access, SD, A, B)
+    else:
+        l2_trace = cache_line_access
+    
+    hit_rate_dict['sectors_ld'], hit_rate_dict['sectors_st'] = read_cnt, write_cnt
     return hit_rate_dict, l2_trace
     
 def draw_csdd(csdd, img_path):

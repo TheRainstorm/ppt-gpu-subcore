@@ -120,17 +120,14 @@ def run_L1(smi, trace_dir, kernel_id, grid_size, num_SMs, max_blocks_per_sm, gpu
         if l1_dump_trace:
             with open(f'smi_trace_{smi}.json', 'w') as f:
                 json.dump(smi_trace, f)
-        # use sector size as cache line size
+        l1_param = {'cache_line_size': gpu_config['l1_cache_line_size'], 'sector_size': gpu_config['l1_sector_size'],
+                        'capacity': gpu_config['l1_cache_size'], 'associativity': gpu_config['l1_cache_associativity'],
+                        'write_allocate': False, 'write_strategy': W.write_through}
         if is_sdcm:
-            l1_param = {'cache_line_size': gpu_config['l1_sector_size'],
-                        'capacity': gpu_config['l1_cache_size'], 'associativity': gpu_config['l1_cache_associativity'],
-                        'write_allocate': False, 'write_strategy': W.write_through}
             hit_rate_dict, L2_req = sdcm_model(smi_trace, l1_param,
-                            use_approx=use_approx, granularity=granularity)
+                            use_approx=use_approx, granularity=granularity, filter_L2=filter_L2)  # write through
         else:
-            l1_param = {'cache_line_size': gpu_config['l1_cache_line_size'], 'sector_size': gpu_config['l1_sector_size'],
-                        'capacity': gpu_config['l1_cache_size'], 'associativity': gpu_config['l1_cache_associativity'],
-                        'write_allocate': False, 'write_strategy': W.write_through}
+            
             hit_rate_dict, L2_req = cache_simulate(smi_trace, l1_param, keep_traffic=True)
         if filter_L2:
             smi_trace = L2_req
@@ -415,3 +412,16 @@ if __name__ == "__main__2":
     hit_rate_dict2, L2_req = cache_simulate(smi_trace, cache_parameter)
     print(hit_rate_dict2)
     print("Done")
+
+if __name__ == "__main__":
+    with open('K1_SM0.trace') as f:
+        smi_trace = []
+        for line in f.readlines():
+            line_split = line.strip().split()
+            smi_trace.append([int(x) for x in line_split])
+    
+    cache_parameter = {'capacity':  96*1024,  'cache_line_size': 128, 'sector_size': 32, 'associativity': 4}
+    # cache_parameter = {'capacity':  32*1024,  'cache_line_size': 32, 'sector_size': 32, 'associativity': 64}
+    hit_rate_dict1, _ = sdcm_model(smi_trace, cache_parameter)
+    print(hit_rate_dict1)
+    
