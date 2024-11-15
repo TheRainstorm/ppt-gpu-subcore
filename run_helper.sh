@@ -5,6 +5,8 @@ python ${ppt_gpu_dir}/memory_model/run_benchmarks.py -c ${GPU_PROFILE} -M ${memo
 
 python ${ppt_gpu_dir}/scripts/draw/draw_1.py -B ${benchmarks} -F ${filter_app} -S ${res_memory_json} -H ${res_hw_sim_json} -o ${draw_output} -d memory_${memory_model}${memory_suffix} memory
 python ${ppt_gpu_dir}/scripts/draw/draw_1.py -B ${benchmarks} -F ${filter_app} -S ${res_memory_json} -H ${res_hw_sim_json} -o ${draw_output} -d memory_${memory_model}${memory_suffix}_kernels memory_kernels
+python ${ppt_gpu_dir}/memory_model/caculate_MAEs.py -B ${benchmarks} -F ${filter_app} -S ${res_memory_json} -H ${res_hw_sim_json} -o ${draw_output}/memory_${memory_model}${memory_suffix}/memory_${memory_model}${memory_suffix}.xlsx
+python ${ppt_gpu_dir}/memory_model/caculate_MAEs.py -B ${benchmarks} -F ${filter_app} -S ${res_memory_json} -H ${res_hw_sim_json} -o memory_${memory_model}${memory_suffix}.xlsx
 cp ${res_memory_json} ${draw_output}/memory_${memory_model}${memory_suffix}
 }
 

@@ -38,7 +38,10 @@ def process_hw(hw_res):
             kernel_res['dram_st_trans'] = kernel_res['dram_write_transactions']
     return hw_res
 
-def json2df(json_data):
+def json2df1(json_data):
+    '''学习目的保留
+    使用 dict of list 形式创建 dataframe，需要自己维护不同属性的列表，有点麻烦。
+    '''
     data = {}
     data['bench'] = []
     data['app'] = []
@@ -53,12 +56,43 @@ def json2df(json_data):
             data['app'].append(app_arg)
             data['kernel_id'].append(i)
             for key in cmp_list:
-                data[f"{key}"].append(kernel_res[key])
+                try:
+                    data[f"{key}"].append(kernel_res[key])
+                except:
+                    if 'l2_hit_rate' in key:  # fix ppt-gpu, which has no l2_hit_rate_ld/st
+                        data[f"{key}"].append(kernel_res['l2_hit_rate'])
     df = pd.DataFrame(data)
     return df
 
+def json2df(json_data):
+    '''
+    list of dict 形式
+    '''
+    data = []
+    for app_arg, app_res in json_data.items():
+        bench = suite_info['map'][app_arg][0]
+        for i, kernel_res in enumerate(app_res):
+            kernel_res['bench'] = bench
+            kernel_res['app'] = app_arg
+            kernel_res['kernel_id'] = i
+            data.append(kernel_res)
+    return pd.DataFrame(data, columns=["bench", "app", "kernel_id"] + cmp_list)
+
+def interleave(df_sim, df_hw):
+    df_sim.rename(columns={f"{key}": f"{key}_sim" for key in cmp_list}, inplace=True)
+    df_hw.rename(columns={f"{key}": f"{key}_hw" for key in cmp_list}, inplace=True)
+    
+    c1 = df_sim.columns[3:]
+    c2 = df_hw.columns[3:]
+    # interleaved colums
+    waved = [c for zipped in zip(c1, c2) 
+               for c in zipped]
+    waved = list(df_sim.columns[:3]) + waved # insert common
+    out = pd.concat([df_sim, df_hw.iloc[:,3:]], axis=1).reindex(columns=waved)
+    return out
+    
 def get_summary(df):
-    df_summary = pd.DataFrame(columns=["key", "MAE", "NRMSE", "corr"])
+    data = []
     for key in cmp_list:
         y1 = np.array(df[f"{key}_hw"].to_numpy())
         y2 = np.array(df[f"{key}_sim"].to_numpy())
@@ -66,8 +100,8 @@ def get_summary(df):
         MAE = np.mean(np.abs(y1[non_zero_idxs] - y2[non_zero_idxs])/y1[non_zero_idxs])
         NRMSE = np.sqrt(np.mean((y1 - y2)**2)) / np.mean(y1)
         corr = np.corrcoef(y1, y2)[0, 1]
-        df_summary.loc[-1] = [key, MAE, NRMSE, corr]
-        df_summary.index = df_summary.index + 1
+        data.append({"MAE": MAE, "NRMSE": NRMSE, "corr": corr})
+    df_summary = pd.DataFrame(data, index=cmp_list)
     return df_summary
 
 if __name__ == "__main__":
@@ -84,9 +118,6 @@ if __name__ == "__main__":
                         help="a comma seperated list of benchmark suites to run. See apps/define-*.yml for the benchmark suite names.",
                         default="")
     parser.add_argument("-F", "--app-filter", default="", help="filter apps. e.g. regex:.*-rodinia-2.0-ft, [suite]:[exec]:[count]")
-    parser.add_argument("-c", "--limit_kernel_num",
-                        type=int,
-                        default=300)
     args = parser.parse_args()
 
 
@@ -105,32 +136,35 @@ if __name__ == "__main__":
 
     sim_res = filter_res(sim_res, app_arg_filtered_list)
     hw_res = filter_res(hw_res, app_arg_filtered_list)
-    sim_res = truncate_kernel(sim_res, args.limit_kernel_num)
     sim_res, hw_res = find_common(sim_res, hw_res)
     hw_res = process_hw(hw_res)
     
     df_sim = json2df(sim_res)
     df_hw = json2df(hw_res)
-    df_sim.rename(columns={f"{key}": f"{key}_sim" for key in cmp_list}, inplace=True)
-    df_hw.rename(columns={f"{key}": f"{key}_hw" for key in cmp_list}, inplace=True)
-    df_kernels = pd.concat([df_sim, df_hw.iloc[:,3:]], axis=1)  # all res kernels level
+    df_kernels = interleave(df_sim, df_hw)
     
-    writer = pd.ExcelWriter(args.output_file, engine='xlsxwriter')
-    
-    def write_df_and_bench_summary(df, prefix):
+    def write_df_and_bench_summary(writer, df, prefix):
+        start = 0
         df.to_excel(writer, sheet_name=f'{prefix}', index=False)
-        df_summary = get_summary(df)
-        df_summary.to_excel(writer, sheet_name=f'{prefix}_summary', index=False)
+        start += len(df) + 2
         
-        df_group_bench = df.groupby("bench", sort=False, as_index=False)
-        for bench, group in df_group_bench:
-            df_summary = get_summary(group)
-            df_summary.to_excel(writer, sheet_name=f'{prefix}_{bench}_summary', index=False)
-    
+        df_list = []
+        keys = ["all"]
+        df_list.append(get_summary(df))
+        
+        bench_groupby = df.groupby("bench", sort=False, as_index=False)
+        for bench, group in bench_groupby:
+            df_list.append(get_summary(group))
+            keys.append(bench)
+        
+        df_summary = pd.concat(df_list, keys=keys, axis=1)
+        df_summary.to_excel(writer, sheet_name=f'{prefix}_summary', index=True)
+        
     df_apps = df_kernels.groupby(["bench", "app"], sort=False, as_index=False).mean(numeric_only=True)
-    write_df_and_bench_summary(df_apps, 'apps')
     
-    write_df_and_bench_summary(df_kernels, 'kernels')
+    with pd.ExcelWriter(args.output_file, engine='xlsxwriter') as writer:
+        write_df_and_bench_summary(writer, df_apps, 'apps')
+        write_df_and_bench_summary(writer, df_kernels, 'kernels')
     
-    writer.close()
+    print(f"Results saved to {args.output_file}")
     print("Done!")

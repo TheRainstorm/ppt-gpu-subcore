@@ -54,6 +54,7 @@ def ppt_gpu_model_warpper(kernel_id, trace_dir,
     # rename
     memory_stats['l1_hit_rate'] = memory_stats['gmem_hit_rate']
     memory_stats['l2_hit_rate'] = memory_stats['hit_rate_l2']
+    memory_stats['l2_hit_rate_ld'] = memory_stats['l2_hit_rate_st'] = memory_stats['hit_rate_l2']
     
     memory_stats['l1_hit_rate_ld'] = memory_stats['gmem_hit_rate_lds']
     memory_stats['l1_hit_rate_st'] = divide_or_zero(memory_stats['l1_hit_rate']*memory_stats['gmem_tot_trans'] - memory_stats['gmem_hit_rate_lds']*memory_stats['gmem_ld_trans'], memory_stats['gmem_st_trans'])
