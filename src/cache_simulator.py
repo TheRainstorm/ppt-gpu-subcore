@@ -72,7 +72,7 @@ class W(IntEnum):
     write_through = 1
 
 class LRUCache:
-    def __init__(self, cache_parameter, keep_traffic=False) -> None:
+    def __init__(self, cache_parameter, keep_traffic=False, use_prime=True) -> None:
         self.associativity = int(cache_parameter['associativity'])
         self.capacity = int(cache_parameter['capacity'])
         self.cache_line_size = int(cache_parameter['cache_line_size'])
@@ -83,7 +83,10 @@ class LRUCache:
         self.keep_traffic = keep_traffic
         # cache
         cache_set = self.capacity // self.associativity // self.cache_line_size
-        self.cache_set_num = find_nearest_prime(primes_list, cache_set)  # prime to avoid conflict on single set
+        if use_prime:
+            self.cache_set_num = find_nearest_prime(primes_list, cache_set)  # use_prime to avoid conflict on single set
+        else:
+            self.cache_set_num = cache_set
         self.sectors = self.cache_line_size // self.sector_size
         
         self.cache_set_list = [{} for i in range(self.cache_set_num)]
@@ -296,8 +299,8 @@ def run(trace_files, ):
     return cache_simulate(cache_line_access, l1_cache_parameter)
 
 # @timeit
-def cache_simulate(cache_line_access, cache_parameter, dump_trace='', keep_traffic=False):
-    cache = LRUCache(cache_parameter, keep_traffic=keep_traffic)
+def cache_simulate(cache_line_access, cache_parameter, dump_trace='', keep_traffic=False, use_prime=True):
+    cache = LRUCache(cache_parameter, keep_traffic=keep_traffic, use_prime=use_prime)
     
     req_nextlv = []
     
