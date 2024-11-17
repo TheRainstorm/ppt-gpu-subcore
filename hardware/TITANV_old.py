@@ -65,16 +65,18 @@ uarch = {
     # SMEM size can be: 96KB, 64KB, 32KB, 16KB, 8KB, 0KB of size
     # default config is 32KB for L1 cache size and 96KB for SMEM
     # ** Sizes are in Byte **
-    # "l1_cache_size"                     :  32 * 1024,
-    "l1_cache_size"                     :  96 * 1024,
-    # "l1_cache_line_size"                :  32,
-    "l1_cache_line_size"                :  128,
-    # "l1_cache_associativity"            :  64,
-    "l1_cache_associativity"            :  4,
+    "l1_cache_size"                     :  32 * 1024,
+    # "l1_cache_size"                     :  96 * 1024,
+    "l1_cache_line_size"                :  32,
+    # "l1_cache_line_size"                :  128,
+    "l1_cache_associativity"            :  64,
+    # "l1_cache_associativity"            :  4,
     "l1_sector_size"                    :  32,
     "l2_cache_size"                     :  4.5 * 1024*1024,
-    "l2_cache_line_size"                :  128,
-    "l2_cache_associativity"            :  32,
+    "l2_cache_line_size"                :  64,
+    # "l2_cache_line_size"                :  128,
+    "l2_cache_associativity"            :  24,
+    # "l2_cache_associativity"            :  32,
     "l2_sector_size"                    :  32,
     # "shared_mem_size"                   :  96 * 1024,
     "shared_mem_size"                   :  32 * 1024,   # nsight use 32KB
