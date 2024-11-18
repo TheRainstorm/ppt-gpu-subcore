@@ -22,6 +22,11 @@ def timeit(func):
         return result
     return wrapper
 
+def my_hash(x, L):
+    A = 0.61803398875  
+    fractional_part = (x * A) % 1  # 提取小数部分
+    return int(fractional_part * L)
+
 def generate_primes(limit):
     """生成不超过 limit 的素数列表"""
     is_prime = [True] * (limit + 1)
@@ -115,7 +120,7 @@ class LRUCache:
         if not self.use_hash:
             cache_line_idx = (addr // self.cache_line_size) % self.cache_set_num
         else:
-            cache_line_idx = hash(addr // self.cache_line_size) % self.cache_set_num
+            cache_line_idx = my_hash(addr // self.cache_line_size, self.cache_set_num) % self.cache_set_num
         sector_idx = (addr // self.sector_size) % (self.cache_line_size // self.sector_size)
         tag = addr // self.cache_line_size  # also include cache_line_idx
         return cache_line_idx, sector_idx, tag
@@ -307,7 +312,7 @@ def run(trace_files, ):
     return cache_simulate(cache_line_access, l1_cache_parameter)
 
 # @timeit
-def cache_simulate(cache_line_access, cache_parameter, dump_trace='', keep_traffic=False, use_prime=False, use_hash=False):
+def cache_simulate(cache_line_access, cache_parameter, dump_trace='', keep_traffic=False, use_prime=False, use_hash=True):
     cache = LRUCache(cache_parameter, keep_traffic=keep_traffic, use_prime=use_prime, use_hash=use_hash)
     
     req_nextlv = []
