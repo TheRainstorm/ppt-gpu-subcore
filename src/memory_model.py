@@ -276,10 +276,11 @@ def private_SM_computation(SM_id, kernel_id, grid_size, num_SMs, mem_trace_dir_p
 
         SM_stats["shared_trace"] = shared_trace
 
-        cmd = "rm "+ SMi_trans_file+" "+umem_rpi_file+" "+gmem_rpi_lds_file+" "
-        if lmem_used:
-            cmd += gmem_rpi_file+" "+lmem_rpi_file
-        os.system(cmd)
+        if not SM_id==0:
+            cmd = "rm "+ SMi_trans_file+" "+umem_rpi_file+" "+gmem_rpi_lds_file+" "
+            if lmem_used:
+                cmd += gmem_rpi_file+" "+lmem_rpi_file
+            os.system(cmd)
 
     return SM_stats
 

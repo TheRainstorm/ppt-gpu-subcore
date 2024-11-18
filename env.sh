@@ -79,6 +79,7 @@ trace_dir=${trace_dir_base}/${model}-${gpu}/${cuda_version}
 # run hw
 res_hw_json=${ppt_gpu_dir}/tmp/res_hw_${gpu}_${cuda_version}.json
 res_hw_cpi_json=${ppt_gpu_dir}/tmp/res_hw_${gpu}_${cuda_version}_cpi.json
+# e.g volta trace(and profile) to simulate Ampere GPU Profile
 res_hw_sim_json=${ppt_gpu_dir}/tmp/res_hw_${gpu_sim}_${cuda_version}.json
 res_hw_cpi_sim_json=${ppt_gpu_dir}/tmp/res_hw_${gpu_sim}_${cuda_version}_cpi.json
 # raw profile data
@@ -157,6 +158,7 @@ print_summary(){
     echo "memory_model: $memory_model"
     echo "memory_suffix: $memory_suffix"
     echo "granularity: $granularity, filter_l2: $filter_l2, use_approx: $use_approx, use_sm_trace: $use_sm_trace"
+    echo "memory_extra_params: $memory_extra_params"
 }
 
 unset_env(){

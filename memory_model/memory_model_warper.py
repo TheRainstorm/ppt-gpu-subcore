@@ -310,10 +310,21 @@ def sdcm_model_warpper_parallel(kernel_id, trace_dir,
 
 def memory_model_warpper(gpu_model, app_path, model, kernel_id=-1, granularity=2,
                          use_approx=True, filter_L2=False, block_mapping=BlockMapping.mod_block_mapping,
-                         l1_dump_trace=False, l2_dump_trace=''):
+                         l1_dump_trace=False, l2_dump_trace='',
+                         overwrite_cache_params=''):
     gpu_config = get_gpu_config(gpu_model).uarch
     kernels_launch_params = get_kernels_launch_params(app_path)
-
+    if overwrite_cache_params:
+        L = ['', 'cache_size', 'cache_line_size', 'cache_associativity', 'sector_size']
+        for cache_params in overwrite_cache_params.split(','):
+            for i,p in enumerate(cache_params.split(':')):
+                if i==0:
+                    cur = p  # current cache level
+                    continue
+                # print(cur, L[i], p)
+                if p:
+                    gpu_config[f'{cur}_{L[i]}'] = int(p)
+                    print(f"overwrite {cur} {L[i]} to {p}")
     app_res = []
     
     if kernel_id != -1:
@@ -347,7 +358,7 @@ def memory_model_warpper(gpu_model, app_path, model, kernel_id=-1, granularity=2
     
     return app_res, gpu_config
 
-if __name__ == "__main__":
+if __name__ == "__main__1":
     parser = argparse.ArgumentParser(
         description='ppt-gpu memory model'
     )
@@ -382,6 +393,9 @@ if __name__ == "__main__":
                     type=int,
                     default=BlockMapping.mod_block_mapping,
                     help='chose different block mapping strategy. 1: mod, 2: randoom, 3: use sm trace instead(hw true mapping)')
+    parser.add_argument('-C', '--overwrite-cache-params',
+                        default='',
+                        help='l1:capacity:cache_line_size:associativity:sector_size,l2:capacity:cache_line_size:associativity:sector_size')
     args = parser.parse_args()
     if args.use_sm_trace:
         args.block_mapping = BlockMapping.sm_block_mapping
@@ -390,7 +404,7 @@ if __name__ == "__main__":
     # l1_dump_trace, l2_dump_trace = True, 'l2_trace.csv'
     app_res, _ = memory_model_warpper(args.config, args.app_path, args.model, kernel_id=args.kernel_id, granularity=args.granularity, use_approx=args.use_approx,
                         filter_L2=args.filter_l2, block_mapping=args.block_mapping,
-                        l1_dump_trace=l1_dump_trace, l2_dump_trace=l2_dump_trace)
+                        l1_dump_trace=l1_dump_trace, l2_dump_trace=l2_dump_trace, overwrite_cache_params=args.overwrite_cache_params)
     print(app_res)
     print("Done")
 
@@ -408,19 +422,23 @@ if __name__ == "__main__2":
     print(hit_rate_dict2)
     print("Done")
 
-if __name__ == "__main__3":
-    with open('K1_SM0.trace') as f:
+if __name__ == "__main__":
+    cache_parameter = {'capacity':  96*1024,  'cache_line_size': 128, 'sector_size': 32, 'associativity': 4}
+    # cache_parameter = {'capacity':  32*1024,  'cache_line_size': 32, 'sector_size': 32, 'associativity': 64}
+    cache_parameter.update({'write_allocate': True, 'write_strategy': W.write_through})
+    
+    trace_path = sys.argv[1]
+    with open(trace_path) as f:
         smi_trace = []
         for line in f.readlines():
             line_split = line.strip().split()
+            # align to sector
+            line_split[-1] = str((int(line_split[-1])>>5)<<5)
             smi_trace.append([int(x) for x in line_split])
     
-    cache_parameter = {'capacity':  96*1024,  'cache_line_size': 128, 'sector_size': 32, 'associativity': 4}
-    # cache_parameter = {'capacity':  32*1024,  'cache_line_size': 32, 'sector_size': 32, 'associativity': 64}
-    
-    cache_parameter.update({'write_allocate': True, 'write_strategy': W.write_through})
-    hit_rate_dict1, _ = sdcm_model(smi_trace, cache_parameter)
-    hit_rate_dict2, L2_req = cache_simulate(smi_trace, cache_parameter, use_prime=False)
-    print(hit_rate_dict1)
+    print(cache_parameter)
+    # hit_rate_dict1, _ = sdcm_model(smi_trace, cache_parameter, dump_trace='l1_trace.csv')
+    # print(hit_rate_dict1)
+    hit_rate_dict2, L2_req = cache_simulate(smi_trace, cache_parameter, use_prime=False, use_hash=False,  dump_trace='l1_trace_simulator.csv')
     print(hit_rate_dict2)
     

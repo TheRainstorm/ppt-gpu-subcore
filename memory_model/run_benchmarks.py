@@ -45,6 +45,9 @@ parser.add_argument('--block-mapping',
                     type=int,
                     default=BlockMapping.mod_block_mapping,
                     help='chose different block mapping strategy. 1: mod, 2: randoom, 3: use sm trace instead(hw true mapping)')
+parser.add_argument('-C', '--overwrite-cache-params',
+                    default='',
+                    help='l1:capacity:cache_line_size:associativity:sector_size,l2:capacity:cache_line_size:associativity:sector_size')
 args = parser.parse_args()
 if args.use_sm_trace:
         args.block_mapping = BlockMapping.sm_block_mapping
@@ -82,7 +85,7 @@ for app_and_arg in app_and_arg_list:
     logging(f"{app_and_arg} start")
     app_res, gpu_config = memory_model_warpper(args.config, app_trace_dir, args.model, granularity=args.granularity, use_approx=args.use_approx,
                         filter_L2=args.filter_l2, block_mapping=args.block_mapping,
-                        l1_dump_trace=False, l2_dump_trace='')
+                        l1_dump_trace=False, l2_dump_trace='', overwrite_cache_params=args.overwrite_cache_params)
     avg_l1_hit_rate = sum([res['l1_hit_rate'] for res in app_res]) / len(app_res)
     avg_l2_hit_rate = sum([res['l2_hit_rate'] for res in app_res]) / len(app_res)
     sim_res[app_and_arg] = app_res

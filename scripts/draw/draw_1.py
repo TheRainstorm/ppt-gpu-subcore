@@ -669,6 +669,9 @@ if __name__ == "__main__":
                 try:
                     draw_side2side(stat, f"{i}_{stat}_bar.png", draw_kernel=True, verbose=False)
                     # draw_correl(stat, f"{stat}_correl.png", draw_kernel=True)
+                except InterruptedError as e:
+                    print("InterruptedError: ", e)
+                    exit()
                 except:
                     print(f"ERROR: {app_arg} {stat} failed")
                     continue
