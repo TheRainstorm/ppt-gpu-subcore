@@ -72,7 +72,7 @@ class W(IntEnum):
     write_through = 1
 
 class LRUCache:
-    def __init__(self, cache_parameter, keep_traffic=False, use_prime=True) -> None:
+    def __init__(self, cache_parameter, keep_traffic=False, use_prime=False, use_hash=True) -> None:
         self.associativity = int(cache_parameter['associativity'])
         self.capacity = int(cache_parameter['capacity'])
         self.cache_line_size = int(cache_parameter['cache_line_size'])
@@ -81,12 +81,15 @@ class LRUCache:
         self.write_strategy = cache_parameter.get('write_strategy', W.write_back)
         
         self.keep_traffic = keep_traffic
+        self.use_hash = use_hash
         # cache
         cache_set = self.capacity // self.associativity // self.cache_line_size
         if use_prime:
             self.cache_set_num = find_nearest_prime(primes_list, cache_set)  # use_prime to avoid conflict on single set
         else:
             self.cache_set_num = cache_set
+        if cache_set != self.cache_set_num:
+            print(f"Warning: use prime {self.cache_set_num} instead of {cache_set}")
         self.sectors = self.cache_line_size // self.sector_size
         
         self.cache_set_list = [{} for i in range(self.cache_set_num)]
@@ -109,7 +112,12 @@ class LRUCache:
         self.data[self.scope][key] += 1
         
     def parse_addr(self, addr):
-        cache_line_idx = (addr // self.cache_line_size) % self.cache_set_num
+        if not self.use_hash:
+            cache_line_idx = (addr // self.cache_line_size) % self.cache_set_num
+        else:
+            idx = addr // self.cache_line_size
+            idx_hash = hash(idx)
+            cache_line_idx = idx_hash % self.cache_set_num
         sector_idx = (addr // self.sector_size) % (self.cache_line_size // self.sector_size)
         tag = addr // self.cache_line_size  # also include cache_line_idx
         return cache_line_idx, sector_idx, tag
@@ -156,6 +164,8 @@ class LRUCache:
             self.inc('write_through')
             if self.keep_traffic:
                 self.traffics.append([1, self.sector_size, addr])
+            if self.write_allocate:
+                self.put_node(cache_line_idx, sector_idx, tag, node)
         elif self.write_strategy == W.write_back:
             if hit:
                 node.sectors_dirty[sector_idx] = 1
@@ -299,14 +309,15 @@ def run(trace_files, ):
     return cache_simulate(cache_line_access, l1_cache_parameter)
 
 # @timeit
-def cache_simulate(cache_line_access, cache_parameter, dump_trace='', keep_traffic=False, use_prime=True):
-    cache = LRUCache(cache_parameter, keep_traffic=keep_traffic, use_prime=use_prime)
+def cache_simulate(cache_line_access, cache_parameter, dump_trace='', keep_traffic=False, use_prime=False, use_hash=False):
+    cache = LRUCache(cache_parameter, keep_traffic=keep_traffic, use_prime=use_prime, use_hash=use_hash)
     
     req_nextlv = []
     
     cnt = 0
     if dump_trace:
         debug_file = open(dump_trace, 'w')
+        debug_file.write("id,is_store,is_local,warp_id,address,hit,idx,sec_idx,tag\n")
     
     def inc(d, key):
         if key not in d:
@@ -326,7 +337,8 @@ def cache_simulate(cache_line_access, cache_parameter, dump_trace='', keep_traff
 
         hit, traffics = cache.access(mem_width, is_store, addr)
         if dump_trace:
-            debug_file.write(f"{cnt},{is_store},{is_local},{warp_id},{address},{hit}\n")
+            cache_line_idx, sector_idx, tag = cache.parse_addr(addr)
+            debug_file.write(f"{cnt},{is_store},{is_local},{warp_id},{address},{hit},{cache_line_idx},{sector_idx},{tag}\n")
         
         for traffic in traffics:
             req_nextlv.append([traffic[0], is_local, warp_id, traffic[2]])
