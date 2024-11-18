@@ -115,9 +115,7 @@ class LRUCache:
         if not self.use_hash:
             cache_line_idx = (addr // self.cache_line_size) % self.cache_set_num
         else:
-            idx = addr // self.cache_line_size
-            idx_hash = hash(idx)
-            cache_line_idx = idx_hash % self.cache_set_num
+            cache_line_idx = hash(addr // self.cache_line_size) % self.cache_set_num
         sector_idx = (addr // self.sector_size) % (self.cache_line_size // self.sector_size)
         tag = addr // self.cache_line_size  # also include cache_line_idx
         return cache_line_idx, sector_idx, tag
@@ -227,7 +225,7 @@ class LRUCache:
                 if node.sectors_valid[i] == 1 and node.sectors_dirty[i] == 1:
                     self.write_evict += 1
                     if self.keep_traffic:
-                        self.traffics.append([1, self.sector_size, tag * self.cache_line_size + i * self.sector_size])
+                        self.traffics.append([1, self.sector_size, node.key * self.cache_line_size + i * self.sector_size])
             del self.cache_set_list[cache_line_idx][node.key]
             self.remove(node)
     

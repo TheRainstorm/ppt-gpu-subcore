@@ -363,7 +363,7 @@ def memory_model_warpper(gpu_model, app_path, model, kernel_id=-1, granularity=2
     
     return app_res, gpu_config
 
-if __name__ == "__main__1":
+if __name__ == "__main__":
     parser = argparse.ArgumentParser(
         description='ppt-gpu memory model'
     )
@@ -427,7 +427,7 @@ if __name__ == "__main__2":
     print(hit_rate_dict2)
     print("Done")
 
-if __name__ == "__main__":
+if __name__ == "__main__3":
     cache_parameter = {'capacity':  96*1024,  'cache_line_size': 128, 'sector_size': 32, 'associativity': 4}
     # cache_parameter = {'capacity':  32*1024,  'cache_line_size': 32, 'sector_size': 32, 'associativity': 64}
     cache_parameter.update({'write_allocate': True, 'write_strategy': W.write_through})
