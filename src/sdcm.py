@@ -330,8 +330,8 @@ def sdcm(sdd, cache_line_size, cache_size, associativity, use_approx=False):
     
     return hit_rate
 
-def sdcm_dict(sdd_dict, cache_line_size, cache_size, associativity, use_approx=False):
-    B = cache_size // cache_line_size
+def sdcm_dict(sdd_dict, cache_line_size, cache_size, associativity, sector_size, use_approx=False):
+    B = cache_size // sector_size
     A = associativity
     
     read_cnt, write_cnt = 0, 0
@@ -365,19 +365,16 @@ def sdcm_model(cache_line_access, cache_parameter, use_approx=True, granularity=
     SD = get_stack_distance(cache_line_access)
     sdd_dict = get_sdd_dict(SD, cache_line_access)
     
+    hit_rate_dict, A, B, read_cnt, write_cnt = sdcm_dict(sdd_dict, cache_parameter['cache_line_size'], cache_parameter['capacity'], cache_parameter['associativity'], cache_parameter['sector_size'], use_approx=use_approx)
+    
     if dump_trace:
         with open(dump_trace, 'w') as f:
             f.write("id,is_store,is_local,warp_id,address,sd,hit_rate\n")
-            cache_line_size, cache_size, associativity = cache_parameter['cache_line_size'], cache_parameter['capacity'], cache_parameter['associativity']
-            B = cache_size // cache_line_size
-            A = associativity
             for i, (is_store, is_local, warp_id, address) in enumerate(cache_line_access):
                 sd = SD[i]
                 hit_rate = 0 if sd == -1 else 1 if sd == 0 else calculate_p_hit_approx(A, B, sd)
                 f.write(f"{i+1},{is_store},{is_local},{warp_id},{address},{sd},{hit_rate}\n")
-    
-    hit_rate_dict, A, B, read_cnt, write_cnt = sdcm_dict(sdd_dict, cache_parameter['cache_line_size'], cache_parameter['capacity'], cache_parameter['associativity'], use_approx=use_approx)
-    
+                
     if filter_L2:
         l2_trace = filter_trace(cache_line_access, SD, A, B)
     else:
