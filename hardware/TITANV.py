@@ -77,7 +77,7 @@ uarch = {
     "l2_cache_associativity"            :  32,
     "l2_sector_size"                    :  32,
     # "shared_mem_size"                   :  96 * 1024,
-    "shared_mem_size"                   :  32 * 1024,   # nsight use 32KB
+    "shared_mem_size"                   :  128 * 1024,   # L1TEX_size, l1 cache+shared memory, l1 cache size >= 32KB
 
     # L2 total size 4.5 MB, each subpartition is 96 KB. This gives ~ 48 memory parition
     "num_l2_partitions"	                :  48,

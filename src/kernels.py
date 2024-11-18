@@ -58,13 +58,22 @@ def get_max_active_block_per_sm(cc, launch_data, num_SMs, shared_memory_per_sm):
         regs_per_block = regs_per_warp * warps_per_block
         block_per_sm_limit_regs = cc['max_registers_per_SM'] // regs_per_block
     
-    if launch_data['smem_size'] == 0:
-        block_per_sm_limit_smem = cc['max_active_blocks_per_SM']
-    else:
-        smem_size = ceil(launch_data['smem_size'], cc['smem_allocation_size'])
-        block_per_sm_limit_smem = shared_memory_per_sm // smem_size
+    def get_smem_limit(shared_memory_per_sm):
+        if launch_data['smem_size'] == 0:
+            block_per_sm_limit_smem = cc['max_active_blocks_per_SM']
+        else:
+            smem_size = ceil(launch_data['smem_size'], cc['smem_allocation_size'])
+            block_per_sm_limit_smem = shared_memory_per_sm // smem_size
+        return block_per_sm_limit_smem
     
-    th_max_active_block_per_sm = min(block_limit_warp_or_block, block_per_sm_limit_regs, block_per_sm_limit_smem)
+    th_max_active_block_per_sm = min(block_limit_warp_or_block, block_per_sm_limit_regs)
+    
+    # minimum smem size that not be a bottleneck
+    for smem_size in range(0, shared_memory_per_sm - 32*1024, 8*1024):  # l1 at least 32KB
+        block_per_sm_limit_smem = get_smem_limit(smem_size)
+        if block_per_sm_limit_smem >= th_max_active_block_per_sm:
+            break
+    th_max_active_block_per_sm = min(th_max_active_block_per_sm, block_per_sm_limit_smem)
     
     th_active_warps = th_max_active_block_per_sm * warps_per_block
     th_occupancy = (th_active_warps / max_warps_per_sm) * 100
@@ -83,6 +92,8 @@ def get_max_active_block_per_sm(cc, launch_data, num_SMs, shared_memory_per_sm):
         'th_occupancy': th_occupancy,
         'allocted_block_per_sm': allocted_block_per_sm,
         'max_active_block_per_sm': max_active_block_per_sm,
+        
+        'adaptive_smem_size': smem_size,
     }
     
     return occupancy_res

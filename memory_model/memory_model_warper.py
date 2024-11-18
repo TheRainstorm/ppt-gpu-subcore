@@ -332,6 +332,10 @@ def memory_model_warpper(gpu_model, app_path, model, kernel_id=-1, granularity=2
     
     for kernel_param in kernels_launch_params:
         occupancy_res = get_max_active_block_per_sm(gpu_config['cc_configs'], kernel_param, gpu_config['num_SMs'], gpu_config['shared_mem_size'])
+        gpu_config['l1_cache_size_old'] = gpu_config['l1_cache_size']
+        gpu_config['l1_cache_size'] = gpu_config['shared_mem_size'] - occupancy_res['adaptive_smem_size']
+        if gpu_config['l1_cache_size'] != gpu_config['l1_cache_size_old']:
+            print(f"Info: set adaptive L1 cache size from {gpu_config['l1_cache_size_old']} to {gpu_config['l1_cache_size']}")
         
         # print(f"kernel {kernel_param['kernel_id']} start")
         
@@ -354,6 +358,7 @@ def memory_model_warpper(gpu_model, app_path, model, kernel_id=-1, granularity=2
             raise ValueError(f"model {model} is not supported")
         
         kernel_res.update(kernel_param) # kernel name, grid size etc
+        kernel_res['l1_cache_size'] = gpu_config['l1_cache_size']  # keep the adaptive L1 cache size in kernel res
         app_res.append(kernel_res)
     
     return app_res, gpu_config
