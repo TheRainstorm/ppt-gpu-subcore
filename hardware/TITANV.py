@@ -12,6 +12,7 @@
 ##############################################################################
 
 
+from src.cache_simulator import W
 uarch = {
 
     "gpu_name"                          :  "TITAN V",
@@ -72,10 +73,14 @@ uarch = {
     # "l1_cache_associativity"            :  64,
     "l1_cache_associativity"            :  4,
     "l1_sector_size"                    :  32,
+    "l1_write_allocate"                 :  True,
+    "l1_write_strategy"                 :  W.write_through,
     "l2_cache_size"                     :  4.5 * 1024*1024,
     "l2_cache_line_size"                :  128,
     "l2_cache_associativity"            :  32,
     "l2_sector_size"                    :  32,
+    "l2_write_allocate"                 :  True,
+    "l2_write_strategy"                 :  W.write_back,
     # "shared_mem_size"                   :  96 * 1024,
     "shared_mem_size"                   :  128 * 1024,   # L1TEX_size, l1 cache+shared memory, l1 cache size >= 32KB
 

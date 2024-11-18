@@ -120,12 +120,12 @@ def run_L1(smi, trace_dir, kernel_id, grid_size, num_SMs, max_blocks_per_sm, gpu
     flag_active = False
     if smi_trace:
         flag_active = True
-        if l1_dump_trace:
+        if l1_dump_trace and smi==0:
             with open(f'smi_trace_{smi}.json', 'w') as f:
                 json.dump(smi_trace, f)
         l1_param = {'cache_line_size': gpu_config['l1_cache_line_size'], 'sector_size': gpu_config['l1_sector_size'],
                         'capacity': gpu_config['l1_cache_size'], 'associativity': gpu_config['l1_cache_associativity'],
-                        'write_allocate': False, 'write_strategy': W.write_through}
+                        'write_allocate': gpu_config['l1_write_allocate'], 'write_strategy': gpu_config['l1_write_strategy']}
         if is_sdcm:
             hit_rate_dict, L2_req = sdcm_model(smi_trace, l1_param,
                             use_approx=use_approx, granularity=granularity, filter_L2=filter_L2)  # write through
@@ -236,7 +236,7 @@ def sdcm_model_warpper_parallel(kernel_id, trace_dir,
             json.dump(l2_trace, f)
     
     l2_param = {'capacity': gpu_config['l2_cache_size'], 'cache_line_size': gpu_config['l2_cache_line_size'], 'sector_size': gpu_config['l2_sector_size'], 'associativity': gpu_config['l2_cache_associativity'],
-                'write_allocate': True, 'write_strategy': W.write_back}
+                'write_allocate': gpu_config['l2_write_allocate'], 'write_strategy': gpu_config['l2_write_strategy']}
     if l2_is_sdcm:
         l2_hit_rate_dict, _ = sdcm_model(l2_trace, l2_param, dump_trace=l2_dump_trace)
         K['l2_hit_rate'] = l2_hit_rate_dict['tot']
@@ -330,12 +330,12 @@ def memory_model_warpper(gpu_model, app_path, model, kernel_id=-1, granularity=2
     if kernel_id != -1:
         kernels_launch_params = [kernels_launch_params[kernel_id-1]]
     
+    l1_cache_size_old = gpu_config['l1_cache_size']
     for kernel_param in kernels_launch_params:
         occupancy_res = get_max_active_block_per_sm(gpu_config['cc_configs'], kernel_param, gpu_config['num_SMs'], gpu_config['shared_mem_size'])
-        gpu_config['l1_cache_size_old'] = gpu_config['l1_cache_size']
         gpu_config['l1_cache_size'] = gpu_config['shared_mem_size'] - occupancy_res['adaptive_smem_size']
-        if gpu_config['l1_cache_size'] != gpu_config['l1_cache_size_old']:
-            print(f"Info: set adaptive L1 cache size from {gpu_config['l1_cache_size_old']} to {gpu_config['l1_cache_size']}")
+        if gpu_config['l1_cache_size'] != l1_cache_size_old:
+            print(f"Info: set adaptive L1 cache size from {l1_cache_size_old} to {gpu_config['l1_cache_size']}")
         
         # print(f"kernel {kernel_param['kernel_id']} start")
         
@@ -363,7 +363,7 @@ def memory_model_warpper(gpu_model, app_path, model, kernel_id=-1, granularity=2
     
     return app_res, gpu_config
 
-if __name__ == "__main__":
+if __name__ == "__main__1":
     parser = argparse.ArgumentParser(
         description='ppt-gpu memory model'
     )
@@ -405,8 +405,8 @@ if __name__ == "__main__":
     if args.use_sm_trace:
         args.block_mapping = BlockMapping.sm_block_mapping
     
-    l1_dump_trace, l2_dump_trace = False, ''
-    # l1_dump_trace, l2_dump_trace = True, 'l2_trace.csv'
+    # l1_dump_trace, l2_dump_trace = False, ''
+    l1_dump_trace, l2_dump_trace = True, 'l2_trace.csv'
     app_res, _ = memory_model_warpper(args.config, args.app_path, args.model, kernel_id=args.kernel_id, granularity=args.granularity, use_approx=args.use_approx,
                         filter_L2=args.filter_l2, block_mapping=args.block_mapping,
                         l1_dump_trace=l1_dump_trace, l2_dump_trace=l2_dump_trace, overwrite_cache_params=args.overwrite_cache_params)
@@ -427,23 +427,27 @@ if __name__ == "__main__2":
     print(hit_rate_dict2)
     print("Done")
 
-if __name__ == "__main__3":
-    cache_parameter = {'capacity':  96*1024,  'cache_line_size': 128, 'sector_size': 32, 'associativity': 4}
+if __name__ == "__main__":
+    cache_parameter = {'capacity':  128*1024,  'cache_line_size': 128, 'sector_size': 32, 'associativity': 4}
     # cache_parameter = {'capacity':  32*1024,  'cache_line_size': 32, 'sector_size': 32, 'associativity': 64}
     cache_parameter.update({'write_allocate': True, 'write_strategy': W.write_through})
     
-    trace_path = sys.argv[1]
-    with open(trace_path) as f:
-        smi_trace = []
-        for line in f.readlines():
-            line_split = line.strip().split()
-            # align to sector
-            line_split[-1] = str((int(line_split[-1])>>5)<<5)
-            smi_trace.append([int(x) for x in line_split])
+    # trace_path = sys.argv[1]
+    # with open(trace_path) as f:
+    #     smi_trace = []
+    #     for line in f.readlines():
+    #         line_split = line.strip().split()
+    #         # align to sector
+    #         line_split[-1] = str((int(line_split[-1])>>5)<<5)
+    #         smi_trace.append([int(x) for x in line_split])
+    
+    with open('smi_trace_0.json') as f:
+        smi_trace_ = json.load(f)
+    smi_trace = smi_trace_
     
     print(cache_parameter)
     # hit_rate_dict1, _ = sdcm_model(smi_trace, cache_parameter, dump_trace='l1_trace.csv')
     # print(hit_rate_dict1)
-    hit_rate_dict2, L2_req = cache_simulate(smi_trace, cache_parameter, use_prime=False, use_hash=False,  dump_trace='l1_trace_simulator.csv')
+    hit_rate_dict2, L2_req = cache_simulate(smi_trace, cache_parameter, use_prime=False, use_hash=True,  dump_trace='l1_trace_simulator.csv')
     print(hit_rate_dict2)
     
