@@ -66,8 +66,8 @@ sim_identifier="${gpu}-$GPU-${CUDA_VERSION}-${run_name}"
 ### Set File Path
 my_home=/staff/fyyuan
 trace_dir_base=${trace_dir_base:-$my_home/hw_trace01}
-ppt_gpu_verision=${ppt_gpu_verision:-"PPT-GPU"}
-ppt_gpu_dir=$my_home/repo/${ppt_gpu_verision}
+ppt_gpu_version=${ppt_gpu_version:-"PPT-GPU"}
+ppt_gpu_dir=$my_home/repo/${ppt_gpu_version}
 
 # cuda_version_major=`nvcc --version | grep release | sed -re 's/.*release ([0-9]+)\..*/\1/'`;
 export GPUAPPS_ROOT=$my_home/repo/accel-sim-framework/gpu-app-collection
