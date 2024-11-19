@@ -334,6 +334,7 @@ def get_memory_perf(kernel_id, mem_trace_dir_path, grid_size, num_SMs, l1_cache_
     memory_stats["atom_red_tot_trans"] = 0
 
     if gmem_reqs == 0:
+        print(f"Kernel {kernel_id} has no global memory requests")
         return memory_stats
     
     num_cores = multiprocessing.cpu_count()

@@ -315,6 +315,9 @@ class Kernel():
         # subcore_warp_list = [LinkedList() for i in range(num_subcore)]
         ## process instructions of the tasklist by the active blocks every cycle
         while self.blockList_has_active_warps(block_list):
+            if pred_out['active_cycles']%10000 == 0:
+                print(f"{self.kernel_id}: active cycles {pred_out['active_cycles']}")
+            
             ## compute the list warps in active blocks
             current_active_block_list = []
             current_active_blocks = 0

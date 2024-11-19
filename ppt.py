@@ -323,7 +323,7 @@ def main():
         print(f"Runing: {app_and_arg}")
     for i in range(len(kernels_info)):
         if rank == i%size:
-            print(f"Kernel {i} is running on rank {rank}")
+            print(f"Kernel {i+1} is running on rank {rank}")
             kernel = Kernel(
                 {
                     "name": "Kernel",
