@@ -388,6 +388,10 @@ if __name__ == "__main__":
             draw_error("warp_inst_executed", f"{bench}_error_1_warp_inst_executed.png")
             draw_error("my_gpu_active_cycle_max", f"{bench}_error_4_my_gpu_active_cycle_max.png")
             draw_side2side("my_gpu_active_cycle_max", f"{bench}_bar_4_my_gpu_active_cycle_max.png")
+            draw_error("l1_hit_rate",           f"{bench}_error_6_l1_hit_rate.png")
+            draw_side2side("l1_hit_rate", f"{bench}_bar_6_l1_hit_rate.png")
+            draw_error("l2_hit_rate",           f"{bench}_error_6_l2_hit_rate.png")
+            draw_side2side("l2_hit_rate", f"{bench}_bar_6_l2_hit_rate.png")
     
     elif args.command == 'kernel':
         print(f"\ncommand: {args.command}:")

@@ -20,6 +20,9 @@ gpu_detect(){
         "NVIDIA GeForce GTX 1080 Ti")
             gpu="gtx1080ti"
             ;;
+        "Tesla P100-PCIE-16GB")
+            gpu="p100"
+            ;;
         "NVIDIA TITAN V")
             gpu="titanv"
             ;;
@@ -56,8 +59,9 @@ sim_identifier="${gpu}-$GPU-${CUDA_VERSION}-${run_name}"
 
 ### Set File Path
 my_home=/staff/fyyuan
-ppt_gpu_dir=$my_home/repo/PPT-GPU
 trace_dir_base=${trace_dir_base:-$my_home/hw_trace3}
+ppt_gpu_verision=${ppt_gpu_verision:-"PPT-GPU"}
+ppt_gpu_dir=$my_home/repo/${ppt_gpu_verision}
 
 # cuda_version_major=`nvcc --version | grep release | sed -re 's/.*release ([0-9]+)\..*/\1/'`;
 export GPUAPPS_ROOT=$my_home/repo/accel-sim-framework/gpu-app-collection
@@ -89,18 +93,7 @@ res_sim_sched_cpi_json=${ppt_gpu_dir}/tmp/res_${model}_${gpu}_${cuda_version}_${
 draw_output=${ppt_gpu_dir}/tmp_draw/draw_${model}_${gpu}_${cuda_version}_${run_name}
 
 ## run single app
-# single_app=rodinia-2.0-ft
-# single_app=rodinia-2.0-ft:lud-rodinia-2.0-ft:0
-# single_app=rodinia-3.1:hotspot-rodinia-3.1:1
-# single_app=rodinia-3.1:bfs-rodinia-3.1:2
-single_app=rodinia-3.1:particlefilter_naive-rodinia-3.1
-single_app="rodinia-3.1:b+tree-rodinia-3.1|rodinia-3.1:hotspot-rodinia-3.1:0"
-# single_app=rodinia-3.1:hotspot-rodinia-3.1:0
-single_app=rodinia-3.1:gaussian-rodinia-3.1:0
-single_app=rodinia-3.1:particlefilter_naive-rodinia-3.1
-single_app=GPU_Microbenchmark:l2_bw_32f:0
-single_app=GPU_Microbenchmark:l1_bw_32f:0
-
+single_app=${single_app:-"rodinia-3.1:backprop-rodinia-3.1"}
 # keep model report and draw output in the same dir
 single_report_dir=${report_dir}
 single_draw_output=${single_report_dir}
@@ -118,6 +111,7 @@ print_summary(){
     echo "apps_yaml: $apps_yaml"
     echo "benchmarks: $benchmarks"
     echo "filter_app: $filter_app"
+    echo "single_app: $single_app"
     echo "trace_dir: $trace_dir"
     echo "res_hw_json: $res_hw_json"
     echo "res_sim_json: $res_sim_json"
@@ -130,6 +124,7 @@ unset_env(){
     unset run_name nvbit_version 
     unset GPU gpu
     unset trace_dir_base
+    unset ppt_gpu_verision
 }
 
 print_summary

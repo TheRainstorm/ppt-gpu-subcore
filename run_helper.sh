@@ -3,6 +3,7 @@
 run_trace(){
 # trace
 python ${ppt_gpu_dir}/scripts/run_hw_trace.py -B ${benchmarks} -F ${filter_app} -T ${trace_dir} -D ${GPU} --trace_tool ${ppt_gpu_dir}/tracing_tool/tracer-${nvbit_version}.so -l run_hw_trace_${hw_identifier}.log --time-out ${time_out} > /dev/null
+# python ${ppt_gpu_dir}/scripts/run_hw_trace.py -B ${benchmarks} -F ${filter_app} -T ${trace_dir} -D ${GPU} --trace_tool ${ppt_gpu_dir}/tracing_tool/tracer-${nvbit_version}.so -l run_hw_trace_${hw_identifier}.log --time-out ${time_out} --ENV_TRACING_LEVEL 2 > /dev/null
 }
 
 run_hw(){
@@ -10,6 +11,7 @@ run_hw(){
 if [ $use_ncu -eq 0 ]; then
 python ${ppt_gpu_dir}/scripts/run_hw_profling.py -B ${benchmarks} -F ${filter_app} -T ${trace_dir} -D ${GPU} -l run_hw_profiling_${hw_identifier}.log --loop-cnt ${loop} --time-out ${time_out} > /dev/null
 python ${ppt_gpu_dir}/scripts/get_stat_hw.py -B ${benchmarks} -F ${filter_app} -T ${trace_dir} -o ${res_hw_nvprof_json} --loop-cnt ${loop}
+cp ${res_hw_nvprof_json} ${res_hw_json}
 else
 python ${ppt_gpu_dir}/scripts/run_hw_profling.py -B ${benchmarks} -F ${filter_app} -T ${trace_dir} -D ${GPU} -l run_hw_profiling_${hw_identifier}.log --select ncu --loop-cnt ${loop} --time-out ${time_out} > /dev/null
 python ${ppt_gpu_dir}/scripts/get_stat_hw.py -B ${benchmarks} -F ${filter_app} -T ${trace_dir} --select ncu -o ${res_hw_ncu_json} --loop-cnt ${loop}
@@ -54,7 +56,7 @@ python ${ppt_gpu_dir}/scripts/draw/draw_1.py -F ${filter_app} -B ${benchmarks} -
 
 
 if [ $profile_cpi -eq 1 ]; then
-python ${ppt_gpu_dir}/scripts/draw/draw_cpi_stack.py -F ${filter_app} -S ${res_sim_cpi_json} -R ${res_hw_cpi_json} -o ${draw_output} --s2s
+python ${ppt_gpu_dir}/scripts/draw/draw_cpi_stack.py -F ${filter_app} -B ${benchmarks} -S ${res_sim_cpi_json} -R ${res_hw_cpi_json} -o ${draw_output} --s2s
 # draw only sim cpi, no hw cpi
 # python ${ppt_gpu_dir}/scripts/draw/draw_cpi_stack.py -S ${res_sim_cpi_json} -o ${draw_output} --subdir cpi_warp
 # draw subcore cpi in one figure
@@ -137,7 +139,7 @@ fi
 if (( $1 & 2 )); then
 echo "run simulation"
 # run_sim
-python ${ppt_gpu_dir}/scripts/run_simulation.py -F ${single_app} -M "mpiexec -n 2" -B ${benchmarks} -T ${trace_dir} -H TITANV --granularity 2 -R ${single_report_dir} -l run_sim_${sim_identifier}.log
+python ${ppt_gpu_dir}/scripts/run_simulation.py -F ${single_app} -B ${benchmarks} -T ${trace_dir} -H TITANV -M "mpiexec -n 2" --granularity 2 -R ${single_report_dir} -l run_sim_${sim_identifier}.log
 python ${ppt_gpu_dir}/scripts/get_stat_sim.py -F ${single_app} -B ${benchmarks} -T ${single_report_dir} -o ${res_sim_json}
 python ${ppt_gpu_dir}/scripts/draw/convert_cpi_stack.py -i ${res_sim_json} -I "ppt_gpu" -o ${res_sim_cpi_json}
 python ${ppt_gpu_dir}/scripts/draw/convert_cpi_stack.py -i ${res_sim_json} -I "ppt_gpu_sched"  -o ${res_sim_sched_cpi_json}
