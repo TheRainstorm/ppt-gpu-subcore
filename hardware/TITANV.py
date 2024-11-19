@@ -82,6 +82,7 @@ uarch = {
     "l2_write_allocate"                 :  True,
     "l2_write_strategy"                 :  W.write_back,
     # "shared_mem_size"                   :  96 * 1024,
+    "adaptive_cache"                   :  True,  # change L1 cache size based on the application
     "shared_mem_size"                   :  128 * 1024,   # L1TEX_size, l1 cache+shared memory, l1 cache size >= 32KB
 
     # L2 total size 4.5 MB, each subpartition is 96 KB. This gives ~ 48 memory parition

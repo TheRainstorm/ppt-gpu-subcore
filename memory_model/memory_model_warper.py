@@ -336,10 +336,11 @@ def memory_model_warpper(gpu_model, app_path, model, kernel_id=-1, granularity=2
     
     l1_cache_size_old = gpu_config['l1_cache_size']
     for kernel_param in kernels_launch_params:
-        occupancy_res = get_max_active_block_per_sm(gpu_config['cc_configs'], kernel_param, gpu_config['num_SMs'], gpu_config['shared_mem_size'])
-        gpu_config['l1_cache_size'] = gpu_config['shared_mem_size'] - occupancy_res['adaptive_smem_size']
-        if gpu_config['l1_cache_size'] != l1_cache_size_old:
-            print(f"Info: set adaptive L1 cache size from {l1_cache_size_old} to {gpu_config['l1_cache_size']}")
+        occupancy_res = get_max_active_block_per_sm(gpu_config['cc_configs'], kernel_param, gpu_config['num_SMs'], gpu_config['shared_mem_size'], adaptive=gpu_config['adaptive_cache'])
+        if gpu_config['adaptive_cache']:
+            gpu_config['l1_cache_size'] = gpu_config['shared_mem_size'] - occupancy_res['adaptive_smem_size']
+            if gpu_config['l1_cache_size'] != l1_cache_size_old:
+                print(f"Info: set adaptive L1 cache size from {l1_cache_size_old} to {gpu_config['l1_cache_size']}")
         
         # print(f"kernel {kernel_param['kernel_id']} start")
         

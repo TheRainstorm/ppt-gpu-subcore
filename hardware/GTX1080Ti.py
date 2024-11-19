@@ -9,6 +9,7 @@
 ##############################################################################
 
 
+from src.cache_simulator import W
 uarch = {
 
     "gpu_name"                          :  "GTX 1080Ti",
@@ -65,9 +66,18 @@ uarch = {
     "l1_cache_size"                     :  16 * 1024, # ?
     "l1_cache_line_size"                :  32, # ?
     "l1_cache_associativity"            :  64, # ?
+    "l1_sector_size"                    :  32,
+    "l1_write_allocate"                 :  True,
+    "l1_write_strategy"                 :  W.write_through,
+    
     "l2_cache_size"                     :  2.75 * 1024*1024, # devicequery
     "l2_cache_line_size"                :  64, # ?
     "l2_cache_associativity"            :  24, # ?
+    "l2_sector_size"                    :  32,
+    "l2_write_allocate"                 :  True,
+    "l2_write_strategy"                 :  W.write_back,
+    
+    "adaptive_cache"                    :  False,
     "shared_mem_size"                   :  48 * 1024,
 
     # L2 total size 4.5 MB, each subpartition is 96 KB. This gives ~ 48 memory parition

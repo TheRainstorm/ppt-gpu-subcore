@@ -25,7 +25,7 @@ from .warp_scheduler import Scheduler
 from collections import deque
 from .utils import LinkedList
 
-def get_max_active_block_per_sm(cc, launch_data, num_SMs, shared_memory_per_sm):
+def get_max_active_block_per_sm(cc, launch_data, num_SMs, shared_memory_per_sm, adaptive=True):
     # cc = {
     #     'warp_size': 32,
     #     'max_active_threads_per_SM': 2048,
@@ -68,11 +68,15 @@ def get_max_active_block_per_sm(cc, launch_data, num_SMs, shared_memory_per_sm):
     
     th_max_active_block_per_sm = min(block_limit_warp_or_block, block_per_sm_limit_regs)
     
-    # minimum smem size that not be a bottleneck
-    for smem_size in range(0, shared_memory_per_sm - 32*1024, 8*1024):  # l1 at least 32KB
+    if adaptive:
+        # minimum smem size that not be a bottleneck
+        for smem_size in range(0, shared_memory_per_sm - 32*1024, 8*1024):  # l1 at least 32KB
+            block_per_sm_limit_smem = get_smem_limit(smem_size)
+            if block_per_sm_limit_smem >= th_max_active_block_per_sm:
+                break
+    else:
+        smem_size = shared_memory_per_sm
         block_per_sm_limit_smem = get_smem_limit(smem_size)
-        if block_per_sm_limit_smem >= th_max_active_block_per_sm:
-            break
     th_max_active_block_per_sm = min(th_max_active_block_per_sm, block_per_sm_limit_smem)
     
     th_active_warps = th_max_active_block_per_sm * warps_per_block
