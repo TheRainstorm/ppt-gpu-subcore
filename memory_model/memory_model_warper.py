@@ -117,6 +117,7 @@ def run_L1(smi, trace_dir, kernel_id, grid_size, num_SMs, max_blocks_per_sm, gpu
     
     sm_stats, smi_trace = process_trace(smi_blocks_interleave, gpu_config['l1_cache_line_size'], gpu_config['l1_sector_size']) # warp level to cache line level
     
+    # print(sm_stats['gmem_ld_reqs'], sm_stats['gmem_ld_sectors'], sm_stats['gmem_ld_sectors']/sm_stats['gmem_ld_reqs'])
     flag_active = False
     if smi_trace:
         flag_active = True
@@ -358,6 +359,10 @@ def memory_model_warpper(gpu_model, app_path, model, kernel_id=-1, granularity=2
         elif model == 'sdcmL1':
             kernel_res = sdcm_model_warpper_parallel(kernel_param['kernel_id'], app_path, kernel_param, occupancy_res['max_active_block_per_sm'], gpu_config,
                                         l1_is_sdcm=True, l2_is_sdcm=False, granularity=granularity, block_mapping=block_mapping, use_approx=use_approx, filter_L2=filter_L2,
+                                        l1_dump_trace=l1_dump_trace, l2_dump_trace=l2_dump_trace)
+        elif model == 'simulatorL1':
+            kernel_res = sdcm_model_warpper_parallel(kernel_param['kernel_id'], app_path, kernel_param, occupancy_res['max_active_block_per_sm'], gpu_config,
+                                        l1_is_sdcm=False, l2_is_sdcm=True, granularity=granularity, block_mapping=block_mapping, use_approx=use_approx, filter_L2=filter_L2,
                                         l1_dump_trace=l1_dump_trace, l2_dump_trace=l2_dump_trace)
         elif model == 'simulator':
             kernel_res = sdcm_model_warpper_parallel(kernel_param['kernel_id'], app_path, kernel_param, occupancy_res['max_active_block_per_sm'], gpu_config,

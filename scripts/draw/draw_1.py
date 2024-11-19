@@ -213,7 +213,7 @@ def get_app_stat(json_data, stat_key, app_filter='', func=None, avg=False, key_i
                 accum += value
         except Exception as e:
             # print(f"Exception: {e}")
-            print(f"ERROR in get_app_stat: {app} {stat_key}")
+            print(f"error in get_app_stat: {app} {stat_key}")
             raise e
         if avg:
             accum /= len(kernels_res)
@@ -677,7 +677,7 @@ if __name__ == "__main__":
                     print("InterruptedError: ", e)
                     exit()
                 except:
-                    print(f"ERROR: {app_arg} {stat} failed")
+                    print(f"Warnning: {app_arg} {stat} failed")
                     continue
     else:
         print(f"ERROR: command {args.command} not supported")

@@ -74,6 +74,8 @@ def process_trace(block_trace, l1_cache_line_size, sector_size=32):
     is_store = 0 ## LD=0 - ST=1
     is_local = 0  ## Global=0 - Local=1
 
+    # counter = {}
+    
     cache_line_access = []
     sector_access = []
     for items in block_trace:
@@ -81,6 +83,9 @@ def process_trace(block_trace, l1_cache_line_size, sector_size=32):
         access_type = addrs[0]
         line_addrs, sector_addrs = get_line_adresses(addrs[1:], l1_cache_line_size, sector_size)
 
+        # secs = len(sector_addrs)
+        # counter[secs] = counter.get(secs, 0) + 1
+        
         ## global reduction operations
         if "RED" in access_type:
             S["red_reqs"] += 1
@@ -135,6 +140,7 @@ def process_trace(block_trace, l1_cache_line_size, sector_size=32):
     S["umem_ld_trans"] = S["gmem_ld_trans"] + S["lmem_ld_trans"]
     S["umem_st_trans"] = S["gmem_st_trans"] + S["lmem_st_trans"]
     # print(f"[INFO]: {trace_file} req,warp_inst,ratio: {len(cache_line_access)},{len(block_trace)},{len(cache_line_access)/len(block_trace)}")
+    # print(counter)
     return S, sector_access
 
 # @timeit
