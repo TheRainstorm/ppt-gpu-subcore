@@ -161,7 +161,8 @@ def sdcm_model_warpper_parallel(kernel_id, trace_dir,
     sm_stats_list = []
     sm_traces = []
 
-    avg_block_per_sm = (launch_params['grid_size'] + gpu_config['num_SMs'] - 1) // gpu_config['num_SMs']
+    avg_block_per_sm_f = (launch_params['grid_size'] + gpu_config['num_SMs'] - 1) / gpu_config['num_SMs']
+    avg_block_per_sm = int(avg_block_per_sm_f)
     if granularity == 1:
         block_per_sm_simulate = 1
     elif granularity == 2:
@@ -185,7 +186,7 @@ def sdcm_model_warpper_parallel(kernel_id, trace_dir,
             for bidx in range(grid_size):
                 if bidx % num_SMs == smi:
                     smi_blocks.append(bidx)
-                    if len(smi_blocks) >= max_blocks_per_sm:
+                    if len(smi_blocks) >= block_per_sm_simulate:
                         break
             sm_map.append(smi_blocks)
     elif block_mapping==BlockMapping.random_block_mapping:
@@ -199,6 +200,9 @@ def sdcm_model_warpper_parallel(kernel_id, trace_dir,
         print("sm block mapping not supported")
         exit(1)
     # print(sm_map)
+    if kernel_id==1:
+        print(f"grid: {launch_params['grid_size']} SMs: {gpu_config['num_SMs']}")
+        print(f"scale: {scale} simulate: {block_per_sm_simulate} max: {max_blocks_per_sm} allocate: {avg_block_per_sm}")
     
     num_jobs = min(active_sm, multiprocessing.cpu_count())
     with concurrent.futures.ProcessPoolExecutor(max_workers=num_jobs) as executor:
@@ -363,7 +367,7 @@ def memory_model_warpper(gpu_model, app_path, model, kernel_id=-1, granularity=2
     
     return app_res, gpu_config
 
-if __name__ == "__main__1":
+if __name__ == "__main__":
     parser = argparse.ArgumentParser(
         description='ppt-gpu memory model'
     )
@@ -427,7 +431,7 @@ if __name__ == "__main__2":
     print(hit_rate_dict2)
     print("Done")
 
-if __name__ == "__main__":
+if __name__ == "__main__3":
     cache_parameter = {'capacity':  128*1024,  'cache_line_size': 128, 'sector_size': 32, 'associativity': 4}
     # cache_parameter = {'capacity':  32*1024,  'cache_line_size': 32, 'sector_size': 32, 'associativity': 64}
     cache_parameter.update({'write_allocate': True, 'write_strategy': W.write_through})
