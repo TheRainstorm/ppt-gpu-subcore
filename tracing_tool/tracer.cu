@@ -23,6 +23,7 @@ using namespace std;
 #define BIT_BLOCK_LEVEL 1
 #define BIT_SM_LEVEL 2
 #define BIT_WARP_ID 4
+#define BIT_PRED 8
 
 int ENV_TRACING_LEVEL;
 
@@ -95,6 +96,7 @@ void nvbit_at_init() {
     printf(ENV_TRACING_LEVEL&BIT_BLOCK_LEVEL?"Block level tracing is enabled\n":"Block level tracing is disabled\n");
     printf(ENV_TRACING_LEVEL&BIT_SM_LEVEL?"SM level tracing is enabled\n":"SM level tracing is disabled\n");
     printf(ENV_TRACING_LEVEL&BIT_WARP_ID?"Warp_id in block level tracing is enabled\n":"Warp_id in block level tracing is disabled\n");
+    printf("tracing pred mask is %s\n", ENV_TRACING_LEVEL&BIT_PRED? "enabled": "disabled");
     string pad(100, '-');
     printf("%s\n", pad.c_str());
 
@@ -521,6 +523,11 @@ void *recv_thread_fun(void *) {
                     *mem_trace_fp << " ";
                     if(ENV_TRACING_LEVEL & BIT_WARP_ID){
                         *mem_trace_fp << ia->warp_id << " ";
+                    }
+                    if(ENV_TRACING_LEVEL & BIT_PRED){
+                        *mem_trace_fp << int(ia->pred_active_threads) << " ";
+                        *mem_trace_fp << hex<< ia->active_mask << " ";
+                        *mem_trace_fp << hex<< ia->predicate_mask << " ";
                     }
                     for (int m = 0; m < 32; m++) {
                         if(ia->mem_addrs1[m]!=0){

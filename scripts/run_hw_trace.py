@@ -41,6 +41,9 @@ parser.add_argument("-t", "--time-out",
                     help="Set time out seconds, if app run longer than this, kill it")
 parser.add_argument("-r", "--run_script",
                  default="run_tracing.sh")
+parser.add_argument("--ENV_TRACING_LEVEL",
+                 default="1",
+                 help="Tracing level(mem) bitmask: 1 for block level, 2 for SM level, 4 keep warp_id in block level trace")
 args = parser.parse_args()
 
 from common import *
@@ -93,6 +96,7 @@ for app in apps:
             sh_contents += f'export DYNAMIC_KERNEL_LIMIT_END={args.kernel_number}; '
         
         sh_contents += f'\nexport CUDA_VISIBLE_DEVICES="{args.device_num}"'\
+                f'\nexport ENV_TRACING_LEVEL={args.ENV_TRACING_LEVEL}'\
                 f'\nexport LD_PRELOAD={args.trace_tool}'\
                 f'\n{exec_path} {argstr}\n'
         

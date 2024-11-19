@@ -17,6 +17,8 @@ typedef struct {
     int pc;
     int dst_oprnd;
     int src_oprnds[5];
+    uint32_t active_mask;
+    uint32_t predicate_mask;
 
     // 10 x 1 Byte
     // 0, 1

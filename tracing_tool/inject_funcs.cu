@@ -40,6 +40,8 @@ extern "C" __device__ __noinline__ void instrument_inst(int pred, int pc, int op
     int active_threads = __popc(active_mask);
     /* active threads that are not predicated off per instruction executed */
     ia.pred_active_threads = active_threads - __popc(predicate_mask);
+    ia.predicate_mask = predicate_mask;
+    ia.active_mask = active_mask;
 
     /* predicated off threads per instruction executed */
     //ia.pred_off_threads = active_threads - __popc(predicate_mask ^ active_mask);
