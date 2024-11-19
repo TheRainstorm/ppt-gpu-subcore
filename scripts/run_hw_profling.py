@@ -80,12 +80,17 @@ for loop in range(args.loop_cnt):
             exec_path = os.path.join(exec_dir, exe_name)
             run_dir = os.path.join(args.trace_dir, app_and_arg)
             
-            # mkdir run_dir
+            if args.apps and app_and_arg not in args.apps:
+                continue
+            
+             # mkdir run_dir
             if not os.path.exists(run_dir):
                 os.makedirs(run_dir)
             
-            if args.apps and app_and_arg not in args.apps:
-                continue
+            # link data dir
+            curr_data_dir = os.path.join(run_dir, "data")
+            if not os.path.lexists(curr_data_dir):
+                os.symlink(data_dir, curr_data_dir)
             
             profiling_output = os.path.join(run_dir, f"profiling.{args.select}.{loop}.csv")
             if os.path.exists(profiling_output) and not args.overwrite:
