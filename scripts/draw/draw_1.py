@@ -1,5 +1,6 @@
 import argparse
 import json
+import operator
 import os
 import numpy as np
 import matplotlib.pyplot as plt
@@ -49,9 +50,19 @@ key_map = {
         
         "ipc": "ipc",
         
-        "l1_hit_rate": "global_hit_rate",
-        # "l1_hit_rate": "tex_cache_hit_rate",
-        "l2_hit_rate": "l2_tex_hit_rate",
+        # umem
+        "l1_hit_rate": ["tex_cache_hit_rate", '/', '100'],
+        # "l1_hit_rate_ld": ["global_hit_rate_ld", '/', '100'],
+        # "l1_hit_rate_st": ["global_hit_rate_st", '/', '100'],
+        # global
+        "l1_hit_rate_g": ["global_hit_rate", '/', '100'],
+        "l1_hit_rate_ldg": ["global_hit_rate_ld", '/', '100'],
+        "l1_hit_rate_stg": ["global_hit_rate_st", '/', '100'],
+        
+        "l2_hit_rate": ["l2_tex_hit_rate", '/', '100'],
+        "l2_hit_rate_ld": ["l2_tex_read_hit_rate", '/', '100'],
+        "l2_hit_rate_st": ["l2_tex_write_hit_rate", '/', '100'],
+        
         "gmem_read_requests": "global_load_requests",
         "gmem_write_requests": "global_store_requests",
         "gmem_read_trans": "gld_transactions",
@@ -59,9 +70,86 @@ key_map = {
         "l2_read_trans": "l2_read_transactions",
         "l2_write_trans": "l2_write_transactions",
         "dram_total_trans": "dram_total_transactions",
+        
+        "gmem_tot_reqs": ["global_load_requests", '+', "global_store_requests"],
+        "gmem_ld_reqs": "global_load_requests",
+        "gmem_st_reqs": "global_store_requests",
+        "gmem_tot_sectors": ["gld_transactions", '+', "gst_transactions"],
+        "gmem_ld_sectors": "gld_transactions",
+        "gmem_st_sectors": "gst_transactions",
+        "gmem_ld_diverg": "gld_transactions_per_request",
+        
+        "l2_tot_trans": ["l2_read_transactions", '+', "l2_write_transactions"],
+        "l2_ld_trans": "l2_read_transactions",
+        "l2_st_trans": "l2_write_transactions",
+        "dram_tot_trans": ["dram_read_transactions", '+', "dram_write_transactions"],
+        "dram_ld_trans": "dram_read_transactions",
+        "dram_st_trans": "dram_write_transactions",
     }
 
-def get_kernel_stat(json_data, stat_key, app_filter='', func=None):
+draw_list = ["l1_hit_rate", "l1_hit_rate_g", "l1_hit_rate_ldg", "l1_hit_rate_stg", "l2_hit_rate", "l2_hit_rate_ld", "l2_hit_rate_st",
+            "l2_ld_trans","l2_st_trans","l2_tot_trans","dram_ld_trans","dram_st_trans","dram_tot_trans",
+            "gmem_tot_reqs", "gmem_ld_sectors", "gmem_st_sectors", "gmem_tot_sectors", "gmem_ld_diverg"]
+
+# 定义操作符的优先级
+precedence = {
+    '+': 1,
+    '-': 1,
+    '*': 2,
+    '/': 2
+}
+
+# 定义每个操作符的操作
+operations = {
+    '+': operator.add,
+    '-': operator.sub,
+    '*': operator.mul,
+    '/': operator.truediv
+}
+
+def infix_to_postfix(tokens):
+    """将中缀表达式转换为后缀表达式"""
+    output = []
+    operators = []
+    
+    for token in tokens:
+        if token.isdigit():  # 操作数直接加入输出
+            output.append(token)
+        elif token in precedence:  # 操作符
+            while (operators and operators[-1] in precedence and
+                   precedence[operators[-1]] >= precedence[token]):
+                output.append(operators.pop())
+            operators.append(token)
+        elif token == '(':  # 左括号入栈
+            operators.append(token)
+        elif token == ')':  # 右括号出栈直到遇到左括号
+            while operators and operators[-1] != '(':
+                output.append(operators.pop())
+            operators.pop()  # 弹出左括号
+        else: # symbol
+            output.append(token)
+    
+    while operators:  # 处理剩余的操作符
+        output.append(operators.pop())
+    
+    return output
+
+def evaluate_postfix(postfix, data):
+    """计算后缀表达式的值"""
+    stack = []
+    for token in postfix:
+        if token.isdigit():  # 操作数直接入栈
+            stack.append(int(token))
+        elif token in operations:  # 操作符，弹出两个操作数进行计算
+            b = stack.pop()
+            a = stack.pop()
+            result = operations[token](a, b)
+            stack.append(result)
+        else: # symbol
+            stack.append(data[token])
+    return stack[0]
+
+def get_kernel_stat(json_data, stat_key, app_filter='', func=None, key_is_expression=False):
     '''
     construct X, Y. X: kernel name, Y: stat
     '''
@@ -77,16 +165,26 @@ def get_kernel_stat(json_data, stat_key, app_filter='', func=None):
             continue
         
         for j,kernel_res in enumerate(kernels_res):
-            app_short_name = app.replace('_', '')
-            app_short_name = app_short_name[:3]+app_short_name[-10:]
-            X.append(f"{app_short_name}-{j}-{kernel_res['kernel_name']}")
-            if func:
-                Y.append(func(kernel_res[stat_key]))
+            if 'kernel_name' not in kernel_res:
+                X.append(f"{app}-{j}")
             else:
-                Y.append(kernel_res[stat_key])
-    return X, Y
+                app_short_name = app.replace('_', '')
+                app_short_name = app_short_name[:3]+app_short_name[-10:]
+                X.append(f"{app_short_name}-{j}-{kernel_res['kernel_name']}")
+            # app_short_name = app.replace('_', '')
+            # app_short_name = app_short_name[:3]+app_short_name[-10:]
+            # X.append(f"{app_short_name}-{j}-{kernel_res['kernel_name']}")
+            if key_is_expression:
+                value = evaluate_postfix(infix_to_postfix(stat_key), kernel_res)
+            else:
+                value = kernel_res[stat_key]
+            if func:
+                value = func(value)
+            Y.append(value)
 
-def get_app_stat(json_data, stat_key, app_filter='', func=None, avg=False):
+    return np.array(X), np.array(Y)
+
+def get_app_stat(json_data, stat_key, app_filter='', func=None, avg=False, key_is_expression=False):
     '''
     construct X, Y. X: app name, Y: app stat (sum of kernel stat)
     '''
@@ -106,23 +204,59 @@ def get_app_stat(json_data, stat_key, app_filter='', func=None, avg=False):
         accum = 0
         try:
             for kernel_res in kernels_res:
-                if func:
-                    accum += func(kernel_res[stat_key])
+                if key_is_expression:
+                    value = evaluate_postfix(infix_to_postfix(stat_key), kernel_res)
                 else:
-                    accum += kernel_res[stat_key]
+                    value = kernel_res[stat_key]
+                if func:
+                    value = func(value)
+                accum += value
         except Exception as e:
-            print(f"Exception: {e}")
-            print(f"ERROR: {app} {stat_key} {kernel_res}")
-            exit(-1)
+            # print(f"Exception: {e}")
+            print(f"ERROR in get_app_stat: {app} {stat_key}")
+            raise e
         if avg:
             accum /= len(kernels_res)
         Y.append(accum)
         
-    return X, Y
+    return np.array(X), np.array(Y)
 
 # global var
 overwrite = False
 app_filter = ''
+
+def draw_helper(msg, stat, save_img, draw_kernel=False, sim_res_func=None, avg=False, hw_stat="", verbose=True):
+    global overwrite, app_filter
+    save_img_path = os.path.join(os.getcwd(), save_img)
+    if os.path.exists(save_img_path) and not overwrite:
+        return False, None
+    if not os.path.exists(os.path.dirname(save_img_path)):
+        os.makedirs(os.path.dirname(save_img_path))
+    if verbose:
+        print(f"draw {msg} {stat}: {save_img[-60:]}")
+    
+    hw_stat_key = key_map[stat] if not hw_stat else hw_stat
+    key_is_expression = False
+    if type(hw_stat_key) == list:
+        key_is_expression = True
+    if not draw_kernel:
+        x1, y1 = get_app_stat(hw_res, hw_stat_key, app_filter=app_filter, avg=avg, key_is_expression=key_is_expression)
+        _, y2 = get_app_stat(sim_res, stat, app_filter=app_filter, func=sim_res_func, avg=avg)
+    else:
+        x1, y1 = get_kernel_stat(hw_res, hw_stat_key, app_filter=app_filter, key_is_expression=key_is_expression)
+        _, y2 = get_kernel_stat(sim_res, stat, app_filter=app_filter, func=sim_res_func)
+
+    non_zero_idxs = y1 != 0
+    MAE = np.mean(np.abs(y1[non_zero_idxs] - y2[non_zero_idxs])/y1[non_zero_idxs])
+    t = y2 - y1
+    RMSE = np.sqrt(np.mean(t**2))
+    NRMSE = RMSE/np.mean(np.abs(y1))
+    NRMSE_max_min = RMSE/(np.max(y1)-np.min(y1))
+    # correlation
+    corr = np.corrcoef(y1, y2)[0, 1]
+    
+    return True, [x1, y1, y2, MAE, NRMSE, corr, save_img_path]
+    
 def draw_error(stat, save_img, draw_kernel=False, sim_res_func=None, error_text=True, avg=False, hw_stat="", abs=False):
     '''
     stat: the stat to compare (simulate res and hw res)
@@ -130,15 +264,28 @@ def draw_error(stat, save_img, draw_kernel=False, sim_res_func=None, error_text=
     sim_res_func: function to process sim res
     hw_stat: don't use key map, force hw_stat key
     '''
-    global overwrite, app_filter
-    # save_img_path = os.path.join(args.output_dir, save_img)
-    save_img_path = os.path.join(os.getcwd(), save_img)
-    if os.path.exists(save_img_path) and not overwrite:
+    flag, data = draw_helper("error", stat, save_img, draw_kernel, sim_res_func, avg, hw_stat)
+    if not flag:
         return
-    if not os.path.exists(os.path.dirname(save_img_path)):
-        os.makedirs(os.path.dirname(save_img_path))
-    print(f"draw error {'kernel' if draw_kernel else 'app'} {stat}: {save_img[-60:]}")
+    x1, y1, y2, MAE, NRMSE, corr, save_img_path = data
+    # save_img_path = os.path.join(os.getcwd(), save_img)
+    # if os.path.exists(save_img_path) and not overwrite:
+    #     return
+    # if not os.path.exists(os.path.dirname(save_img_path)):
+    #     os.makedirs(os.path.dirname(save_img_path))
+    # print(f"draw error {'kernel' if draw_kernel else 'app'} {stat}: {save_img[-60:]}")
     
+    # hw_stat_key = key_map[stat] if not hw_stat else hw_stat
+    # key_is_expression = False
+    # if type(hw_stat_key) == list:
+    #     key_is_expression = True
+    # if not draw_kernel:
+    #     x1, y1 = get_app_stat(hw_res, hw_stat_key, app_filter=app_filter, avg=avg, key_is_expression=key_is_expression)
+    #     _, y2 = get_app_stat(sim_res, stat, app_filter=app_filter, func=sim_res_func, avg=avg)
+    # else:
+    #     x1, y1 = get_kernel_stat(hw_res, hw_stat_key, app_filter=app_filter, key_is_expression=key_is_expression)
+    #     _, y2 = get_kernel_stat(sim_res, stat, app_filter=app_filter, func=sim_res_func)
+
     def bar_overlay(ax, bars, x):
         i = 0
         for bar in bars:
@@ -147,30 +294,16 @@ def draw_error(stat, save_img, draw_kernel=False, sim_res_func=None, error_text=
                     ha='center', va='bottom', fontsize=8, rotation=-90)
             i += 1
     
-    hw_stat_key = key_map[stat] if not hw_stat else hw_stat
-    scale = 1
-    if type(hw_stat_key) == list:
-        hw_stat_key, scale = hw_stat_key
-    if not draw_kernel:
-        x1, y1 = get_app_stat(hw_res, hw_stat_key, app_filter=app_filter, func=lambda x: x*scale, avg=avg)
-        _, y2 = get_app_stat(sim_res, stat, app_filter=app_filter, func=sim_res_func, avg=avg)
-    else:
-        x1, y1 = get_kernel_stat(hw_res, hw_stat_key, app_filter=app_filter, func=lambda x: x*scale)
-        _, y2 = get_kernel_stat(sim_res, stat, app_filter=app_filter, func=sim_res_func)
+    error_y = []
+    for i in range(len(y1)):
+        if y1[i] == 0:
+            error_y.append(0)
+        else:
+            if abs:
+                error_y.append(np.abs(y2[i] - y1[i])/y1[i])
+            else:
+                error_y.append((y2[i] - y1[i])/y1[i])
 
-    if abs:
-        error_y = np.abs(np.array(y2) - np.array(y1))/np.array(y1)
-    else:
-        error_y = (np.array(y2) - np.array(y1))/np.array(y1)
-    MAE = np.mean(np.abs(error_y))
-    t = np.array(y2) - np.array(y1)
-    RMSE = np.sqrt(np.mean(t**2))
-    NRMSE = RMSE/np.mean(np.abs(y1))
-    NRMSE_max_min = RMSE/(np.max(y1)-np.min(y1))
-    
-    # correlation
-    corr = np.corrcoef(y1, y2)[0, 1]
-    
     fig, ax = plt.subplots()
     bars = ax.bar(x1, error_y)
     if error_text:
@@ -186,34 +319,12 @@ def draw_error(stat, save_img, draw_kernel=False, sim_res_func=None, error_text=
     fig.savefig(save_img_path)
     plt.close(fig)
 
-def draw_side2side(stat, save_img, draw_kernel=False, sim_res_func=None, avg=True, hw_stat=""):
-    global overwrite, app_filter
-    # save_img_path = os.path.join(args.output_dir, save_img)
-    save_img_path = os.path.join(os.getcwd(), save_img)
-    if os.path.exists(save_img_path) and not overwrite:
+def draw_side2side(stat, save_img, draw_kernel=False, sim_res_func=None, avg=True, hw_stat="", verbose=True):
+    flag, data = draw_helper("bar", stat, save_img, draw_kernel, sim_res_func, avg, hw_stat, verbose=verbose)
+    if not flag:
         return
-    if not os.path.exists(os.path.dirname(save_img_path)):
-        os.makedirs(os.path.dirname(save_img_path))
-    print(f"draw s2s {'kernel' if draw_kernel else 'app'} {stat}: {save_img[-60:]}")
+    x1, y1, y2, MAE, NRMSE, corr, save_img_path = data
     
-    hw_stat_key = key_map[stat] if not hw_stat else hw_stat
-    scale = 1
-    if type(hw_stat_key) == list:
-        hw_stat_key, scale = hw_stat_key
-    if not draw_kernel:
-        x1, y1 = get_app_stat(hw_res, hw_stat_key, app_filter=app_filter, func=lambda x: x*scale, avg=avg)
-        _, y2 = get_app_stat(sim_res, stat, app_filter=app_filter, func=sim_res_func, avg=avg)
-    else:
-        x1, y1 = get_kernel_stat(hw_res, hw_stat_key, app_filter=app_filter, func=lambda x: x*scale)
-        _, y2 = get_kernel_stat(sim_res, stat, app_filter=app_filter, func=sim_res_func)
-    
-    corr = np.corrcoef(y1, y2)[0, 1]
-    MAE = np.mean(np.abs(np.array(y2) - np.array(y1))/np.array(y1))
-    t = np.array(y2) - np.array(y1)
-    RMSE = np.sqrt(np.mean(t**2))
-    NRMSE = RMSE/np.mean(np.abs(y1))
-    NRMSE_max_min = RMSE/(np.max(y1)-np.min(y1))
-        
     N = len(x1)
     ind = np.arange(N) + .15 # the x locations for the groups
     width = 0.35       # the width of the bars
@@ -227,6 +338,7 @@ def draw_side2side(stat, save_img, draw_kernel=False, sim_res_func=None, avg=Tru
     ax.set_xticklabels( x1 )
     
     # add some text for labels, title and axes ticks
+    fig.subplots_adjust(bottom=0.4)
     ax.set_xlabel("app")
     ax.set_ylabel(stat)
     ax.set_title(f"{stat} side by side")
@@ -238,6 +350,45 @@ def draw_side2side(stat, save_img, draw_kernel=False, sim_res_func=None, avg=Tru
     fig.savefig(save_img_path)
     plt.close(fig)
 
+def draw_correl(stat, save_img, draw_kernel=False, sim_res_func=None, avg=True, hw_stat=""):
+    flag, data = draw_helper("correl", stat, save_img, draw_kernel, sim_res_func, avg, hw_stat)
+    if not flag:
+        return
+    x1, y1, y2, MAE, NRMSE, corr, save_img_path = data
+        
+    fig, ax = plt.subplots()
+    ax.scatter(y1, y2, label=f"corr={corr:.2f} error={MAE:.2f}", color='blue')
+    
+    min_val = min(y1.min(), y2.min())
+    max_val = max(y1.max(), y2.max())
+    min_val -= 0.1*(max_val - min_val)
+    max_val += 0.1*(max_val - min_val)
+    
+    ax.plot([min_val, max_val], [min_val, max_val], color='red')
+    
+    ax.set_xlim(min_val, max_val)
+    ax.set_ylim(min_val, max_val)
+    
+    if max_val / (min_val+1e-6) > 1000:
+        ax.set_xscale('log')
+        ax.set_yscale('log')
+
+    ax.set_aspect('equal', adjustable='box')
+    # add some text for labels, title and axes ticks
+    ax.set_xlabel(f"HW {stat}")
+    ax.set_ylabel(f"Sim {stat}")
+    ax.set_title(f"{stat} Correl, corr={corr:.2f}, MAE={MAE:.2f}, NRMSE={NRMSE:.2f}")
+    ax.legend()
+    fig.savefig(save_img_path)
+    plt.close(fig)
+    return {
+        stat: {
+            'MAE': MAE,
+            'NRMSE': NRMSE,
+            'corr': corr,
+        }
+    }
+    
 def truncate_kernel(sim_res, num):
     sim_res_new = {}
     for app, kernels_res in sim_res.items():
@@ -246,9 +397,12 @@ def truncate_kernel(sim_res, num):
 
 def find_common(sim_res, hw_res):
     # proc hw_res
-    for app, kernels_res in hw_res.items():
-        for kernel_res in kernels_res:
-            kernel_res["dram_total_transactions"] = kernel_res["dram_read_transactions"] + kernel_res["dram_write_transactions"]
+    try:
+        for app, kernels_res in hw_res.items():
+            for kernel_res in kernels_res:
+                kernel_res["dram_total_transactions"] = kernel_res["dram_read_transactions"] + kernel_res["dram_write_transactions"]
+    except:
+        pass
 
     # found common
     for app in hw_res.copy():
@@ -285,7 +439,11 @@ if __name__ == "__main__":
                         default="")
     parser.add_argument("-F", "--app-filter", default="", help="filter apps. e.g. regex:.*-rodinia-2.0-ft, [suite]:[exec]:[count]")
     parser.add_argument('-d', '--dir-name', default='', help='dir name to save image, default "app" and "kernel"')
-    parser.add_argument("command", choices=["app", "kernel", "kernel_by_app", "app_by_bench", "single"], help="draw app or kernel. app: to get overview error of cycle, memory performance and etc. at granurality of apps. kernel: draw all error bar in granurality of kernel. single: draw seperate app in single dir, it's useful when we want to get single app info mation")
+    parser.add_argument("command",
+                        # choices=["app", "kernel", "kernel_by_app", "app_by_bench", "single", "memory"],
+                        help="draw app or kernel. app: to get overview error of cycle, memory performance and etc. at granurality of apps. kernel: draw all error bar in granurality of kernel. single: draw seperate app in single dir, it's useful when we want to get single app info mation")
+    parser.add_argument('--gtx1080ti', action='store_true', help='1080ti l1 hit should use tex_cache_hit_rate')
+    parser.add_argument('-N', '--not-overwrite', dest='overwrite', action='store_false', help='not overwrite')
 
     args = parser.parse_args()
     
@@ -316,9 +474,9 @@ if __name__ == "__main__":
     run_dir = os.getcwd()
     os.chdir(args.output_dir)
     
+    overwrite = args.overwrite
     if args.command=="app":
         print(f"\ncommand: {args.command}:")
-        overwrite = True
         app_filter = args.app_filter
         args.dir_name = args.dir_name if args.dir_name else args.command
         os.makedirs(args.dir_name, exist_ok=True)  # save image in app dir
@@ -368,7 +526,6 @@ if __name__ == "__main__":
         draw_side2side("l2_write_trans",        "bar_6_l2_write_trans.png")
         draw_side2side("dram_total_trans",      "bar_6_dram_total_trans.png")
     elif args.command=="app_by_bench":
-        overwrite = True
         args.dir_name = args.dir_name if args.dir_name else args.command
         os.makedirs(args.dir_name, exist_ok=True)  # save image in seperate dir
         os.chdir(args.dir_name)
@@ -399,7 +556,6 @@ if __name__ == "__main__":
         os.makedirs(args.dir_name, exist_ok=True)  # save image in seperate dir
         os.chdir(args.dir_name)
         
-        overwrite = True
         app_filter = args.app_filter
         draw_error("my_gpu_active_cycle_max", "error_4_my_gpu_active_cycle_max.png", draw_kernel=True)
         draw_side2side("my_gpu_active_cycle_max", f"bar_4_my_gpu_active_cycle_max.png", draw_kernel=True)
@@ -421,7 +577,6 @@ if __name__ == "__main__":
             draw_side2side("warp_inst_executed", f"bar_{app_name_safe}_1_my_warp_inst_executed.png", draw_kernel=True)
     elif args.command == 'single':
         print(f"\ncommand: {args.command}:")
-        overwrite = True
         app_list_all = sim_res.keys()
         app_list = filter_app_list(app_list_all, args.app_filter)  # convert coord filter to app_and_arg filter
         print(f"will draw: {app_list}")
@@ -441,4 +596,89 @@ if __name__ == "__main__":
             
             draw_side2side("l1_hit_rate", f"bar_6_l1_hit_rate.png", draw_kernel=True)
             draw_side2side("l2_hit_rate", f"bar_6_l2_hit_rate.png", draw_kernel=True)
+    elif args.command=='memory':
+        print(f"\ncommand: {args.command}:")
+        args.dir_name = args.dir_name if args.dir_name else args.command
+        os.makedirs(args.dir_name, exist_ok=True)  # save image in seperate dir
+        os.chdir(args.dir_name)
+        # get all bench
+        app_list_all = sim_res.keys()
+        benchs = set()
+        for app_arg in app_list_all:
+            try:
+                benchs.add(suite_info['map'][app_arg][0])
+            except:
+                print(f"Warning: {app_arg} not found in suite_info, skip")
+        
+        # total kernel
+        draw_correl("l1_hit_rate", f"6_l1_hit_rate_correl.png")
+        draw_correl("l2_hit_rate", f"6_l2_hit_rate_correl.png")
+        draw_correl("l1_hit_rate", f"6_l1_hit_rate_correl_all_kernel.png", draw_kernel=True)
+        draw_correl("l2_hit_rate", f"6_l2_hit_rate_correl_all_kernel.png", draw_kernel=True)
+        
+        MAE_res = {'apps': {}, 'kernels': {}}
+        for bench in benchs:
+            apps_res = {}  # app level
+            kernels_res = {} # kernel level
+            MAE_res['apps'][bench] = apps_res
+            MAE_res['kernels'][bench] = kernels_res
+            
+            # set each bench as filter
+            app_filter = bench
+            
+            for i, stat in enumerate(draw_list):
+                try:
+                    draw_side2side(stat, f"{bench}_{i}_{stat}_bar.png")
+                    app_res = draw_correl(stat, f"{bench}_{i}_{stat}_correl.png")
+                    kernel_res = draw_correl(stat, f"{bench}_{i}_{stat}_correl_all_kernel.png", draw_kernel=True)  # not avg
+                    
+                    apps_res.update(app_res)
+                    kernels_res.update(kernel_res)
+                except:
+                    print(f"ERROR: draw memory {app_arg} {stat} failed")
+                    continue
+        
+        import csv
+        # write csv
+        csvfile = open('memory_res.csv', 'w', newline='')
+        csv_writer = csv.writer(csvfile, delimiter=',',
+                            quotechar='|', quoting=csv.QUOTE_MINIMAL)
+        csv_writer.writerow(['level', 'bench', 'stat', 'MAE', 'NRMSE', 'corr'])
+        for level in ['apps', 'kernels']:
+            for bench in benchs:
+                for stat in MAE_res[level][bench].keys():
+                    csv_writer.writerow([level, bench, stat, MAE_res[level][bench][stat]['MAE'], MAE_res[level][bench][stat]['NRMSE'], MAE_res[level][bench][stat]['corr']])
+        csvfile.close()
+        
+    elif args.command == 'memory_kernels':
+        print(f"\ncommand: {args.command}:")
+        args.dir_name = args.dir_name if args.dir_name else args.command
+        os.makedirs(args.dir_name, exist_ok=True)  # save image in seperate dir
+        os.chdir(args.dir_name)
+        cwd = os.getcwd()
+        
+        app_list_all = sim_res.keys()
+        l1_hw_stat = "l1_hit_rate" if args.command == 'memory-sim' else key_map['l1_hit_rate']
+        l2_hw_stat = "l2_hit_rate" if args.command == 'memory-sim' else key_map['l2_hit_rate']
+        for i,app_arg in enumerate(app_list_all):
+            app_filter=app_arg  # set global filter to single app
+            
+            app_name_safe = app_arg.replace('/', '_')
+            prefix = f"{i:2d}_{app_name_safe}"
+            os.chdir(cwd)
+            os.makedirs(prefix, exist_ok=True)  # save image in seperate dir
+            os.chdir(prefix)
+            
+            for i, stat in enumerate(draw_list):
+                try:
+                    draw_side2side(stat, f"{i}_{stat}_bar.png", draw_kernel=True, verbose=False)
+                    # draw_correl(stat, f"{stat}_correl.png", draw_kernel=True)
+                except InterruptedError as e:
+                    print("InterruptedError: ", e)
+                    exit()
+                except:
+                    print(f"ERROR: {app_arg} {stat} failed")
+                    continue
+    else:
+        print(f"ERROR: command {args.command} not supported")
     os.chdir(run_dir)

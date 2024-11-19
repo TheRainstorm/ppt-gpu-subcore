@@ -1,5 +1,16 @@
 #!/usr/bin/env bash
 
+run_memory(){
+python ${ppt_gpu_dir}/memory_model/run_benchmarks.py $(echo ${memory_extra_params}) -c ${GPU_PROFILE} -M ${memory_model} --granularity $granularity $(echo $filter_l2) $(echo $use_approx) $(echo $use_sm_trace) -B ${benchmarks} -F ${filter_app} -T ${trace_dir} -o ${res_memory_json} -l run_memory_${memory_model}.log
+
+python ${ppt_gpu_dir}/scripts/draw/draw_1.py -B ${benchmarks} -F ${filter_app} -S ${res_memory_json} -H ${res_hw_sim_json} -o ${draw_output} -d memory_${memory_model}${memory_suffix} memory
+python ${ppt_gpu_dir}/scripts/draw/draw_1.py -B ${benchmarks} -F ${filter_app} -S ${res_memory_json} -H ${res_hw_sim_json} -o ${draw_output} -d memory_${memory_model}${memory_suffix}_kernels memory_kernels
+python ${ppt_gpu_dir}/memory_model/caculate_MAEs.py -B ${benchmarks} -F ${filter_app} -S ${res_memory_json} -H ${res_hw_sim_json} -o ${draw_output}/memory_${memory_model}${memory_suffix}/memory_${memory_model}${memory_suffix}.xlsx
+
+python ${ppt_gpu_dir}/memory_model/caculate_MAEs.py -B ${benchmarks} -F ${filter_app} -S ${res_memory_json} -H ${res_hw_sim_json} -o memory_${memory_model}${memory_suffix}.xlsx
+cp ${res_memory_json} ${draw_output}/memory_${memory_model}${memory_suffix}
+}
+
 run_trace(){
 # trace
 python ${ppt_gpu_dir}/scripts/run_hw_trace.py -B ${benchmarks} -F ${filter_app} -T ${trace_dir} -D ${GPU} --trace_tool ${ppt_gpu_dir}/tracing_tool/tracer-${nvbit_version}.so -l run_hw_trace_${hw_identifier}.log --time-out ${time_out} > /dev/null
@@ -35,7 +46,7 @@ fi
 run_sim(){
 cd ${ppt_gpu_dir}
 # run sim
-python ${ppt_gpu_dir}/scripts/run_simulation.py -M "mpiexec -n 2" -F ${filter_app} -B ${benchmarks} -T ${trace_dir} -H TITANV --granularity 2 -R ${report_dir} -l run_sim_${sim_identifier}.log --time-out ${time_out} > /dev/null
+python ${ppt_gpu_dir}/scripts/run_simulation.py -M "mpiexec -n 2" -F ${filter_app} -B ${benchmarks} -T ${trace_dir} -H ${GPU_PROFILE} --granularity 2 -R ${report_dir} -l run_sim_${sim_identifier}.log --time-out ${time_out} > /dev/null
 
 # get stat
 python ${ppt_gpu_dir}/scripts/get_stat_sim.py -B ${benchmarks} -F ${filter_app} -T ${report_dir} -o ${res_sim_json}
@@ -49,8 +60,8 @@ python ${ppt_gpu_dir}/scripts/draw/convert_cpi_stack.py -i ${res_sim_json} -I "p
 draw(){
 # draw
 # rm -rf ${draw_output}
-python ${ppt_gpu_dir}/scripts/draw/draw_1.py -F ${filter_app} -B ${benchmarks} -S ${res_sim_json} -H ${res_hw_json} -o ${draw_output} -d app_${filter_app} app
-python ${ppt_gpu_dir}/scripts/draw/draw_1.py -F ${filter_app} -B ${benchmarks} -S ${res_sim_json} -H ${res_hw_json} -o ${draw_output} app_by_bench
+python ${ppt_gpu_dir}/scripts/draw/draw_1.py -F ${filter_app} -B ${benchmarks} -S ${res_sim_json} -H ${res_hw_sim_json} -o ${draw_output} -d app_${filter_app} app
+python ${ppt_gpu_dir}/scripts/draw/draw_1.py -F ${filter_app} -B ${benchmarks} -S ${res_sim_json} -H ${res_hw_sim_json} -o ${draw_output} app_by_bench
 # python ${ppt_gpu_dir}/scripts/draw/draw_1.py -F ${filter_app} -B ${benchmarks} -S ${res_sim_json} -H ${res_hw_json} -o ${draw_output} kernel_by_app
 # python ${ppt_gpu_dir}/scripts/draw/draw_1.py -F ${filter_app} -B ${benchmarks} -S ${res_sim_json} -H ${res_hw_json} -o ${draw_output} -d kernel_${filter_app} kernel
 
@@ -63,7 +74,8 @@ python ${ppt_gpu_dir}/scripts/draw/draw_cpi_stack.py -F ${filter_app} -B ${bench
 # python ${ppt_gpu_dir}/scripts/draw/draw_cpi_stack.py -F ${filter_app} -S ${res_sim_cpi_json} -R ${res_hw_cpi_json} -o ${draw_output} --s2s --draw-subcore
 fi
 
-cp ${res_hw_json} ${draw_output}
+cp ${res_hw_sim_json} ${draw_output}
+cp ${res_hw_cpi_sim_json} ${draw_output}
 cp ${res_sim_json} ${draw_output}
 }
 
@@ -139,7 +151,7 @@ fi
 if (( $1 & 2 )); then
 echo "run simulation"
 # run_sim
-python ${ppt_gpu_dir}/scripts/run_simulation.py -F ${single_app} -B ${benchmarks} -T ${trace_dir} -H TITANV -M "mpiexec -n 2" --granularity 2 -R ${single_report_dir} -l run_sim_${sim_identifier}.log
+python ${ppt_gpu_dir}/scripts/run_simulation.py -F ${single_app} -M "mpiexec -n 2" -B ${benchmarks} -T ${trace_dir} -H ${GPU_PROFILE} --granularity 2 -R ${single_report_dir} -l run_sim_${sim_identifier}.log
 python ${ppt_gpu_dir}/scripts/get_stat_sim.py -F ${single_app} -B ${benchmarks} -T ${single_report_dir} -o ${res_sim_json}
 python ${ppt_gpu_dir}/scripts/draw/convert_cpi_stack.py -i ${res_sim_json} -I "ppt_gpu" -o ${res_sim_cpi_json}
 python ${ppt_gpu_dir}/scripts/draw/convert_cpi_stack.py -i ${res_sim_json} -I "ppt_gpu_sched"  -o ${res_sim_sched_cpi_json}
@@ -149,11 +161,11 @@ fi
 if (( $1 & 1 )); then
 echo "draw"
 # draw error
-python ${ppt_gpu_dir}/scripts/draw/draw_1.py -F ${single_app} -S ${res_sim_json} -H ${res_hw_json} -o ${single_draw_output} single
+python ${ppt_gpu_dir}/scripts/draw/draw_1.py -F ${single_app} -S ${res_sim_json} -H ${res_hw_sim_json} -o ${single_draw_output} single
 
 # draw cpi stack
-python ${ppt_gpu_dir}/scripts/draw/draw_cpi_stack.py -F ${single_app} -S ${res_sim_cpi_json} -R ${res_hw_cpi_json} -o ${single_draw_output} --seperate-dir --s2s --draw-subcore
-python ${ppt_gpu_dir}/scripts/draw/draw_cpi_stack.py -F ${single_app} -S ${res_sim_detail_cpi_json} -R ${res_hw_cpi_json} -o ${single_draw_output} --seperate-dir --s2s --subplot-s2s 
+python ${ppt_gpu_dir}/scripts/draw/draw_cpi_stack.py -F ${single_app} -S ${res_sim_cpi_json} -R ${res_hw_cpi_sim_json} -o ${single_draw_output} --seperate-dir --s2s --draw-subcore
+python ${ppt_gpu_dir}/scripts/draw/draw_cpi_stack.py -F ${single_app} -S ${res_sim_detail_cpi_json} -R ${res_hw_cpi_sim_json} -o ${single_draw_output} --seperate-dir --s2s --subplot-s2s 
 # python ${ppt_gpu_dir}/scripts/draw/draw_cpi_stack.py -F ${single_app} -S ${res_sim_cpi_json} -o ${single_draw_output} --seperate-dir
 python ${ppt_gpu_dir}/scripts/draw/draw_cpi_stack.py -F ${single_app} -S ${res_sim_sched_cpi_json} -o ${single_draw_output} --seperate-dir --subdir "cpi_sched"
 fi

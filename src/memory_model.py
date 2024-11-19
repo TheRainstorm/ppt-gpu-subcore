@@ -20,6 +20,7 @@ import pickle
 from joblib import Parallel, delayed
 from .helper_methods import *
 
+repo_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 
 def interleave_trace(smi_trace):
     '''
@@ -184,26 +185,32 @@ def get_hit_rate_analytical(reuse_profile, cache_size, line_size, associativity)
 
 
 def private_SM_computation(SM_id, kernel_id, grid_size, num_SMs, mem_trace_dir_path, max_blocks_per_SM,\
-                          l1_cache_size, l1_cache_line_size, l1_cache_associativity):
+                          l1_cache_size, l1_cache_line_size, l1_cache_associativity, use_sm_trace=False):
 
     SM_stats = {}
     smi_trace = []
     shared_trace = []
-    count_blocks = 0
-    for block_id in range(grid_size):
-        if count_blocks > max_blocks_per_SM:
-            break
-        current_block_id = block_id % num_SMs
-        if current_block_id == SM_id:
-            try:
-                count_blocks += 1
-                trace_file = mem_trace_dir_path+"/kernel_"+str(kernel_id)+"_block_"+str(block_id)+".mem"
-                # block_trace = open(trace_file,'r').read().strip().split("\n=====\n")
-                block_trace = open(trace_file,'r').readlines()
-                smi_trace.append(block_trace)
-            except:
-                # print("\n[Warning]\n"+trace_file+" not found\n")
-                continue
+    
+    if use_sm_trace:
+        trace_file = mem_trace_dir_path+"/kernel_"+str(kernel_id)+"_sm_"+str(SM_id)+".mem"
+        interleaved_trace = open(trace_file,'r').readlines()
+        smi_trace = interleaved_trace  # smi_trace just for check, not used
+    else:
+        count_blocks = 0
+        for block_id in range(grid_size):
+            if count_blocks > max_blocks_per_SM:
+                break
+            current_block_id = block_id % num_SMs
+            if current_block_id == SM_id:
+                try:
+                    count_blocks += 1
+                    trace_file = mem_trace_dir_path+"/kernel_"+str(kernel_id)+"_block_"+str(block_id)+".mem"
+                    # block_trace = open(trace_file,'r').read().strip().split("\n=====\n")
+                    block_trace = open(trace_file,'r').readlines()
+                    smi_trace.append(block_trace)
+                except:
+                    # print("\n[Warning]\n"+trace_file+" not found\n")
+                    continue
 
     if smi_trace:
         SMi_trans_file = mem_trace_dir_path+"/K"+str(kernel_id)+"_SM"+str(SM_id)+".trace"
@@ -219,7 +226,8 @@ def private_SM_computation(SM_id, kernel_id, grid_size, num_SMs, mem_trace_dir_p
         #     current_blocks = smi_trace[i:i+concurrent_blocks]
         #     current_interleave_trace = interleave_trace(current_blocks)
         #     interleaved_trace += current_interleave_trace
-        interleaved_trace = interleave_trace(smi_trace)
+        if not use_sm_trace:
+            interleaved_trace = interleave_trace(smi_trace)
 
         memory_stats, shared_trace = preprocess_private_trace(interleaved_trace, SMi_trans_file, l1_cache_line_size)
         SM_stats.update(memory_stats)
@@ -237,11 +245,11 @@ def private_SM_computation(SM_id, kernel_id, grid_size, num_SMs, mem_trace_dir_p
         lmem_hit_rate = 0.0
 
         if lmem_used:
-            cmd = "reuse_distance_tool/parda.x --input="+SMi_trans_file+" --sm_id="+str(SM_id)+" --lines="+str(umem_num_lines_tot)+\
+            cmd = f"{repo_dir}/reuse_distance_tool/parda.x --input="+SMi_trans_file+" --sm_id="+str(SM_id)+" --lines="+str(umem_num_lines_tot)+\
                   " --assoc="+str(l1_cache_associativity)+" --output_dir="+mem_trace_dir_path+" --kernel="+str(kernel_id)+" --lmem"
             os.system(cmd)
         else: 
-            cmd = "reuse_distance_tool/parda.x --input="+SMi_trans_file+" --sm_id="+str(SM_id)+" --lines="+str(umem_num_lines_tot)+\
+            cmd = f"{repo_dir}/reuse_distance_tool/parda.x --input="+SMi_trans_file+" --sm_id="+str(SM_id)+" --lines="+str(umem_num_lines_tot)+\
                 " --assoc="+str(l1_cache_associativity)+" --output_dir="+mem_trace_dir_path+" --kernel="+str(kernel_id)
             os.system(cmd)
 
@@ -268,10 +276,11 @@ def private_SM_computation(SM_id, kernel_id, grid_size, num_SMs, mem_trace_dir_p
 
         SM_stats["shared_trace"] = shared_trace
 
-        cmd = "rm "+ SMi_trans_file+" "+umem_rpi_file+" "+gmem_rpi_lds_file+" "
-        if lmem_used:
-            cmd += gmem_rpi_file+" "+lmem_rpi_file
-        os.system(cmd)
+        if not SM_id==0:
+            cmd = "rm "+ SMi_trans_file+" "+umem_rpi_file+" "+gmem_rpi_lds_file+" "
+            if lmem_used:
+                cmd += gmem_rpi_file+" "+lmem_rpi_file
+            os.system(cmd)
 
     return SM_stats
 
@@ -279,7 +288,7 @@ def private_SM_computation(SM_id, kernel_id, grid_size, num_SMs, mem_trace_dir_p
 
 
 def get_memory_perf(kernel_id, mem_trace_dir_path, grid_size, num_SMs, l1_cache_size, l1_cache_line_size, l1_cache_associativity,\
-                    l2_cache_size, l2_cache_line_size, l2_cache_associativity, gmem_reqs, max_blocks_per_SM_orig, max_blocks_per_SM_new, cache_ref_data=None):
+                    l2_cache_size, l2_cache_line_size, l2_cache_associativity, gmem_reqs, allocted_block_per_sm, block_per_sm_simulate, cache_ref_data=None):
 
     blck_id = -1
     shared_trace = []
@@ -351,7 +360,7 @@ def get_memory_perf(kernel_id, mem_trace_dir_path, grid_size, num_SMs, l1_cache_
     #         SMs_output_list = pickle.load(f)
     # else:
     #     SMs_output_list = Parallel(n_jobs=num_jobs, prefer="processes")(delayed(private_SM_computation)(i, kernel_id, grid_size,\
-    #                                                                                                 num_SMs, mem_trace_dir_path, max_blocks_per_SM_new,\
+    #                                                                                                 num_SMs, mem_trace_dir_path, block_per_sm_simulate,\
     #                                                                                                 l1_cache_size, l1_cache_line_size,\
     #                                                                                                 l1_cache_associativity)\
     #                                                                                                 for i in range(parallel_comp))
@@ -359,7 +368,7 @@ def get_memory_perf(kernel_id, mem_trace_dir_path, grid_size, num_SMs, l1_cache_
     #     print("write to pickle")
     #     pickle.dump(SMs_output_list, f)
     SMs_output_list = Parallel(n_jobs=num_jobs, prefer="processes")(delayed(private_SM_computation)(i, kernel_id, grid_size,\
-                                                                                                num_SMs, mem_trace_dir_path, max_blocks_per_SM_new,\
+                                                                                                num_SMs, mem_trace_dir_path, block_per_sm_simulate,\
                                                                                                 l1_cache_size, l1_cache_line_size,\
                                                                                                 l1_cache_associativity)\
                                                                                                 for i in range(parallel_comp))
@@ -393,7 +402,7 @@ def get_memory_perf(kernel_id, mem_trace_dir_path, grid_size, num_SMs, l1_cache_
         shared_num_lines, shared_trace_file = preprocess_shared_trace(shared_interleaved_trace, kernel_id, mem_trace_dir_path)
 
         ## call reuse_distance_tool to compute the RD & RP
-        cmd = "reuse_distance_tool/parda.x --input="+shared_trace_file+" --lines="+str(shared_num_lines)+\
+        cmd = f"{repo_dir}/reuse_distance_tool/parda.x --input="+shared_trace_file+" --lines="+str(shared_num_lines)+\
             " --assoc="+str(l2_cache_associativity)+" --output_dir="+mem_trace_dir_path+" --kernel="+str(kernel_id)+" --l2"
         os.system(cmd)
 
@@ -420,15 +429,15 @@ def get_memory_perf(kernel_id, mem_trace_dir_path, grid_size, num_SMs, l1_cache_
         memory_stats["gmem_hit_rate"] = sum(gmem_hit_rates_list) / len(gmem_hit_rates_list)
     else:
         memory_stats["gmem_hit_rate"] = memory_stats["umem_hit_rate"]
-    memory_stats["gmem_ld_reqs"] = int((sum(gmem_ld_reqs_list) * max_blocks_per_SM_orig) / max_blocks_per_SM_new)
-    memory_stats["gmem_st_reqs"] = int((sum(gmem_st_reqs_list) * max_blocks_per_SM_orig) / max_blocks_per_SM_new)
+    memory_stats["gmem_ld_reqs"] = int((sum(gmem_ld_reqs_list) * allocted_block_per_sm) / block_per_sm_simulate)
+    memory_stats["gmem_st_reqs"] = int((sum(gmem_st_reqs_list) * allocted_block_per_sm) / block_per_sm_simulate)
     memory_stats["gmem_tot_reqs"] = memory_stats["gmem_ld_reqs"] + memory_stats["gmem_st_reqs"]
-    memory_stats["gmem_ld_trans"] = int((sum(gmem_ld_trans_list) * max_blocks_per_SM_orig) / max_blocks_per_SM_new)
+    memory_stats["gmem_ld_trans"] = int((sum(gmem_ld_trans_list) * allocted_block_per_sm) / block_per_sm_simulate)
     gmem_sm_ld_trans = int(sum(gmem_ld_trans_list) / len(gmem_ld_trans_list))
-    memory_stats["gmem_sm_ld_trans"] = int((gmem_sm_ld_trans * max_blocks_per_SM_orig) / max_blocks_per_SM_new)
-    memory_stats["gmem_st_trans"] = int((sum(gmem_st_trans_list) * max_blocks_per_SM_orig) / max_blocks_per_SM_new)
+    memory_stats["gmem_sm_ld_trans"] = int((gmem_sm_ld_trans * allocted_block_per_sm) / block_per_sm_simulate)
+    memory_stats["gmem_st_trans"] = int((sum(gmem_st_trans_list) * allocted_block_per_sm) / block_per_sm_simulate)
     gmem_sm_st_trans = int(sum(gmem_st_trans_list) / len(gmem_st_trans_list))
-    memory_stats["gmem_sm_st_trans"] = int((gmem_sm_st_trans * max_blocks_per_SM_orig) / max_blocks_per_SM_new)
+    memory_stats["gmem_sm_st_trans"] = int((gmem_sm_st_trans * allocted_block_per_sm) / block_per_sm_simulate)
     memory_stats["gmem_tot_trans"] = memory_stats["gmem_ld_trans"] + memory_stats["gmem_st_trans"]
     memory_stats["l1_sm_trans_gmem"] =  memory_stats["gmem_sm_ld_trans"] + memory_stats["gmem_sm_st_trans"]
 

@@ -25,9 +25,82 @@ from .warp_scheduler import Scheduler
 from collections import deque
 from .utils import LinkedList
 
+def get_max_active_block_per_sm(cc, launch_data, num_SMs, shared_memory_per_sm):
+    # cc = {
+    #     'warp_size': 32,
+    #     'max_active_threads_per_SM': 2048,
+    #     'max_active_blocks_per_SM': 32,
+        
+    #     'max_registers_per_SM': 65536,
+    #     'register_allocation_size': 256,
+        
+    #     'smem_allocation_size': 256,
+    # }
+    
+    # launch_data = {
+    #     'grid_size': 1024,
+    #     'block_size': 256,
+    #     'num_regs': 22,  # reg_per_thread
+    #     'smem_size': 0, # shared_memory_per_block
+    # }
+    
+    warps_per_block = ceil(launch_data['block_size'] / cc['warp_size'])
+    
+    max_warps_per_sm = cc['max_active_threads_per_SM'] // cc['warp_size']
+    block_per_sm_limit_warps = max_warps_per_sm // warps_per_block
+    block_per_sm_limit_blocks = cc['max_active_blocks_per_SM']
+    block_limit_warp_or_block = min(block_per_sm_limit_warps, block_per_sm_limit_blocks)
+    
+    if launch_data['num_regs'] == 0:
+        block_per_sm_limit_regs = cc['max_active_blocks_per_SM']
+    else:
+        regs_per_warp = ceil(launch_data['num_regs'] * cc['warp_size'], cc['register_allocation_size'])
+        regs_per_block = regs_per_warp * warps_per_block
+        block_per_sm_limit_regs = cc['max_registers_per_SM'] // regs_per_block
+    
+    def get_smem_limit(shared_memory_per_sm):
+        if launch_data['smem_size'] == 0:
+            block_per_sm_limit_smem = cc['max_active_blocks_per_SM']
+        else:
+            smem_size = ceil(launch_data['smem_size'], cc['smem_allocation_size'])
+            block_per_sm_limit_smem = shared_memory_per_sm // smem_size
+        return block_per_sm_limit_smem
+    
+    th_max_active_block_per_sm = min(block_limit_warp_or_block, block_per_sm_limit_regs)
+    
+    # minimum smem size that not be a bottleneck
+    for smem_size in range(0, shared_memory_per_sm - 32*1024, 8*1024):  # l1 at least 32KB
+        block_per_sm_limit_smem = get_smem_limit(smem_size)
+        if block_per_sm_limit_smem >= th_max_active_block_per_sm:
+            break
+    th_max_active_block_per_sm = min(th_max_active_block_per_sm, block_per_sm_limit_smem)
+    
+    th_active_warps = th_max_active_block_per_sm * warps_per_block
+    th_occupancy = (th_active_warps / max_warps_per_sm) * 100
+    
+    allocted_block_per_sm = ceil(launch_data['grid_size'] / num_SMs)
+    max_active_block_per_sm = min(th_max_active_block_per_sm, allocted_block_per_sm)
+    
+    occupancy_res = {
+        'block_per_sm_limit_warps': block_per_sm_limit_warps,
+        'block_per_sm_limit_blocks': block_per_sm_limit_blocks,
+        'block_per_sm_limit_regs': block_per_sm_limit_regs,
+        'block_per_sm_limit_smem': block_per_sm_limit_smem,
+        
+        'th_max_active_block_per_sm': th_max_active_block_per_sm,
+        'th_active_warps': th_active_warps,
+        'th_occupancy': th_occupancy,
+        'allocted_block_per_sm': allocted_block_per_sm,
+        'max_active_block_per_sm': max_active_block_per_sm,
+        
+        'adaptive_smem_size': smem_size,
+    }
+    
+    return occupancy_res
+    
 class Kernel():
 
-    def __init__(self, base_info, gpuNode, kernel_info):
+    def __init__(self, gpuNode, kernel_info):
         # super(Kernel, self).__init__(base_info)
         # print("kernel %s, %s inits on Entity %d, Rank %d" % (kernel_info['kernel_name'], self.name, self.num, self.engine.rank))
         # sys.stdout.flush()
@@ -68,22 +141,22 @@ class Kernel():
         pred_out["kernel_name"] = self.kernel_name
         pred_out["ISA"] = self.ISA
         pred_out["granularity"] = kernel_info["granularity"]
-        pred_out["total_num_workloads"] = 0
+        pred_out["grid_size"] = 0
         pred_out["active_SMs"] = 0
         pred_out["max_active_blocks_per_SM"] = self.acc.max_active_blocks_per_SM
-        pred_out["blocks_per_SM_limit_warps"] = 0.0
-        pred_out["blocks_per_SM_limit_regs"] = 0.0
-        pred_out["blocks_per_SM_limit_smem"] = 0.0
-        pred_out["th_active_blocks"] = 0
+        pred_out["block_per_sm_limit_warps"] = 0.0
+        pred_out["block_per_sm_limit_regs"] = 0.0
+        pred_out["block_per_sm_limit_smem"] = 0.0
+        pred_out["th_max_active_block_per_sm"] = 0
         pred_out["th_active_warps"] = 0
         pred_out["th_active_threads"] = 0
         pred_out["th_occupancy"] = 0.0
         pred_out["allocated_active_warps_per_block"] = 0
         pred_out["achieved_active_warps"] = 0.0
         pred_out["achieved_occupancy"] = 0.0
-        pred_out["num_workloads_per_SM_orig"] = 0   # block 数除以 SM 数
-        pred_out["allocated_active_blocks_per_SM"] = 0 # 首先计算了理论 SM 最大 block 数目（和 reg、shared、block size）。然后该变量还和 num_workloads_per_SM_orig 取了个最小值
-        pred_out["num_workloads_per_SM_new"] = 0    # 根据模拟粒度，决定最终模拟的 SM 中 block 数目。AcTB 时赋值为 allocated_active_blocks_per_SM
+        pred_out["allocted_block_per_sm"] = 0   # block 数除以 SM 数
+        pred_out["max_active_block_per_sm"] = 0 # 首先计算了理论 SM 最大 block 数目（和 reg、shared、block size）。然后该变量还和 allocted_block_per_sm 取了个最小值
+        pred_out["block_per_sm_simulate"] = 0    # 根据模拟粒度，决定最终模拟的 SM 中 block 数目。AcTB 时赋值为 max_active_block_per_sm
         pred_out["active_cycles"] = 0
         pred_out["warps_instructions_executed"] = 0
         pred_out["threads_instructions_executed"] = 0
@@ -123,57 +196,26 @@ class Kernel():
             print_warning("shared_mem_bytes",str(self.acc.shared_mem_size))
             self.kernel_smem_size = self.acc.shared_mem_size
 
-        pred_out["total_num_workloads"]  = self.kernel_grid_size
-        pred_out["active_SMs"] = min(self.acc.num_SMs, pred_out["total_num_workloads"])
-        pred_out["allocated_active_warps_per_block"] = int(ceil((float(self.kernel_block_size)/float(self.acc.warp_size)),1))
-        pred_out["blocks_per_SM_limit_warps"] = int(min(pred_out["max_active_blocks_per_SM"],\
-                int(floor((self.acc.max_active_warps_per_SM/pred_out["allocated_active_warps_per_block"]),1))))
-
-        if self.kernel_num_regs == 0: pred_out["blocks_per_SM_limit_regs"] = pred_out["max_active_blocks_per_SM"]
-        else:
-            allocated_regs_per_warp = ceil((self.kernel_num_regs*self.acc.warp_size),self.acc.register_allocation_size)
-            allocated_regs_per_SM = int(floor((self.acc.max_registers_per_block/allocated_regs_per_warp),\
-                self.acc.num_warp_schedulers_per_SM))
-            pred_out["blocks_per_SM_limit_regs"] = int(floor((allocated_regs_per_SM/pred_out\
-                ["allocated_active_warps_per_block"]),1) * floor((self.acc.max_registers_per_SM/\
-                self.acc.max_registers_per_block),1))
-
-        if self.kernel_smem_size == 0:
-            pred_out["blocks_per_SM_limit_smem"] = pred_out["max_active_blocks_per_SM"]
-        else:
-            smem_per_block = ceil(self.kernel_smem_size, self.acc.smem_allocation_size)
-            pred_out["blocks_per_SM_limit_smem"] = int(floor((self.acc.shared_mem_size/smem_per_block),1))
-
-        pred_out["allocated_active_blocks_per_SM"] = min(pred_out["blocks_per_SM_limit_warps"],\
-                                                    pred_out["blocks_per_SM_limit_regs"],\
-                                                    pred_out["blocks_per_SM_limit_smem"])
-
-        pred_out["th_active_blocks"] = pred_out["allocated_active_blocks_per_SM"]
-        pred_out["th_active_warps"]=pred_out["allocated_active_blocks_per_SM"] * pred_out["allocated_active_warps_per_block"]
-        pred_out["th_occupancy"] =int(ceil((float(pred_out["th_active_warps"])/float(\
-            self.acc.max_active_warps_per_SM) * 100),1))
+        occupancy_res = get_max_active_block_per_sm(self.acc.cc, kernel_info, self.acc.num_SMs, self.acc.shared_mem_size)
         
-        pred_out["num_workloads_per_SM_orig"] = float(pred_out["total_num_workloads"])/float(self.acc.num_SMs)
-        pred_out["num_workloads_per_SM_orig"] = int(ceil(pred_out["num_workloads_per_SM_orig"],1))
+        pred_out["active_SMs"] = min(self.acc.num_SMs, pred_out["grid_size"])
+        pred_out.update(occupancy_res)
         
-        pred_out["allocated_active_blocks_per_SM"] = min(pred_out["allocated_active_blocks_per_SM"], pred_out["num_workloads_per_SM_orig"])
-        pred_out["allocated_active_blocks_per_SM"] = int(ceil(pred_out["allocated_active_blocks_per_SM"], 1))
-        
-        ## allocate the num_workloads_per_SM_new according to the simulation granularity
+        ## allocate the block_per_sm_simulate according to the simulation granularity
         if self.simulation_granularity == "OTB":
-            pred_out["allocated_active_blocks_per_SM"] = 1
-            pred_out["num_workloads_per_SM_new"] = 1
+            pred_out["max_active_block_per_sm"] = 1
+            pred_out["block_per_sm_simulate"] = 1
         elif self.simulation_granularity == "AcTB":
-            pred_out["num_workloads_per_SM_new"] = pred_out["allocated_active_blocks_per_SM"] 
+            pred_out["block_per_sm_simulate"] = pred_out["max_active_block_per_sm"] 
         elif self.simulation_granularity == "AlTB":
-            pred_out["num_workloads_per_SM_new"] = pred_out["num_workloads_per_SM_orig"]
+            pred_out["block_per_sm_simulate"] = pred_out["allocted_block_per_sm"]
 
         ## initilaizing kernel's warp scehdulers 
         self.warp_scheduler = Scheduler(self.acc.num_warp_schedulers_per_SM, self.acc.warp_scheduling_policy)
 
 
 
-    def kernel_call(self, data, name, num):
+    def kernel_call(self):
         
         pred_out = self.pred_out
 
@@ -189,10 +231,10 @@ class Kernel():
                                                     
         ###### ---- memory performance predictions ---- ######
         tic = time.time()
-        pred_out["memory_stats"] = get_memory_perf(pred_out["kernel_id"], self.mem_traces_dir_path, pred_out["total_num_workloads"], self.acc.num_SMs,\
+        pred_out["memory_stats"] = get_memory_perf(pred_out["kernel_id"], self.mem_traces_dir_path, pred_out["grid_size"], self.acc.num_SMs,\
                                                     self.acc.l1_cache_size, self.acc.l1_cache_line_size, self.acc.l1_cache_associativity,\
                                                     self.acc.l2_cache_size, self.acc.l2_cache_line_size, self.acc.l2_cache_associativity,\
-                                                    gmem_reqs, int(pred_out["num_workloads_per_SM_orig"]), int(pred_out["num_workloads_per_SM_new"]), cache_ref_data=self.cache_ref_data)
+                                                    gmem_reqs, int(pred_out["allocted_block_per_sm"]), int(pred_out["block_per_sm_simulate"]), cache_ref_data=self.cache_ref_data)
         toc = time.time()
         pred_out["simulation_time"]["memory"] = (toc - tic)
 
@@ -272,12 +314,12 @@ class Kernel():
 
         ###### ---- compute performance predictions ---- ######
         tic = time.time()
-        block_list = self.spawn_blocks(self.acc, pred_out["num_workloads_per_SM_new"], pred_out["allocated_active_warps_per_block"],\
+        block_list = self.spawn_blocks(self.acc, pred_out["block_per_sm_simulate"], pred_out["allocated_active_warps_per_block"],\
                                         self.kernel_tasklist, self.kernel_id_0_base, self.ISA, pred_out["AMAT"], pred_out["ACPAO"])
 
         
         ## before we do anything we need to activate Blocks up to active blocks
-        for i in range(pred_out["allocated_active_blocks_per_SM"]):
+        for i in range(pred_out["max_active_block_per_sm"]):
             block_list[i].active = True
             block_list[i].waiting_to_execute = False  # default: active: false, wait: true
 
@@ -323,7 +365,7 @@ class Kernel():
             current_active_blocks = 0
 
             for block in block_list:
-                if current_active_blocks >= pred_out["allocated_active_blocks_per_SM"]:
+                if current_active_blocks >= pred_out["max_active_block_per_sm"]:
                     break
                 
                 ## all warps inside this block finished execution
@@ -335,7 +377,7 @@ class Kernel():
                     block.active = True
                     block.waiting_to_execute = False
                     ## add latency of scheduling a new TB 
-                    pred_out["comp_cycles"] += self.acc.TB_launch_overhead / pred_out["allocated_active_blocks_per_SM"]
+                    pred_out["comp_cycles"] += self.acc.TB_launch_overhead / pred_out["max_active_block_per_sm"]
                 
                 ## this block still has warps executing; add its warps to the warp list
                 if block.is_active() and not block.is_waiting_to_execute():
@@ -416,10 +458,10 @@ class Kernel():
         act_cycles_max = pred_out["active_cycles"] + pred_out["comp_cycles"] + last_inst_delay_act_max
         kernel_detail["act_cycles_min"], kernel_detail["act_cycles_max"] = act_cycles_min, act_cycles_max
 
-        scale1 = pred_out["num_workloads_per_SM_orig"] / pred_out["num_workloads_per_SM_new"]
-        scale2 = ceil(pred_out["num_workloads_per_SM_orig"] / pred_out["num_workloads_per_SM_new"], 1)
-        num_workloads_left = pred_out["num_workloads_per_SM_orig"] - pred_out["num_workloads_per_SM_new"]
-        remaining_cycles = ceil((num_workloads_left/pred_out["num_workloads_per_SM_new"]),1)
+        scale1 = pred_out["allocted_block_per_sm"] / pred_out["block_per_sm_simulate"]
+        scale2 = ceil(pred_out["allocted_block_per_sm"] / pred_out["block_per_sm_simulate"], 1)
+        num_workloads_left = pred_out["allocted_block_per_sm"] - pred_out["block_per_sm_simulate"]
+        remaining_cycles = ceil((num_workloads_left/pred_out["block_per_sm_simulate"]),1)
         scale_ori = max(1, remaining_cycles)
         
         pred_out["PPT-GPU_min"] = pred_out["gpu_act_cycles_min"] = act_cycles_min * scale_ori
@@ -479,7 +521,7 @@ class Kernel():
         pred_out["my_sm_act_cycles.sum"] = pred_out["my_gpu_act_cycles_max"] * pred_out["active_SMs"]
         pred_out["my_sm_elp_cycles.sum"] = pred_out["my_gpu_act_cycles_max"] * self.acc.num_SMs
         avg_instructions_executed_per_block = pred_out["warps_instructions_executed"] / len(block_list)
-        pred_out["tot_warps_instructions_executed"] = avg_instructions_executed_per_block * pred_out["total_num_workloads"]
+        pred_out["tot_warps_instructions_executed"] = avg_instructions_executed_per_block * pred_out["grid_size"]
         pred_out["tot_threads_instructions_executed"] = (pred_out["tot_warps_instructions_executed"] * self.kernel_block_size) / pred_out["allocated_active_warps_per_block"]
         pred_out["tot_ipc"] = pred_out["tot_warps_instructions_executed"] * (1.0/pred_out["sm_act_cycles.sum"])
         pred_out["my_tot_ipc"] = pred_out["tot_warps_instructions_executed"] * (1.0/pred_out["my_sm_act_cycles.sum"])

@@ -2,10 +2,14 @@ import argparse
 import json
 import math
 import os
+import random
 import matplotlib.pyplot as plt
 
 import time
 from functools import wraps
+
+from sortedcontainers import SortedList
+
 
 def timeit(func):
     """
@@ -21,68 +25,165 @@ def timeit(func):
         return result
     return wrapper
 
-@timeit
-def get_cache_line_access_from_raw_trace(trace_file, l1_cache_line_size):
-    def get_line_adresses(addresses, l1_cache_line_size):
-        '''
-        coalescing the addresses of the warp
-        '''
-        line_idx = int(math.log(l1_cache_line_size,2))
-        sector_size = 32
-        sector_idx = int(math.log(sector_size,2))
-        line_mask = ~(2**line_idx - 1)
-        sector_mask = ~(2**sector_idx - 1)
-        
-        cache_line_set = set()
-        sector_set = set()  # count sector number
-        
-        for addr in addresses:
-            # 排除 0 ？
-            if addr:
-                addr = int(addr, base=16)
-                cache_line = addr >> line_idx
-                cache_line_set.add(cache_line)
-                sector = addr >> sector_idx
-                sector_set.add(sector)
-        
-        return list(cache_line_set), list(sector_set)
+def get_line_adresses(addresses, l1_cache_line_size, sector_size=32):
+    '''
+    coalescing the addresses of the warp
+    '''
+    line_idx = int(math.log(l1_cache_line_size,2))
+    sector_idx = int(math.log(sector_size,2))
+    # line_mask = ~(2**line_idx - 1)
+    # sector_mask = ~(2**sector_idx - 1)
+    
+    cache_line_set = set()
+    sector_set = set()  # count sector number
+    
+    for addr in addresses:
+        # 排除 0 ？
+        if addr:
+            addr = int(addr, base=16)
+            cache_line = (addr >> line_idx) << line_idx
+            # cache_line = (addr >> line_idx)
+            cache_line_set.add(cache_line)
+            sector = (addr >> sector_idx) << sector_idx
+            # sector = (addr >> sector_idx)
+            sector_set.add(sector)
+    
+    return list(cache_line_set), list(sector_set)
+
+def process_trace(block_trace, l1_cache_line_size, sector_size=32):
+    S = {}
+    S["gmem_ld_reqs"] = 0
+    S["gmem_st_reqs"] = 0
+    S["gmem_ld_trans"] = 0
+    S["gmem_st_trans"] = 0
+    S["lmem_ld_reqs"] = 0
+    S["lmem_st_reqs"] = 0
+    S["lmem_ld_trans"] = 0
+    S["lmem_st_trans"] = 0
+    S["lmem_used"] = False
+    S["atom_reqs"] = 0
+    S["red_reqs"] = 0
+    S["atom_red_trans"] = 0
+    
+    S["gmem_ld_sectors"] = 0
+    S["gmem_st_sectors"] = 0
+    S["umem_ld_sectors"] = 0
+    S["umem_st_sectors"] = 0
+
+    warp_id = 0 ## warp counter for l2 inclusion
+    is_store = 0 ## LD=0 - ST=1
+    is_local = 0  ## Global=0 - Local=1
 
     cache_line_access = []
-    # block_trace = open(trace_file,'r').read().strip().split("\n=====\n")
-    block_trace = open(trace_file,'r').readlines()
-    for trace_line in block_trace:
-        trace_line_splited = trace_line.strip().split(' ')
-        inst = trace_line_splited[0]
-        addrs = trace_line_splited[1:]
-        line_addrs, sector_addrs = get_line_adresses(addrs, l1_cache_line_size)
-        
-        for individual_addrs in line_addrs:
-            cache_line_access.append([0, 0, 0, individual_addrs])
-    
-    print(f"[INFO]: {trace_file} req,warp_inst,ratio: {len(cache_line_access)},{len(block_trace)},{len(cache_line_access)/len(block_trace)}")
-    return cache_line_access
+    sector_access = []
+    for items in block_trace:
+        addrs = items.strip().split(" ")
+        access_type = addrs[0]
+        line_addrs, sector_addrs = get_line_adresses(addrs[1:], l1_cache_line_size, sector_size)
 
-@timeit
+        ## global reduction operations
+        if "RED" in access_type:
+            S["red_reqs"] += 1
+            S["atom_red_trans"] += len(sector_addrs)
+            continue
+
+        ## global atomic operations
+        if "ATOM" in access_type:
+            S["atom_reqs"] += 1
+            S["atom_red_trans"] += len(sector_addrs)
+            continue
+
+        warp_id += 1
+        ## global memory access
+        if "LDG" in access_type or "STG" in access_type: 
+            is_local = 0
+            if "LDG" in access_type:
+                is_store = 0
+                S["gmem_ld_reqs"] += 1
+                S["gmem_ld_trans"] += len(line_addrs)
+                S["gmem_ld_sectors"] += len(sector_addrs)
+            elif "STG" in access_type:
+                is_store = 1
+                S["gmem_st_reqs"] += 1
+                S["gmem_st_trans"] += len(line_addrs)
+                S["gmem_st_sectors"] += len(sector_addrs)
+        
+        ## local memory access
+        elif "LDL" in access_type or "STL" in access_type:
+            is_local = 1
+            S["lmem_used"] = True
+            if "LDL" in access_type:
+                is_store = 0
+                S["lmem_ld_reqs"] += 1
+                S["lmem_ld_trans"] += len(line_addrs)
+            elif "STL" in access_type:
+                is_store = 1
+                S["lmem_st_reqs"] += 1
+                S["lmem_st_trans"] += len(line_addrs)
+        
+        if is_store == 1:
+            S["umem_st_sectors"] += len(sector_addrs)
+        else:
+            S["umem_ld_sectors"] += len(sector_addrs)
+            
+        for individual_addrs in line_addrs:
+            cache_line_access.append([is_store, is_local, warp_id, individual_addrs])
+        for individual_addrs in sector_addrs:
+            sector_access.append([is_store, is_local, warp_id, individual_addrs])
+    S["umem_ld_reqs"] =  S["gmem_ld_reqs"]  + S["lmem_ld_reqs"] # + tex + surface
+    S["umem_st_reqs"] =  S["gmem_st_reqs"]  + S["lmem_st_reqs"] 
+    S["umem_ld_trans"] = S["gmem_ld_trans"] + S["lmem_ld_trans"]
+    S["umem_st_trans"] = S["gmem_st_trans"] + S["lmem_st_trans"]
+    # print(f"[INFO]: {trace_file} req,warp_inst,ratio: {len(cache_line_access)},{len(block_trace)},{len(cache_line_access)/len(block_trace)}")
+    return S, sector_access
+
+# @timeit
+def get_cache_line_access_from_raw_trace(trace_file, l1_cache_line_size):
+    block_trace = open(trace_file,'r').readlines()
+    return process_trace(block_trace, l1_cache_line_size)[1]
+
+# @timeit
 def get_cache_line_access_from_file(file_path):
     cache_line_access = []
     with open(file_path, 'r') as f:
-        # assert(fscanf(fp, "%s %s %s %s", inst_id, mem_id, warp_id, address) != EOF);
+        # assert(fscanf(fp, "%s %s %s %s", is_store, is_local, warp_id, address) != EOF);
         for line in f.readlines():
             cache_line_access.append(line.split())
     
     return cache_line_access
 
-@timeit
 def get_stack_distance(cache_line_access):
+    stack = SortedList()
+    last_position = {}
+    SD = []
+
+    for i, (is_store, is_local, warp_id, address) in enumerate(cache_line_access):
+        if address in last_position:
+            # 获取上次访问的位置
+            previous_index = last_position[address]
+            # 计算 stack distance 为当前排序列表的长度减去之前的位置
+            sd = len(stack) - stack.bisect_left(previous_index) - 1
+            SD.append(sd)
+            stack.remove(previous_index)  # 移除上次的访问位置
+        else:
+            SD.append(-1)
+        
+        # 记录当前访问位置
+        last_position[address] = i
+        stack.add(i)
+
+    return SD
+
+# @timeit
+def get_stack_distance_1(cache_line_access):
     '''caculate sd for each reference
     rs: reference stream, cache line address list
-    return:
+    return: stack distance of each reference
     - sd
-    - sdd: stack distance distribution (histogram)
     '''
     stack = []
     SD = []
-    for inst_id, mem_id, warp_id, address in cache_line_access:
+    for is_store, is_local, warp_id, address in cache_line_access:
         if address in stack:
             sd = len(stack) - stack.index(address) - 1
             SD.append(sd)
@@ -92,7 +193,26 @@ def get_stack_distance(cache_line_access):
         stack.append(address)
     return SD
 
-@timeit
+def get_sdd_dict(SD, cache_line_access):
+    catges = ['ldl', 'ldg', 'stl', 'stg']
+    sdd = {c: {} for c in catges}
+    counter = {c: 0 for c in catges}
+    
+    for i, sd in enumerate(SD):
+        is_store, is_local, warp_id, addr = cache_line_access[i]
+        idx1 = 'ld' if is_store == 0 else 'st'
+        idx2 = 'l' if is_local == 1 else 'g'
+        idx = idx1 + idx2
+        counter[idx] += 1
+        sdd[idx][sd] = sdd[idx].get(sd, 0) + 1
+    
+    res = {}
+    for c in catges:
+        sdd_new = [(sd, count, count/counter[c]) for sd, count in sdd[c].items()]
+        res[c] = {'sdd': sdd_new, 'ratio': counter[c]/len(SD), 'count': counter[c]}
+    return res
+
+# @timeit
 def get_csdd(SD):
     '''get cumulative stack distance distribution (csdd)
     '''
@@ -122,6 +242,33 @@ def get_csdd(SD):
     csdd_avg = [(sd, accum/T) for sd, accum in csdd]
     return sdd, csdd_avg
 
+def filter_trace(cache_line_access, SD, A, B, use_approx=True):
+    # rand seed
+    random.seed(0)
+    
+    l2_trace = []
+    for i, sd in enumerate(SD):
+        is_store, is_local, warp_id, address = cache_line_access[i]
+        
+        if is_store: # write through
+            l2_trace.append([is_store, is_local, warp_id, address])
+            continue
+        
+        if sd==0:
+            p_hit = 1
+        elif sd==-1:
+            p_hit = 0
+        else:
+            if use_approx:
+                p_hit = calculate_p_hit_approx(A, B, sd)
+            else:
+                p_hit = calculate_p_hit(A, B, sd)
+        # random drop
+        r = random.random()
+        if r > p_hit:
+            l2_trace.append([is_store, is_local, warp_id, address])
+    return l2_trace
+
 def calculate_p_hit(A, B, D):
     p_hit = 0.0
     for a in range(A):
@@ -145,19 +292,11 @@ def calculate_p_hit_approx(A, B, D):
     p_hit = 1 - qfunc( abs(A-1-mean) / math.sqrt(variance) )
     return p_hit
 
-@timeit
-def sdcm(sdd, cache_line_size, cache_size, associativity, use_approx=False):
-    '''calculate the stack distance cache miss rate (SDCM)
-    sdd: stack distance distribution
-    cache_line_size: cache line size
-    cache_size: cache size
-    associativity: cache associativity
-    '''
-    # cache line number
-    B = cache_size // cache_line_size
-    A = associativity
-    
+def get_hit_rate_from_sdd(sdd, A, B, use_approx, exclude_last=True):
+    # exclude_last: old sdd last is -1
     hit_rate = 0
+    if exclude_last:
+        sdd = sdd[:-1]
     for sd, _, p_sd in sdd:
         if sd==0:
             p_hit = 1
@@ -175,11 +314,74 @@ def sdcm(sdd, cache_line_size, cache_size, associativity, use_approx=False):
         hit_rate += p_hit * p_sd
     return hit_rate
 
-def model(cache_line_access, cache_parameter):
+# @timeit
+def sdcm(sdd, cache_line_size, cache_size, associativity, use_approx=False):
+    '''calculate the stack distance cache miss rate (SDCM)
+    sdd: stack distance distribution
+    cache_line_size: cache line size
+    cache_size: cache size
+    associativity: cache associativity
+    '''
+    # cache line number
+    B = cache_size // cache_line_size
+    A = associativity
+    
+    hit_rate = get_hit_rate_from_sdd(sdd, A, B, use_approx)
+    
+    return hit_rate
+
+def sdcm_dict(sdd_dict, cache_line_size, cache_size, associativity, sector_size, use_approx=False):
+    B = cache_size // sector_size
+    A = associativity
+    
+    read_cnt, write_cnt = 0, 0
+    read_hit, write_hit = 0, 0
+    
+    hit_rate_dict = {}
+    hit_rate_dict['tot'] = 0
+    hit_rate_dict['ld'] = 0
+    hit_rate_dict['st'] = 0
+    for categ, v in sdd_dict.items():
+        sdd = v['sdd']
+        ratio = v['ratio']
+        count = v['count']
+        hit_rate = get_hit_rate_from_sdd(sdd, A, B, use_approx, exclude_last=False)
+        
+        hit_rate_dict[categ] = hit_rate
+        hit_rate_dict['tot'] += hit_rate * ratio
+        
+        if 'ld' in categ:  # ldl, ldg
+            read_hit += hit_rate * count
+            read_cnt += count
+        if 'st' in categ:
+            write_hit += hit_rate * count
+            write_cnt += count
+    
+    hit_rate_dict['ld'] = (read_hit / read_cnt) if read_cnt else 0
+    hit_rate_dict['st'] = (write_hit / write_cnt) if write_cnt else 0
+    return hit_rate_dict, A, B, read_cnt, write_cnt
+
+def sdcm_model(cache_line_access, cache_parameter, use_approx=True, granularity=2, filter_L2=False, dump_trace=''):
     SD = get_stack_distance(cache_line_access)
-    sdd, csdd = get_csdd(SD)
-    hit_rate = sdcm(sdd, cache_parameter['cache_line_size'], cache_parameter['capacity'], cache_parameter['associativity'], use_approx=False)
-    print(f"hit rate: {hit_rate}")
+    sdd_dict = get_sdd_dict(SD, cache_line_access)
+    
+    hit_rate_dict, A, B, read_cnt, write_cnt = sdcm_dict(sdd_dict, cache_parameter['cache_line_size'], cache_parameter['capacity'], cache_parameter['associativity'], cache_parameter['sector_size'], use_approx=use_approx)
+    
+    if dump_trace:
+        with open(dump_trace, 'w') as f:
+            f.write("id,is_store,is_local,warp_id,address,sd,hit_rate\n")
+            for i, (is_store, is_local, warp_id, address) in enumerate(cache_line_access):
+                sd = SD[i]
+                hit_rate = 0 if sd == -1 else 1 if sd == 0 else calculate_p_hit_approx(A, B, sd)
+                f.write(f"{i+1},{is_store},{is_local},{warp_id},{address},{sd},{hit_rate}\n")
+                
+    if filter_L2:
+        l2_trace = filter_trace(cache_line_access, SD, A, B)
+    else:
+        l2_trace = cache_line_access
+    
+    hit_rate_dict['sectors_ld'], hit_rate_dict['sectors_st'] = read_cnt, write_cnt
+    return hit_rate_dict, l2_trace
     
 def draw_csdd(csdd, img_path):
     import matplotlib.pyplot as plt
@@ -228,6 +430,7 @@ def draw_sdd(sdd, img_path):
     ax.plot(x, y)
     
     # add some text for labels, title and axes ticks
+    ax.set_xlim(0, 2000)
     ax.set_xlabel("Stack Distance")
     ax.set_ylabel("percentage")
     fig.savefig(img_path)
@@ -246,8 +449,37 @@ def draw_SD(sdd, img_path):
     ax.set_ylabel("percentage")
     fig.savefig(img_path)
     plt.close(fig)
-    
+
+def read_sdd_from_pardax_output(file):
+    sdd = []
+    with open(file, 'r') as f:
+        for line in f.readlines():
+            line_split = line.split(',')
+            sd = int(line_split[0])
+            prop = float(line_split[1])
+            cnt = int(line_split[2])
+            if sd== -1:
+                sd = sdd[-1][0] + 1
+            sdd.append((sd, cnt, prop))
+
+    return sdd
 if __name__ == "__main__":
+    with open('sdd_dict.json') as f:
+        sdd_dict = json.load(f)
+    
+    sdd_ldg = sdd_dict['ldg']['sdd']
+    sort_sdd = sorted(sdd_ldg, key=lambda x: x[0])
+    draw_sdd(sort_sdd, 'sdd_ldg.png')
+
+if __name__ == "__main__2":
+    # sdd = read_sdd('K1_GMEM_SM0_lds.rp')
+    sdd = read_sdd_from_pardax_output('K1_UMEM_SM0.rp')
+    hit_rate = sdcm(sdd, 32, 32*1024, 64, use_approx=True)
+    print(hit_rate)
+    hit_rate = sdcm(sdd, 32, 32*1024, 64, use_approx=False)
+    print(hit_rate)
+    
+if __name__ == "__main__3":
     parser = argparse.ArgumentParser(
         description='')
     parser.add_argument("-f", "--trace-files",

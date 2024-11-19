@@ -7,6 +7,12 @@ tmp/
 reuse_distance_tool/parda.x
 *.pickle
 *.txt
+!requirements.txt
+*.rp
+*.trace
+*.csv
+*.xlsx
+*.swp
 
 # GPU #
 ############
@@ -55,4 +61,5 @@ Thumbs.db
 *.pyc
 *.mem
 *.sass
+
 

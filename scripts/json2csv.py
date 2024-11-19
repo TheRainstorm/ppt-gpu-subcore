@@ -20,7 +20,29 @@ class JSON2CSV(IntEnum):
     NCU = 1
     PPT_GPU = 2
     BOTH = 3
+    GENERAL = 4
 
+def dump_to_csv_general(json_data, output_file='output.csv'):
+    csvfile = open(output_file, 'w', newline='')
+    csv_writer = csv.writer(csvfile, delimiter=',',
+                            quotechar='|', quoting=csv.QUOTE_MINIMAL)
+    columns = ['app', 'kernel_id']
+    for app_arg, app_res in json_data.items():
+        for kernel_res in app_res:
+            for key in kernel_res.keys():
+                if key not in columns:
+                    columns.append(key)
+    csv_writer.writerow(columns)
+    for app_arg, app_res in json_data.items():
+        for i, kernel_res in enumerate(app_res):
+            row = [app_arg, i+1]
+            for col in columns[2:]:
+                if type(kernel_res[col]) == list:
+                    row.append("ListSkip")
+                else:
+                    row.append(kernel_res[col])
+            csv_writer.writerow(row)
+    
 def dump_to_csv(json_data, output_file='output.csv', select=JSON2CSV.NCU):
     csvfile = open(output_file, 'w', newline='')
     csv_writer = csv.writer(csvfile, delimiter=',',
@@ -92,7 +114,7 @@ if __name__ == "__main__":
                         help="ppt-gpu sim result json file path")
     parser.add_argument("-t", "--type",
                         default=JSON2CSV.BOTH,
-                        choices=[JSON2CSV.NCU, JSON2CSV.PPT_GPU, JSON2CSV.BOTH],
+                        # choices=[JSON2CSV.NCU, JSON2CSV.PPT_GPU, JSON2CSV.BOTH],
                         type=int,
                         help="json file content type")
     parser.add_argument("-o", "--output",
@@ -124,4 +146,8 @@ if __name__ == "__main__":
             json_data = json.load(f)
         json_data = filter_res(json_data, app_arg_filtered_list)
         dump_to_csv(json_data, output_file=args.output, select=JSON2CSV.NCU)
-    
+    elif args.type == JSON2CSV.GENERAL:
+        with open(args.json_file, 'r') as f:
+            json_data = json.load(f)
+        json_data = filter_res(json_data, app_arg_filtered_list)
+        dump_to_csv_general(json_data, output_file=args.output)

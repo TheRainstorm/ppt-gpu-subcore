@@ -28,7 +28,7 @@ def dump_output(pred_out):
     
     print("kernel name:", pred_out["kernel_name"], file=outF)
     
-    print("\n- Total GPU computations is divided into " + str(pred_out["total_num_workloads"])+\
+    print("\n- Total GPU computations is divided into " + str(pred_out["grid_size"])+\
                 " thread block(s) running on " + str(pred_out["active_SMs"]) + " SM(s)", file=outF)
     print(f"\n- Launch Statistic:", file=outF)
     print(f"\t* Grid Size: {pred_out['grid_size']}", file=outF)
@@ -36,16 +36,16 @@ def dump_output(pred_out):
     print(f"\t* Registers Per Thread: {pred_out['num_regs']}", file=outF)
     print(f"\t* Shared Memory Per Thread: {pred_out['smem_size']}", file=outF)
     
-    print("\n- Modeled SM-0 running", pred_out["num_workloads_per_SM_new"], "thread block(s):", file=outF)
-    print("\t* allocated max active thread block(s):", pred_out["allocated_active_blocks_per_SM"], file=outF)
+    print("\n- Modeled SM-0 running", pred_out["block_per_sm_simulate"], "thread block(s):", file=outF)
+    print("\t* allocated max active thread block(s):", pred_out["max_active_block_per_sm"], file=outF)
     print("\t* allocated max active warps per thread block:", pred_out["allocated_active_warps_per_block"], file=outF)
 
     print("\n- Occupancy of SM-0:", file=outF)
-    print("\t* Thread block limit registers:", pred_out["blocks_per_SM_limit_regs"], file=outF)
-    print("\t* Thread block limit shared memory:", pred_out["blocks_per_SM_limit_smem"], file=outF)
-    print("\t* Thread block limit warps:", pred_out["blocks_per_SM_limit_warps"], file=outF)
+    print("\t* Thread block limit registers:", pred_out["block_per_sm_limit_regs"], file=outF)
+    print("\t* Thread block limit shared memory:", pred_out["block_per_sm_limit_smem"], file=outF)
+    print("\t* Thread block limit warps:", pred_out["block_per_sm_limit_warps"], file=outF)
     print("\t* Thread block Limit SM:", pred_out["max_active_blocks_per_SM"], file=outF)
-    print("\t* theoretical max active thread block(s):", pred_out["th_active_blocks"], file=outF)
+    print("\t* theoretical max active thread block(s):", pred_out["th_max_active_block_per_sm"], file=outF)
     print("\t* theoretical max active warps per SM:", pred_out["th_active_warps"], file=outF)
     print("\t* theoretical occupancy:", pred_out["th_occupancy"],"%", file=outF)
     print("\t* achieved active warps per SM:", round(pred_out["achieved_active_warps"], 2), file=outF)
@@ -247,11 +247,11 @@ def print_warning(arg1, arg2, flag=False):
 		 	+" registers\n assuming \"" + arg1 + "\" = " + arg2 + "\n", file=sys.stderr)
 
 
-def ceil(x, s):
+def ceil(x, s=1):
 	return s * math.ceil(float(x)/s)
 
 
-def floor(x, s):
+def floor(x, s=1):
     return s * math.floor(float(x)/s)
 
 
