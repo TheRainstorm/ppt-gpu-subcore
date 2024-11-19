@@ -121,7 +121,7 @@ for loop in range(args.loop_cnt):
                 sh_contents += f'export CUDA_VISIBLE_DEVICES="{args.device_num}";\n' \
                         f'nvprof --print-gpu-trace --concurrent-kernels off --csv --log-file {profiling_output} ' \
                         f'-u us -e active_cycles_pm,active_warps_pm,elapsed_cycles_sm,elapsed_cycles_pm,active_cycles,active_warps,elapsed_cycles_sys,active_cycles_sys ' \
-                        f'-m achieved_occupancy,inst_executed,inst_issued,ipc,issued_ipc,global_hit_rate,tex_cache_hit_rate,l2_tex_hit_rate,global_load_requests,global_store_requests,gld_transactions,gst_transactions,l2_read_transactions,l2_write_transactions,dram_read_transactions,dram_write_transactions ' \
+                        f'-m achieved_occupancy,inst_executed,inst_issued,ipc,issued_ipc,global_hit_rate,tex_cache_hit_rate,l2_tex_hit_rate,l2_tex_read_hit_rate,l2_tex_write_hit_rate,global_load_requests,global_store_requests,gld_transactions,gst_transactions,l2_read_transactions,l2_write_transactions,dram_read_transactions,dram_write_transactions ' \
                         f' {exec_path} {argstr}\n'
             
             run_script_path = os.path.join(run_dir, args.run_script)

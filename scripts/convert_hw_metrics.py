@@ -35,6 +35,7 @@ def convert_ncu_to_nvprof(data):
                                                             k['l1tex__t_sectors_pipe_lsu_mem_global_op_ld.sum'] + k['l1tex__t_sectors_pipe_lsu_mem_global_op_st.sum'] +
                                                             k['l1tex__t_sectors_pipe_lsu_mem_global_op_red.sum'] + k['l1tex__t_sectors_pipe_lsu_mem_global_op_atom.sum'])
             
+            # nvprof not provide these metrics
             kernel_res['global_hit_rate_ld'] = 100*divide_or_zero(k['l1tex__t_sectors_pipe_lsu_mem_global_op_ld_lookup_hit.sum'], k['l1tex__t_sectors_pipe_lsu_mem_global_op_ld.sum'])
             kernel_res['global_hit_rate_st'] = 100*divide_or_zero(k['l1tex__t_sectors_pipe_lsu_mem_global_op_st_lookup_hit.sum'], k['l1tex__t_requests_pipe_lsu_mem_global_op_st.sum'])
             
