@@ -155,7 +155,7 @@ print_summary(){
     echo "memory_model: $memory_model"
     echo "memory_suffix: $memory_suffix"
     echo "granularity: $granularity, filter_l2: $filter_l2, use_approx: $use_approx, use_sm_trace: $use_sm_trace"
-    echo "memory_extra_params: $memory_extra_params"
+    echo "extra_params: $extra_params"
 }
 
 unset_env(){

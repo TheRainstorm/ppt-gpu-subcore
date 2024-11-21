@@ -316,7 +316,7 @@ def sdcm_model_warpper_parallel(kernel_id, trace_dir,
 def memory_model_warpper(gpu_model, app_path, model, kernel_id=-1, granularity=2,
                          use_approx=True, filter_L2=False, block_mapping=BlockMapping.mod_block_mapping,
                          l1_dump_trace=False, l2_dump_trace='',
-                         overwrite_cache_params=''):
+                         overwrite_cache_params='', no_adaptive_cache=False):
     gpu_config = get_gpu_config(gpu_model).uarch
     kernels_launch_params = get_kernels_launch_params(app_path)
     if overwrite_cache_params:
@@ -329,7 +329,9 @@ def memory_model_warpper(gpu_model, app_path, model, kernel_id=-1, granularity=2
                 # print(cur, L[i], p)
                 if p:
                     gpu_config[f'{cur}_{L[i]}'] = int(p)
-                    print(f"overwrite {cur} {L[i]} to {p}")
+                    print(f"Info: overwrite {cur} {L[i]} to {p}")
+    if no_adaptive_cache:
+        print(f"Info: disable adaptive cache")
     app_res = []
     
     if kernel_id != -1:
@@ -337,7 +339,7 @@ def memory_model_warpper(gpu_model, app_path, model, kernel_id=-1, granularity=2
     
     l1_cache_size_old = gpu_config['l1_cache_size']
     for kernel_param in kernels_launch_params:
-        if gpu_config['adaptive_cache']:
+        if gpu_config['adaptive_cache'] and not no_adaptive_cache:
             occupancy_res = get_max_active_block_per_sm(gpu_config['cc_configs'], kernel_param, gpu_config['num_SMs'], gpu_config['shared_mem_size'],
                                                         shared_mem_carveout=gpu_config['shared_mem_carveout'], adaptive=gpu_config['adaptive_cache'])
             gpu_config['l1_cache_size'] = gpu_config['shared_mem_size'] - occupancy_res['adaptive_smem_size']
@@ -377,31 +379,35 @@ def memory_model_warpper(gpu_model, app_path, model, kernel_id=-1, granularity=2
     
     return app_res, gpu_config
 
-if __name__ == "__main__":
+def get_parser():
     parser = argparse.ArgumentParser(
-        description='ppt-gpu memory model'
+        description=''
     )
-    parser.add_argument('-a', "--app", dest="app_path",
-                    required=True,
-                    help='your application trace path')
-    parser.add_argument('-c', "--config",
-                    required=True,
-                    help='target GPU hardware configuration')
-    parser.add_argument("--granularity",
-                    type=int,
-                    default=2,
-                    help='1=One Thread Block per SM or 2=Active Thread Blocks per SM or 3=All Thread Blocks per SM')
-    parser.add_argument('-k', "--kernel", dest="kernel_id",
-                    type=int,
-                    default=-1,
-                    help='(1 based index) To choose a specific kernel, add the kernel id')
     parser.add_argument('-M', "--model",
-                    choices=['ppt-gpu', 'sdcm', 'simulator'],
-                    default='ppt-gpu',
-                    help='change memory model')
+                        # choices=['ppt-gpu', 'sdcm'],
+                        default='ppt-gpu',
+                        help='change memory model, check memory_model_warper.py for available models')
+    parser.add_argument('-c', "--config",
+                        required=True,
+                        help='target GPU hardware configuration')
+    parser.add_argument("-B", "--benchmark_list",
+                        help="a comma seperated list of benchmark suites to run. See apps/define-*.yml for the benchmark suite names.",
+                        default="")
+    parser.add_argument("-F", "--app-filter", default="", help="filter apps. e.g. regex:.*-rodinia-2.0-ft, [suite]:[exec]:[count]")
+    parser.add_argument("-T", "--trace_dir",
+                        required=True,
+                        help="The root of all the trace file")
+    parser.add_argument("-o", "--output",
+                        default="memory_res.json")
+    parser.add_argument("-l", "--log_file",
+                        default="run_memory_model.log")
+    parser.add_argument("--granularity",
+                        type=int,
+                        default=2,
+                        help='1=One Thread Block per SM or 2=Active Thread Blocks per SM or 3=All Thread Blocks per SM')
     parser.add_argument('--use-approx', 
-                    action='store_true',
-                    help='sdcm use approx')
+                        action='store_true',
+                        help='sdcm use approx')
     parser.add_argument('--filter-l2', 
                         action='store_true',
                         help='L1 hit bypass L2')
@@ -409,12 +415,19 @@ if __name__ == "__main__":
                         action='store_true',
                         help='use sm level trace')
     parser.add_argument('--block-mapping',
-                    type=int,
-                    default=BlockMapping.mod_block_mapping,
-                    help='chose different block mapping strategy. 1: mod, 2: randoom, 3: use sm trace instead(hw true mapping)')
+                        type=int,
+                        default=BlockMapping.mod_block_mapping,
+                        help='chose different block mapping strategy. 1: mod, 2: randoom, 3: use sm trace instead(hw true mapping)')
     parser.add_argument('-C', '--overwrite-cache-params',
                         default='',
                         help='l1:capacity:cache_line_size:associativity:sector_size,l2:capacity:cache_line_size:associativity:sector_size')
+    parser.add_argument('--no-adaptive-cache',
+                        action='store_true',
+                        help='disable adaptive cache')
+    return parser
+
+if __name__ == "__main__":
+    parser = get_parser()
     args = parser.parse_args()
     if args.use_sm_trace:
         args.block_mapping = BlockMapping.sm_block_mapping
