@@ -51,10 +51,15 @@ profile_cpi=1
 if [ "$gpu" = "gtx1080ti" ]; then
     echo "Warning: gtx1080ti does not support ncu, can't profile cpi for now"
     use_ncu=0
+    export CUDA_VERSION=$cuda_version"_dlcm_ca"
+else
+    export CUDA_VERSION=$cuda_version  # used in app yaml (tracing, profiling)
 fi
 
-# detect cuda version
-export CUDA_VERSION=$cuda_version  # used in app yaml
+if [ "$gpu_sim" = "gtx1080ti" ]; then
+    cuda_version=$cuda_version"_dlcm_ca"
+fi
+
 curr_cuda_version=`nvcc --version | grep release | sed -re 's/.*release ([0-9]+\.[0-9]+).*/\1/'`;
 if [ -z "$curr_cuda_version" ]; then
     echo "Error: CUDA version not found, nvibit trace need CUDA in PATH"
@@ -75,20 +80,22 @@ export UBENCH_ROOT=$my_home/repo/GPU_Microbenchmark
 export GPGPU_WORKLOADS_ROOT=$my_home/repo/GPGPUs-Workloads
 export apps_yaml=${ppt_gpu_dir}/scripts/apps/define-all-apps.yml
 
-trace_dir=${trace_dir_base}/${model}-${gpu}/${cuda_version}
-
+## HW related
+trace_dir=${trace_dir_base}/${model}-${gpu}/${CUDA_VERSION}
 # run hw
-res_hw_json=${ppt_gpu_dir}/tmp/res_hw_${gpu}_${cuda_version}.json
-res_hw_cpi_json=${ppt_gpu_dir}/tmp/res_hw_${gpu}_${cuda_version}_cpi.json
+res_hw_json=${ppt_gpu_dir}/tmp/res_hw_${gpu}_${CUDA_VERSION}.json
+res_hw_cpi_json=${ppt_gpu_dir}/tmp/res_hw_${gpu}_${CUDA_VERSION}_cpi.json
+# raw profile data
+res_hw_nvprof_json=${ppt_gpu_dir}/tmp/res_hw_${gpu}_${CUDA_VERSION}_nvprof.json
+res_hw_ncu_json=${ppt_gpu_dir}/tmp/res_hw_${gpu}_${CUDA_VERSION}_ncu.json
+# raw stall related data
+res_hw_nvprof_cpi_json=${ppt_gpu_dir}/tmp/res_hw_${gpu}_${CUDA_VERSION}_nvprof_cpi.json
+res_hw_ncu_cpi_json=${ppt_gpu_dir}/tmp/res_hw_${gpu}_${CUDA_VERSION}_ncu_cpi.json
+
+## Simulation related
 # e.g volta trace(and profile) to simulate Ampere GPU Profile
 res_hw_sim_json=${ppt_gpu_dir}/tmp/res_hw_${gpu_sim}_${cuda_version}.json
 res_hw_cpi_sim_json=${ppt_gpu_dir}/tmp/res_hw_${gpu_sim}_${cuda_version}_cpi.json
-# raw profile data
-res_hw_nvprof_json=${ppt_gpu_dir}/tmp/res_hw_${gpu}_${cuda_version}_nvprof.json
-res_hw_ncu_json=${ppt_gpu_dir}/tmp/res_hw_${gpu}_${cuda_version}_ncu.json
-# raw stall related data
-res_hw_nvprof_cpi_json=${ppt_gpu_dir}/tmp/res_hw_${gpu}_${cuda_version}_nvprof_cpi.json
-res_hw_ncu_cpi_json=${ppt_gpu_dir}/tmp/res_hw_${gpu}_${cuda_version}_ncu_cpi.json
 
 # run sim
 report_dir=${ppt_gpu_dir}/tmp_output/${model}_${gpu}_${cuda_version}_${GPU_PROFILE}_${run_name}

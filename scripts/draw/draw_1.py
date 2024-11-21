@@ -658,8 +658,6 @@ if __name__ == "__main__":
         cwd = os.getcwd()
         
         app_list_all = sim_res.keys()
-        l1_hw_stat = "l1_hit_rate" if args.command == 'memory-sim' else key_map['l1_hit_rate']
-        l2_hw_stat = "l2_hit_rate" if args.command == 'memory-sim' else key_map['l2_hit_rate']
         for i,app_arg in enumerate(app_list_all):
             app_filter=app_arg  # set global filter to single app
             

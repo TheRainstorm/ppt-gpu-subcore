@@ -18,8 +18,11 @@ def process_hw(hw_res):
         for i, kernel_res in enumerate(app_res):
             kernel_res['l1_hit_rate'] = kernel_res['tex_cache_hit_rate'] / 100
             kernel_res['l1_hit_rate_g'] = kernel_res['global_hit_rate'] / 100
-            kernel_res['l1_hit_rate_ldg'] = kernel_res['global_hit_rate_ld'] / 100
-            kernel_res['l1_hit_rate_stg'] = kernel_res['global_hit_rate_st'] / 100
+            try:
+                kernel_res['l1_hit_rate_ldg'] = kernel_res['global_hit_rate_ld'] / 100
+                kernel_res['l1_hit_rate_stg'] = kernel_res['global_hit_rate_st'] / 100
+            except:
+                pass
             
             kernel_res['l2_hit_rate'] = kernel_res['l2_tex_hit_rate'] / 100
             kernel_res['l2_hit_rate_ld'] = kernel_res['l2_tex_read_hit_rate'] / 100
@@ -31,7 +34,10 @@ def process_hw(hw_res):
             kernel_res['gmem_tot_sectors'] = kernel_res['gld_transactions'] + kernel_res['gst_transactions']
             kernel_res['gmem_ld_sectors'] = kernel_res['gld_transactions']
             kernel_res['gmem_st_sectors'] = kernel_res['gst_transactions']
-            kernel_res['gmem_ld_diverg'] = kernel_res['gld_transactions_per_request']
+            try:
+                kernel_res['gmem_ld_diverg'] = kernel_res['gld_transactions_per_request']
+            except:
+                kernel_res['gmem_ld_diverg'] = kernel_res['gld_transactions']/kernel_res['global_load_requests'] if kernel_res['global_load_requests'] != 0 else 0
             kernel_res['l2_tot_trans'] = kernel_res['l2_read_transactions'] + kernel_res['l2_write_transactions']
             kernel_res['l2_ld_trans'] = kernel_res['l2_read_transactions']
             kernel_res['l2_st_trans'] = kernel_res['l2_write_transactions']
