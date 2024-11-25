@@ -84,9 +84,9 @@ uarch = {
     # Volta has HBM which has 24 channels each (128 bits) 16 bytes width
     "num_dram_channels"	                :  24,
     # DRAM theoritical BW, measured through microbenchmarking
-    "dram_th_bandwidth"                 :  565 * 10**9, #B/s
+    "dram_th_bandwidth"                 :  900 * 10**9, #B/s    # [3]
     # base GPU DRAM clock speed in HZ                
-    "dram_clockspeed"                   :  850 * 10**6,         # [1]
+    "dram_clockspeed"                   :  877 * 10**6,         # [1]
     # NOC theoritical BW, measured through microbenchmarking
     "noc_th_bandwidth"                  :  1140 * 10**9, #B/s
 
