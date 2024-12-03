@@ -114,132 +114,6 @@ rodinia-2.0-ft:
     #     - args:  3 6 16 1024 1024 100 none output.txt 1 ./data/result_3_6_16_1024_1024_100_none_1.txt
     #       accel-sim-mem: 1G
 
-# PPT-GPU tested
-rodinia-3.1-base:
-  suite: rodinia-3.1-accelsim
-  exec_dir: "$GPUAPPS_ROOT/bin/$CUDA_VERSION/release/"
-  data_dirs: "$GPUAPPS_ROOT/data_dirs/cuda/rodinia/3.1/"
-  execs:
-    - b+tree-rodinia-3.1:
-        - args: file ./data/mil.txt command ./data/command.txt # 2
-          accel-sim-mem: 1G
-    - backprop-rodinia-3.1:
-        - args: 65536 # 2
-          accel-sim-mem: 1G
-    - bfs-rodinia-3.1:
-        - args: ./data/graph4096.txt # 16
-          accel-sim-mem: 1G
-        - args: ./data/graph65536.txt # 20
-          accel-sim-mem: 1G
-        - args: ./data/graph1MW_6.txt # 24
-          accel-sim-mem: 1G
-    # - cfd-rodinia-3.1:
-    #     - args: ./data/fvcorr.domn.097K
-    #       accel-sim-mem: 1G
-    #     - args: ./data/fvcorr.domn.193K
-    #       accel-sim-mem: 1G
-    #     - args: ./data/missile.domn.0.2M
-    #       accel-sim-mem: 4G
-    - heartwall-rodinia-3.1:
-        - args: ./data/test.avi 1 # 1
-        # - args: ./data/test.avi 20
-    - hotspot-rodinia-3.1:
-        - args: 512 2 2 ./data/temp_512 ./data/power_512 output.out # 1
-          accel-sim-mem: 1G
-        - args: 1024 2 2 ./data/temp_1024 ./data/power_1024 output.out # 1
-          accel-sim-mem: 1G
-    # - hotspot3D-rodinia-3.1:
-    #     - args:  512 8 100 ./data/power_512x8 ./data/temp_512x8 output.out
-    #       accel-sim-mem: 4G
-    - dwt2d-rodinia-3.1:
-        - args: ./data/192.bmp -d 192x192 -f -5 -l 3 # 10
-          accel-sim-mem: 1G
-        - args: ./data/rgb.bmp -d 1024x1024 -f -5 -l 3 # 10
-          accel-sim-mem: 1G
-    - lud-rodinia-3.1:
-        - args: -s 256 -v # 46
-          accel-sim-mem: 1G
-        - args: -i ./data/512.dat # 94
-          accel-sim-mem: 1G
-    - nn-rodinia-3.1:
-        - args: ./data/filelist_4 -r 5 -lat 30 -lng 90 # 1
-          accel-sim-mem: 4G
-
-rodinia-3.1-extra:
-  suite: rodinia-3.1-accelsim
-  exec_dir: "$GPUAPPS_ROOT/bin/$CUDA_VERSION/release/"
-  data_dirs: "$GPUAPPS_ROOT/data_dirs/cuda/rodinia/3.1/"
-  execs:
-    # my extra
-    - nw-rodinia-3.1:
-        - args: 2048 10 # 255
-          accel-sim-mem: 1G
-    - gaussian-rodinia-3.1:
-        - args: -f ./data/matrix4.txt # 6
-          accel-sim-mem: 1G
-        - args: -s 16 # 30
-          accel-sim-mem: 1G
-        - args: -f ./data/matrix208.txt #300
-          accel-sim-mem: 1G
-        - args: -s 64 # 126
-          accel-sim-mem: 1G
-        - args: -s 256 #300
-          accel-sim-mem: 1G
-    # # me: too long time
-    # - particlefilter_float-rodinia-3.1:
-    #     - args:  -x 128 -y 128 -z 10 -np 1000
-    #       accel-sim-mem: 1G
-    - particlefilter_naive-rodinia-3.1:
-        - args: -x 128 -y 128 -z 10 -np 1000 # 9
-          accel-sim-mem: 1G
-    - pathfinder-rodinia-3.1:
-        - args: 100000 100 20 > result.txt # 5
-          accel-sim-mem: 1G
-
-    # Accel-Sim extra
-    - srad_v1-rodinia-3.1:
-        - args: 100 0.5 502 458 # 400
-          accel-sim-mem: 1G
-    # - srad_v2-rodinia-3.1:
-    #     - args:  2048 2048 0 127 0 127 0.5 2
-    - streamcluster-rodinia-3.1:
-        - args: 3 6 16 65536 65536 1000 none output.txt 1 output.txt # 224
-        # - args: 10 20 256 65536 65536 1000 none output.txt 1 # 1611 kernel
-    # me: GIMT sim 40min
-    - lavaMD-rodinia-3.1:
-        - args: -boxes1d 10 # 1
-          accel-sim-mem: 32G
-    # # Uses legacy texture cache instructions, it is unclear if it still makes sense to support
-    # # me: PPT-GPU trace aborted
-    # - kmeans-rodinia-3.1:
-    #     - args:  -o -i ./data/28k_4x_features.txt
-    #       accel-sim-mem: 1G
-    #     - args:  -o -i ./data/kdd_cup
-    #       accel-sim-mem: 2G
-    #     - args:  -o -i ./data/819200.txt
-    #       accel-sim-mem: 2G
-    # # me: ncu profiling 影响了程序执行（输出多一个 STATUS: -1），并且只采集到 156 个 kernel，实际有 4433 个 kernel
-    # - myocyte-rodinia-3.1:
-    #     - args:  100 1 0
-    #       accel-sim-mem: 4G
-
-    # # Prohibitively large trace
-    # # Only works with newer versions of CUDA
-    # - huffman-rodinia-3.1:
-    #     - args: ./data/huffman/test1024_H2.206587175259.in
-    # - leukocyte-rodinia-3.1:
-    #     - args: ./data/testfile.avi 5
-
-    # Accel-Sim don't use
-    # # me: PPT-GPU trace aborted
-    # - hybridsort-rodinia-3.1:
-    #     - args: r
-    #       accel-sim-mem: 5G
-    #     - args: ./data/500000.txt
-    #       accel-sim-mem: 1G
-    # - mummergpu-rodinia-3.1:
-    #     - args: ./data/NC_003997.fna ./data/NC_003997_q100bp.fna > NC_00399.out
-
 rodinia-3.1-full:
   suite: rodinia-3.1
   exec_dir: "$GPGPU_WORKLOADS_ROOT/bin/$CUDA_VERSION/release/"
@@ -248,9 +122,11 @@ rodinia-3.1-full:
     - b+tree-rodinia-3.1:
         - args: file ./data/mil.txt command ./data/command.txt # 2
           accel-sim-mem: 1G
+      abbr: BTREE
     - backprop-rodinia-3.1:
         - args: 65536 # 2
           accel-sim-mem: 1G
+      abbr: BP
     - bfs-rodinia-3.1:
         - args: ./data/graph4096.txt # 16
           accel-sim-mem: 1G
@@ -258,6 +134,7 @@ rodinia-3.1-full:
           accel-sim-mem: 1G
         - args: ./data/graph1MW_6.txt # 24
           accel-sim-mem: 1G
+      abbr: BFS
     - cfd-rodinia-3.1: # (2)
         - args: ./data/fvcorr.domn.097K
           accel-sim-mem: 1G
@@ -265,11 +142,13 @@ rodinia-3.1-full:
         #   accel-sim-mem: 1G
         # - args: ./data/missile.domn.0.2M
         #   accel-sim-mem: 4G
+      abbr: CFD
     - dwt2d-rodinia-3.1:
         - args: ./data/192.bmp -d 192x192 -f -5 -l 3 # 10
           accel-sim-mem: 1G
         - args: ./data/rgb.bmp -d 1024x1024 -f -5 -l 3 # 10
           accel-sim-mem: 1G
+      abbr: DWT2D
     - gaussian-rodinia-3.1:
         - args: -f ./data/matrix4.txt # 6
           accel-sim-mem: 1G
@@ -281,14 +160,17 @@ rodinia-3.1-full:
           accel-sim-mem: 1G
         - args: -s 256 #300
           accel-sim-mem: 1G
+      abbr: GS
     - heartwall-rodinia-3.1:
         - args: ./data/test.avi 1 # 1
         # - args: ./data/test.avi 20
+      abbr: HW
     - hotspot-rodinia-3.1:
         - args: 512 2 2 ./data/temp_512 ./data/power_512 output.out # 1
           accel-sim-mem: 1G
         - args: 1024 2 2 ./data/temp_1024 ./data/power_1024 output.out # 1
           accel-sim-mem: 1G
+      abbr: HS
     # - hotspot3D-rodinia-3.1: # (2)
     #     - args:  512 8 100 ./data/power_512x8 ./data/temp_512x8 output.out
     #       accel-sim-mem: 4G
@@ -311,6 +193,7 @@ rodinia-3.1-full:
     - lavaMD-rodinia-3.1:
         - args: -boxes1d 10 # 1
           accel-sim-mem: 32G
+      abbr: LMD
     # - leukocyte-rodinia-3.1: # (4)
     #     - args: ./data/testfile.avi 5
     - lud-rodinia-3.1:
@@ -318,6 +201,7 @@ rodinia-3.1-full:
           accel-sim-mem: 1G
         - args: -i ./data/512.dat # 94
           accel-sim-mem: 1G
+      abbr: LUD
     # - mummergpu-rodinia-3.1: # (run segmentfault)
     #     - args: ./data/NC_003997.fna ./data/NC_003997_q100bp.fna > NC_00399.out
     # - myocyte-rodinia-3.1: # (1.4) 4433
@@ -326,9 +210,11 @@ rodinia-3.1-full:
     - nn-rodinia-3.1:
         - args: ./data/filelist_4 -r 5 -lat 30 -lng 90 # 1
           accel-sim-mem: 4G
+      abbr: NN
     - nw-rodinia-3.1:
         - args: 2048 10 # 255
           accel-sim-mem: 1G
+      abbr: NW
     # - particlefilter_float-rodinia-3.1: (1)
     #     - args:  -x 128 -y 128 -z 10 -np 1000
     #       accel-sim-mem: 1G
@@ -338,14 +224,17 @@ rodinia-3.1-full:
     - pathfinder-rodinia-3.1:
         - args: 100000 100 20 > result.txt # 5
           accel-sim-mem: 1G
+      abbr: PF
     - srad_v1-rodinia-3.1:
         - args: 100 0.5 502 458 # 400
           accel-sim-mem: 1G
     # - srad_v2-rodinia-3.1: #(2)
     #     - args:  2048 2048 0 127 0 127 0.5 2
+      abbr: SRAD
     - streamcluster-rodinia-3.1:
         - args: 3 6 16 65536 65536 1000 none output.txt 1 output.txt # 224
         # - args: 10 20 256 65536 65536 1000 none output.txt 1 # 1611 kernel
+      abbr: SC
 
 rodinia-3.1-PPT-GPU:
   suite: rodinia-3.1
@@ -400,26 +289,33 @@ polybench-full:
     - polybench-2mm:
         - args: # 2
           accel-sim-mem: 13G
+      abbr: 2MM
     - polybench-3mm:
         - args: # 3
           accel-sim-mem: 13G
+      abbr: 3MM
     - polybench-atax:
         - args: # 2
           accel-sim-mem: 2G
+      abbr: ATAX
     - polybench-bicg:
         - args: # 2
           accel-sim-mem: 2G
     # - polybench-doitgen: # (1.4)
     #     - args: # 128x2
     #       accel-sim-mem: 2G
+      abbr: BICG
     - polybench-gemm:
         - args: # 1
           accel-sim-mem: 4G
+      abbr: GEMM
     - polybench-gemver:
         - args: # 3
+      abbr: GEMVER
     - polybench-gesummv:
         - args: # 1
           accel-sim-mem: 2G
+      abbr: GESUMMV
     # - polybench-gramschmidt: # (1.4) kernel: 500x3
     #     - args:
     #       accel-sim-mem: 3G
@@ -429,9 +325,11 @@ polybench-full:
     - polybench-mvt:
         - args: # 2
           accel-sim-mem: 2G
+      abbr: MVT
     - polybench-syrk:
         - args: # 1
           accel-sim-mem: 8G
+      abbr: SYRK
     # - polybench-syr2k: # ()
     #     - args: # 1
     #       accel-sim-mem: 25G
@@ -443,6 +341,7 @@ polybench-full:
     - polybench-convolution2D:
         - args:   # 1
           accel-sim-mem: 1G
+      abbr: 2DCONV
     # - polybench-convolution3D: # (1.4) 254
     #     - args: # 254
     #       accel-sim-mem: 1G
@@ -452,7 +351,7 @@ polybench-full:
     #     - args: # 10000
     - polybench-jacobi2D:
         - args:
-    
+      abbr: JACOBI2D
     # datamining
     - polybench-correlation: # (2)
         - args: # 4

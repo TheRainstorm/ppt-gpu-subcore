@@ -64,7 +64,7 @@ def summary_trace_dir_result(apps_result):
             
             app_arg = f"{app}/{arg}"
             try:
-                suite, exe_name, cnt = suite_info['map'][app_arg]
+                suite = suite_info['map'][app_arg][0]
             except:
                 print(f"warning: {app_arg} not in yaml")
                 continue
