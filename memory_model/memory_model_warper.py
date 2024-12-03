@@ -330,6 +330,8 @@ def memory_model_warpper(gpu_model, app_path, model, kernel_id=-1, granularity=2
                 if p:
                     gpu_config[f'{cur}_{L[i]}'] = int(p)
                     print(f"Info: overwrite {cur} {L[i]} to {p}")
+    if model=='ppt-gpu':
+        no_adaptive_cache = True
     if no_adaptive_cache:
         print(f"Info: disable adaptive cache")
     app_res = []
@@ -379,7 +381,7 @@ def memory_model_warpper(gpu_model, app_path, model, kernel_id=-1, granularity=2
     
     return app_res, gpu_config
 
-def get_parser():
+def get_parser(single_app=False):
     parser = argparse.ArgumentParser(
         description=''
     )
@@ -390,13 +392,22 @@ def get_parser():
     parser.add_argument('-c', "--config",
                         required=True,
                         help='target GPU hardware configuration')
-    parser.add_argument("-B", "--benchmark_list",
-                        help="a comma seperated list of benchmark suites to run. See apps/define-*.yml for the benchmark suite names.",
-                        default="")
-    parser.add_argument("-F", "--app-filter", default="", help="filter apps. e.g. regex:.*-rodinia-2.0-ft, [suite]:[exec]:[count]")
-    parser.add_argument("-T", "--trace_dir",
-                        required=True,
-                        help="The root of all the trace file")
+    if single_app:
+        parser.add_argument('-a', '--app-path',
+                            required=True,
+                            help='the path to the app trace folder')
+        parser.add_argument('-k', "--kernel", dest="kernel_id",
+                            type=int,
+                            default=-1,
+                            help='(1 based index) To choose a specific kernel, add the kernel id')
+    else:
+        parser.add_argument("-B", "--benchmark_list",
+                            help="a comma seperated list of benchmark suites to run. See apps/define-*.yml for the benchmark suite names.",
+                            default="")
+        parser.add_argument("-F", "--app-filter", default="", help="filter apps. e.g. regex:.*-rodinia-2.0-ft, [suite]:[exec]:[count]")
+        parser.add_argument("-T", "--trace_dir",
+                            required=True,
+                            help="The root of all the trace file")
     parser.add_argument("-o", "--output",
                         default="memory_res.json")
     parser.add_argument("-l", "--log_file",
@@ -427,7 +438,7 @@ def get_parser():
     return parser
 
 if __name__ == "__main__":
-    parser = get_parser()
+    parser = get_parser(single_app=True)
     args = parser.parse_args()
     if args.use_sm_trace:
         args.block_mapping = BlockMapping.sm_block_mapping
