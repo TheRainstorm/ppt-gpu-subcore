@@ -62,7 +62,7 @@ def json2df1(json_data):
         for i, kernel_res in enumerate(app_res):
             data['bench'].append(bench)
             data['app'].append(app_arg)
-            data['kernel_id'].append(i)
+            data['kernel_id'].append(kernel_res['kernel_name'])
             for key in cmp_list:
                 try:
                     data[f"{key}"].append(kernel_res[key])
@@ -82,7 +82,7 @@ def json2df(json_data):
         for i, kernel_res in enumerate(app_res):
             kernel_res['bench'] = bench
             kernel_res['app'] = app_arg
-            kernel_res['kernel_id'] = i
+            kernel_res['kernel_id'] = kernel_res['kernel_name']
             data.append(kernel_res)
     return pd.DataFrame(data, columns=["bench", "app", "kernel_id"] + cmp_list)
 
@@ -168,7 +168,19 @@ if __name__ == "__main__":
         df_summary = pd.concat(df_list, keys=keys, axis=1)
         df_summary.to_excel(writer, sheet_name=f'{prefix}_summary', index=True)
         
+        metric_maes = [df.iloc[:,:3]]
+        metric_list = df.columns[3:]
+        for i in range(len(metric_list)//2):
+            metric = metric_list[2*i].replace("_sim", "")
+            MAE = (df.iloc[:,3+2*i] - df.iloc[:,3+2*i+1])/df.iloc[:,3+2*i+1]
+            MAE.name = metric
+            metric_maes.append(MAE)
+        
+        df_metrics = pd.concat(metric_maes, axis=1)
+        df_metrics.to_excel(writer, sheet_name=f'{prefix}_MAE', index=True)
+        
     df_apps = df_kernels.groupby(["bench", "app"], sort=False, as_index=False).mean(numeric_only=True)
+    df_apps.insert(2, "kernel_id", df_apps['app'])  # 补充空位
     
     with pd.ExcelWriter(args.output_file, engine='xlsxwriter') as writer:
         write_df_and_bench_summary(writer, df_apps, 'apps')
