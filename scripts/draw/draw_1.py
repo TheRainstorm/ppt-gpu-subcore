@@ -610,18 +610,25 @@ if __name__ == "__main__":
             except:
                 print(f"Warning: {app_arg} not found in suite_info, skip")
         
-        # total kernel
+        # total app
         draw_correl("l1_hit_rate", f"6_l1_hit_rate_correl.png")
         draw_correl("l2_hit_rate", f"6_l2_hit_rate_correl.png")
         draw_correl("l1_hit_rate", f"6_l1_hit_rate_correl_all_kernel.png", draw_kernel=True)
         draw_correl("l2_hit_rate", f"6_l2_hit_rate_correl_all_kernel.png", draw_kernel=True)
         
-        MAE_res = {'apps': {}, 'kernels': {}}
+        for i, stat in enumerate(["gmem_tot_reqs", "gmem_tot_sectors", "l1_hit_rate", "l1_hit_rate_ldg",
+                                  "l2_ld_trans", "l2_st_trans", "l2_tot_trans", "l2_hit_rate", "l2_hit_rate_ld",
+                                    "dram_ld_trans", "dram_st_trans", "dram_tot_trans"]):
+            draw_side2side(stat, f"all_bar_{i}_{stat}.png")
+            draw_correl(stat, f"all_corr_{i}_{stat}.png")
+        
+        # by bench
+        # MAE_res = {'apps': {}, 'kernels': {}}
         for bench in benchs:
-            apps_res = {}  # app level
-            kernels_res = {} # kernel level
-            MAE_res['apps'][bench] = apps_res
-            MAE_res['kernels'][bench] = kernels_res
+            # apps_res = {}  # app level
+            # kernels_res = {} # kernel level
+            # MAE_res['apps'][bench] = apps_res
+            # MAE_res['kernels'][bench] = kernels_res
             
             # set each bench as filter
             app_filter = bench
@@ -630,25 +637,25 @@ if __name__ == "__main__":
                 try:
                     draw_side2side(stat, f"{bench}_{i}_{stat}_bar.png")
                     app_res = draw_correl(stat, f"{bench}_{i}_{stat}_correl.png")
-                    kernel_res = draw_correl(stat, f"{bench}_{i}_{stat}_correl_all_kernel.png", draw_kernel=True)  # not avg
+                    # kernel_res = draw_correl(stat, f"{bench}_{i}_{stat}_correl_all_kernel.png", draw_kernel=True)  # not avg
                     
-                    apps_res.update(app_res)
-                    kernels_res.update(kernel_res)
+                    # apps_res.update(app_res)
+                    # kernels_res.update(kernel_res)
                 except:
                     print(f"ERROR: draw memory {app_arg} {stat} failed")
                     continue
         
-        import csv
-        # write csv
-        csvfile = open('memory_res.csv', 'w', newline='')
-        csv_writer = csv.writer(csvfile, delimiter=',',
-                            quotechar='|', quoting=csv.QUOTE_MINIMAL)
-        csv_writer.writerow(['level', 'bench', 'stat', 'MAE', 'NRMSE', 'corr'])
-        for level in ['apps', 'kernels']:
-            for bench in benchs:
-                for stat in MAE_res[level][bench].keys():
-                    csv_writer.writerow([level, bench, stat, MAE_res[level][bench][stat]['MAE'], MAE_res[level][bench][stat]['NRMSE'], MAE_res[level][bench][stat]['corr']])
-        csvfile.close()
+        # import csv
+        # # write csv
+        # csvfile = open('memory_res.csv', 'w', newline='')
+        # csv_writer = csv.writer(csvfile, delimiter=',',
+        #                     quotechar='|', quoting=csv.QUOTE_MINIMAL)
+        # csv_writer.writerow(['level', 'bench', 'stat', 'MAE', 'NRMSE', 'corr'])
+        # for level in ['apps', 'kernels']:
+        #     for bench in benchs:
+        #         for stat in MAE_res[level][bench].keys():
+        #             csv_writer.writerow([level, bench, stat, MAE_res[level][bench][stat]['MAE'], MAE_res[level][bench][stat]['NRMSE'], MAE_res[level][bench][stat]['corr']])
+        # csvfile.close()
         
     elif args.command == 'memory_kernels':
         print(f"\ncommand: {args.command}:")
