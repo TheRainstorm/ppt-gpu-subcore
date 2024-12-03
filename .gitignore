@@ -13,6 +13,7 @@ reuse_distance_tool/parda.x
 *.csv
 *.xlsx
 *.swp
+.ipynb_checkpoints/
 
 # GPU #
 ############
