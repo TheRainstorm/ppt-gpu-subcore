@@ -1,10 +1,12 @@
 #!/usr/bin/env bash
 
 run_memory(){
+if [ $# -eq 0 ] || [ $1 -ne 1 ]; then
 python ${ppt_gpu_dir}/memory_model/run_benchmarks.py $(echo ${extra_params}) -c ${GPU_PROFILE} -M ${memory_model} --granularity $granularity $(echo $filter_l2) $(echo $use_approx) $(echo $use_sm_trace) -B ${benchmarks} -F ${filter_app} -T ${trace_dir} -o ${res_memory_json} -l run_memory_${memory_model}.log
+fi
 
 python ${ppt_gpu_dir}/scripts/draw/draw_1.py -B ${benchmarks} -F ${filter_app} -S ${res_memory_json} -H ${res_hw_sim_json} -o ${draw_output} -d memory_${memory_model}${memory_suffix} memory
-python ${ppt_gpu_dir}/scripts/draw/draw_1.py -B ${benchmarks} -F ${filter_app} -S ${res_memory_json} -H ${res_hw_sim_json} -o ${draw_output} -d memory_${memory_model}${memory_suffix}_kernels memory_kernels
+# python ${ppt_gpu_dir}/scripts/draw/draw_1.py -B ${benchmarks} -F ${filter_app} -S ${res_memory_json} -H ${res_hw_sim_json} -o ${draw_output} -d memory_${memory_model}${memory_suffix}_kernels memory_kernels
 python ${ppt_gpu_dir}/memory_model/caculate_MAEs.py -B ${benchmarks} -F ${filter_app} -S ${res_memory_json} -H ${res_hw_sim_json} -o ${draw_output}/memory_${memory_model}${memory_suffix}/memory_${gpu}_${GPU_PROFILE}_${memory_model}${memory_suffix}.xlsx
 
 python ${ppt_gpu_dir}/memory_model/caculate_MAEs.py -B ${benchmarks} -F ${filter_app} -S ${res_memory_json} -H ${res_hw_sim_json} -o memory_${gpu}_${GPU_PROFILE}_${memory_model}${memory_suffix}.xlsx
