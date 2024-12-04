@@ -28,6 +28,7 @@
 # 1: too long trace
 # 2: too long profiling
 # 3: tooo long simulation
+# 4: else
 
 my_benchmark:
   exec_dir: "$GPUAPPS_ROOT/bin/$CUDA_VERSION/release/"
@@ -543,6 +544,50 @@ Tango:
       - args: 1
         ignore: 3
       data_subdir: SqueezeNet
+      
+pannotia:
+  exec_dir: "$GPGPU_WORKLOADS_ROOT/bin/$CUDA_VERSION/release/"
+  data_dirs: "$GPGPU_WORKLOADS_ROOT/data_dirs/pannotia/"
+  execs:
+    # - pannotia-bc:
+    #     - args: ./data/1k_128k.gr   # # (1.4) 3073*2
+    #     - args: ./data/2k_1M.gr # (1.4) 6144*2
+    #   data_subdir: bc
+    - pannotia-color:
+        - args: ./data/ecology1.graph 1
+        - args: ./data/G3_circuit.graph 1
+      data_subdir: color
+    - pannotia-color_maxmin:
+        - args: ./data/ecology1.graph 1
+        - args: ./data/G3_circuit.graph 1
+      data_subdir: color
+    - pannotia-fw:
+        - args: ./data/256_16384.gr
+          # This input is taking more thatn 17 hours to reach 2B insn
+          #            - args: ./data/512_65536.gr
+      data_subdir: fw
+    - pannotia-fw_block:
+        - args: ./data/256_16384.gr
+        - args: ./data/512_65536.gr
+      data_subdir: fw
+    - pannotia-mis:
+        - args: ./data/ecology1.graph 1
+        - args: ./data/G3_circuit.graph 1
+      data_subdir: mis
+    - pannotia-pagerank:
+        - args: ./data/coAuthorsDBLP.graph 1
+      data_subdir: pagerank
+    - pannotia-pagerank_spmv:
+        - args: ./data/coAuthorsDBLP.graph 1
+      data_subdir: pagerank
+    # - pannotia-sssp:
+    #     # - args: ./data/USA-road-d.NW.gr 0
+    #     - args: ./data/USA-road-d.NY.gr 0  # (1.4) 1200*3
+    #   data_subdir: sssp
+    # - pannotia-sssp_ell:
+    #     # - args: ./data/USA-road-d.NW.gr 0
+    #     - args: ./data/USA-road-d.NY.gr 0
+    #   data_subdir: sssp
 
 parboil:
   exec_dir: "$GPUAPPS_ROOT/bin/$CUDA_VERSION/release/"
@@ -874,40 +919,6 @@ proxy-apps-doe:
         - args: 12 large 0
     - lulesh:
         - args: 1e-7
-
-pannotia:
-  exec_dir: "$GPUAPPS_ROOT/bin/$CUDA_VERSION/release/"
-  data_dirs: "$GPUAPPS_ROOT/data_dirs/pannotia/"
-  execs:
-    - bc:
-        - args: ./data/1k_128k.gr
-        - args: ./data/2k_1M.gr
-    - color_max:
-        - args: ./data/ecology1.graph 1
-        - args: ./data/G3_circuit.graph 1
-    - color_maxmin:
-        - args: ./data/ecology1.graph 1
-        - args: ./data/G3_circuit.graph 1
-    - fw:
-        - args: ./data/256_16384.gr
-          # This input is taking more thatn 17 hours to reach 2B insn
-          #            - args: ./data/512_65536.gr
-    - fw_block:
-        - args: ./data/256_16384.gr
-        - args: ./data/512_65536.gr
-    - mis:
-        - args: ./data/ecology1.graph 1
-        - args: ./data/G3_circuit.graph 1
-    - pagerank:
-        - args: ./data/coAuthorsDBLP.graph 1
-    - pagerank_spmv:
-        - args: ./data/coAuthorsDBLP.graph 1
-#        - sssp:
-#            - args: ./data/USA-road-d.NW.gr 0
-#            - args: ./data/USA-road-d.NY.gr 0
-#        - sssp_ell:
-#            - args: ./data/USA-road-d.NW.gr 0
-#            - args: ./data/USA-road-d.NY.gr 0
 
 lonestargpu-2.0:
   exec_dir: "$GPUAPPS_ROOT/bin/$CUDA_VERSION/release/"
