@@ -77,7 +77,7 @@ class W(IntEnum):
     write_through = 1
 
 class LRUCache:
-    def __init__(self, cache_parameter, keep_traffic=False, use_prime=False, use_hash=True) -> None:
+    def __init__(self, cache_parameter, keep_traffic=False, use_prime=False, use_hash=True, fix_l2=False) -> None:
         self.associativity = int(cache_parameter['associativity'])
         self.capacity = int(cache_parameter['capacity'])
         self.cache_line_size = int(cache_parameter['cache_line_size'])
@@ -87,6 +87,7 @@ class LRUCache:
         
         self.keep_traffic = keep_traffic
         self.use_hash = use_hash
+        self.fix_l2 = fix_l2  # fix l2 write hit rate
         # cache
         cache_set = self.capacity // self.associativity // self.cache_line_size
         if use_prime:
@@ -156,8 +157,9 @@ class LRUCache:
         hit = code==0
         
         if code!=0:
-            self.write_miss += 1
-            self.inc('write_miss')
+            if not self.fix_l2:
+                self.write_miss += 1
+                self.inc('write_miss')
             if code==1:
                 self.write_tag_miss += 1
                 self.inc('write_tag_miss')
@@ -312,8 +314,8 @@ def run(trace_files, ):
     return cache_simulate(cache_line_access, l1_cache_parameter)
 
 # @timeit
-def cache_simulate(cache_line_access, cache_parameter, dump_trace='', keep_traffic=False, use_prime=False, use_hash=True):
-    cache = LRUCache(cache_parameter, keep_traffic=keep_traffic, use_prime=use_prime, use_hash=use_hash)
+def cache_simulate(cache_line_access, cache_parameter, dump_trace='', keep_traffic=False, use_prime=False, use_hash=True, no_flush=False, fix_l2=False):
+    cache = LRUCache(cache_parameter, keep_traffic=keep_traffic, use_prime=use_prime, use_hash=use_hash, fix_l2=fix_l2)
     
     req_nextlv = []
     
@@ -348,7 +350,8 @@ def cache_simulate(cache_line_access, cache_parameter, dump_trace='', keep_traff
     
     if cache.write_evict > 0:
         print(f"Info: write evict {cache.write_evict} before flush")
-    cache.flush_dirty()
+    if not no_flush:
+        cache.flush_dirty()
     
     if dump_trace:
         debug_file.close()

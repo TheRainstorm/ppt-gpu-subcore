@@ -152,6 +152,8 @@ def sdcm_model_warpper_parallel(kernel_id, trace_dir,
                 use_approx=True,
                 granularity=2,
                 filter_L2=False,
+                no_flush=False,
+                fix_l2=True,
                 block_mapping=BlockMapping.mod_block_mapping,
                 l1_dump_trace=False,l2_dump_trace=''):
     grid_size = launch_params['grid_size']
@@ -250,7 +252,7 @@ def sdcm_model_warpper_parallel(kernel_id, trace_dir,
         K['l2_ld_reqs'] = 0
         K['l2_st_reqs'] =0
     else:
-        l2_hit_rate_dict, _ = cache_simulate(l2_trace, l2_param, dump_trace=l2_dump_trace)
+        l2_hit_rate_dict, _ = cache_simulate(l2_trace, l2_param, dump_trace=l2_dump_trace, no_flush=no_flush, fix_l2=fix_l2)
         K['l2_hit_rate'] = l2_hit_rate_dict['tot']
         K['l2_hit_rate_ld'] = l2_hit_rate_dict['ld']
         K['l2_hit_rate_st'] = l2_hit_rate_dict['st']
@@ -314,9 +316,12 @@ def sdcm_model_warpper_parallel(kernel_id, trace_dir,
     return K
 
 def memory_model_warpper(gpu_model, app_path, model, kernel_id=-1, granularity=2,
-                         use_approx=True, filter_L2=False, block_mapping=BlockMapping.mod_block_mapping,
+                         use_approx=True, filter_L2=False, no_flush=False, fix_l2=True, block_mapping=BlockMapping.mod_block_mapping,
                          l1_dump_trace=False, l2_dump_trace='',
                          overwrite_cache_params='', no_adaptive_cache=False):
+    '''
+    no_flush: L2 simulator not flush dirty
+    '''
     gpu_config = get_gpu_config(gpu_model).uarch
     kernels_launch_params = get_kernels_launch_params(app_path)
     if overwrite_cache_params:
@@ -334,6 +339,8 @@ def memory_model_warpper(gpu_model, app_path, model, kernel_id=-1, granularity=2
         no_adaptive_cache = True
     if no_adaptive_cache:
         print(f"Info: disable adaptive cache")
+    if no_flush:
+        print(f"Info: disable flush L2 dirty after each kernel finish")
     app_res = []
     
     if kernel_id != -1:
@@ -359,19 +366,19 @@ def memory_model_warpper(gpu_model, app_path, model, kernel_id=-1, granularity=2
         elif model == 'sdcm':
             kernel_res = sdcm_model_warpper_parallel(kernel_param['kernel_id'], app_path, kernel_param, occupancy_res['max_active_block_per_sm'], gpu_config,
                                         l1_is_sdcm=True, l2_is_sdcm=True, granularity=granularity, block_mapping=block_mapping, use_approx=use_approx, filter_L2=filter_L2,
-                                        l1_dump_trace=l1_dump_trace, l2_dump_trace=l2_dump_trace)
+                                        l1_dump_trace=l1_dump_trace, l2_dump_trace=l2_dump_trace, no_flush=no_flush, fix_l2=fix_l2)
         elif model == 'sdcmL1':
             kernel_res = sdcm_model_warpper_parallel(kernel_param['kernel_id'], app_path, kernel_param, occupancy_res['max_active_block_per_sm'], gpu_config,
                                         l1_is_sdcm=True, l2_is_sdcm=False, granularity=granularity, block_mapping=block_mapping, use_approx=use_approx, filter_L2=filter_L2,
-                                        l1_dump_trace=l1_dump_trace, l2_dump_trace=l2_dump_trace)
+                                        l1_dump_trace=l1_dump_trace, l2_dump_trace=l2_dump_trace, no_flush=no_flush, fix_l2=fix_l2)
         elif model == 'simulatorL1':
             kernel_res = sdcm_model_warpper_parallel(kernel_param['kernel_id'], app_path, kernel_param, occupancy_res['max_active_block_per_sm'], gpu_config,
                                         l1_is_sdcm=False, l2_is_sdcm=True, granularity=granularity, block_mapping=block_mapping, use_approx=use_approx, filter_L2=filter_L2,
-                                        l1_dump_trace=l1_dump_trace, l2_dump_trace=l2_dump_trace)
+                                        l1_dump_trace=l1_dump_trace, l2_dump_trace=l2_dump_trace, no_flush=no_flush, fix_l2=fix_l2)
         elif model == 'simulator':
             kernel_res = sdcm_model_warpper_parallel(kernel_param['kernel_id'], app_path, kernel_param, occupancy_res['max_active_block_per_sm'], gpu_config,
                                         l1_is_sdcm=False, l2_is_sdcm=False, granularity=granularity, block_mapping=block_mapping, filter_L2=filter_L2,
-                                        l1_dump_trace=l1_dump_trace, l2_dump_trace=l2_dump_trace)
+                                        l1_dump_trace=l1_dump_trace, l2_dump_trace=l2_dump_trace, no_flush=no_flush, fix_l2=fix_l2)
         else:
             raise ValueError(f"model {model} is not supported")
         
@@ -412,7 +419,7 @@ def get_parser(single_app=False):
                         default="memory_res.json")
     parser.add_argument("-l", "--log_file",
                         default="run_memory_model.log")
-    parser.add_argument("--granularity",
+    parser.add_argument('-g', "--granularity",
                         type=int,
                         default=2,
                         help='1=One Thread Block per SM or 2=Active Thread Blocks per SM or 3=All Thread Blocks per SM')
@@ -435,6 +442,12 @@ def get_parser(single_app=False):
     parser.add_argument('--no-adaptive-cache',
                         action='store_true',
                         help='disable adaptive cache')
+    parser.add_argument('--no-flush-l2', 
+                        action='store_true',
+                        help='L2 cache not flush dirty cache after kernel finish')
+    parser.add_argument('--no-fix-l2', dest='fix_l2',
+                        action='store_false',
+                        help='l2 cache write always hit')
     return parser
 
 if __name__ == "__main__":
@@ -443,11 +456,12 @@ if __name__ == "__main__":
     if args.use_sm_trace:
         args.block_mapping = BlockMapping.sm_block_mapping
     
-    # l1_dump_trace, l2_dump_trace = False, ''
+    l1_dump_trace, l2_dump_trace = False, ''
     l1_dump_trace, l2_dump_trace = True, 'l2_trace.csv'
     app_res, _ = memory_model_warpper(args.config, args.app_path, args.model, kernel_id=args.kernel_id, granularity=args.granularity, use_approx=args.use_approx,
                         filter_L2=args.filter_l2, block_mapping=args.block_mapping,
-                        l1_dump_trace=l1_dump_trace, l2_dump_trace=l2_dump_trace, overwrite_cache_params=args.overwrite_cache_params)
+                        l1_dump_trace=l1_dump_trace, l2_dump_trace=l2_dump_trace, overwrite_cache_params=args.overwrite_cache_params,
+                        no_adaptive_cache=args.no_adaptive_cache, no_flush=args.no_flush_l2, fix_l2=args.fix_l2)
     print(app_res)
     print("Done")
 
