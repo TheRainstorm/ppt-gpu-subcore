@@ -3,7 +3,7 @@
 source env_all_jobs.sh
 
 # 定义最大并行任务数
-MAX_PARALLEL=8
+MAX_PARALLEL=4
 
 # 当前运行任务数
 current_jobs=0

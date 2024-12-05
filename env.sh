@@ -9,7 +9,7 @@ run_name=${run_name:-"dev"}
 
 GPU="${GPU:-0}"
 nvbit_version=${nvbit_version:-"1.5.5"}
-loop=1  # hw profiling loop count
+loop=${loop:-1} # hw profiling loop count
 # time_out=10800 # 3h
 # time_out=7200 # 2h
 time_out=3600 # 1h
@@ -47,7 +47,7 @@ use_approx=${use_approx:-" "}
 use_sm_trace=${use_sm_trace:-" "}
 
 use_ncu=1
-profile_cpi=1
+profile_cpi=$(profile_cpi:-1)
 if [ "$gpu" = "gtx1080ti" ]; then
     echo "Warning: gtx1080ti does not support ncu, can't profile cpi for now"
     use_ncu=0
