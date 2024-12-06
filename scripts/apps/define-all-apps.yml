@@ -526,6 +526,7 @@ Tango:
     - AN:
       - args: 1
       data_subdir: AlexNet
+      abbr: AN
     - CN:
       - args: 1
         ignore: 3
@@ -533,9 +534,11 @@ Tango:
     - GRU:
       - args: 
       data_subdir: GRU
+      abbr: GRU
     - LSTM:
       - args: 1
       data_subdir: LSTM
+      abbr: LSTM
     - RN:
       - args: 1
         ignore: 3

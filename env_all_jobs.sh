@@ -33,6 +33,7 @@ ppt_gpu_version="PPT-GPU-memory"
 run_name="paper3"
 run_name="paper4"
 run_name="paper5"
+run_name="paper6"
 
 # change part
 GPU_PROFILE="TITANV"
@@ -196,6 +197,64 @@ default
 memory_suffix="_fix_l2_write_hit_rate"
 }
 
+l2_write_miss_read_dram(){
+default
+memory_suffix="_l2_write_miss_read_dram"
+}
+
+# ampere trace
+ampere_trace(){
+default
+gpu="a100-40g"
+GPU_PROFILE="A100-40G"
+memory_suffix="_base"
+}
+
+ppt_gpu_ampere_trace(){
+default
+gpu="a100-40g"
+GPU_PROFILE="A100-40G"
+memory_model="ppt-gpu"
+memory_suffix="_base_CL32"
+memory_extra_params="-C l1::32::,l2::32::"
+extra_params="${memory_extra_params} --no-adaptive-cache"
+}
+
+
+# ampere search
+ampere_l1_16A(){
+default
+GPU_PROFILE="A100-40G"
+memory_suffix="_ampere_l1_16A"
+memory_extra_params="-C l1:::16:,l2::::"
+extra_params=${memory_extra_params}
+}
+
+ampere_l1_64A(){
+default
+GPU_PROFILE="A100-40G"
+memory_suffix="_ampere_l1_64A"
+memory_extra_params="-C l1:::64:,l2::::"
+extra_params=${memory_extra_params}
+}
+
+ampere_l2_16A(){
+default
+GPU_PROFILE="A100-40G"
+memory_suffix="_ampere_l2_16A"
+memory_extra_params="-C l1::::,l2:::16:"
+extra_params=${memory_extra_params}
+}
+
+ampere_l2_64A(){
+default
+GPU_PROFILE="A100-40G"
+memory_suffix="_ampere_l2_64A"
+memory_extra_params="-C l1::::,l2:::64:"
+extra_params=${memory_extra_params}
+}
+
+
 # # 遍历并执行每个设置
 # for setting in "${settings[@]}"; do
 #     execute_with_settings $setting
@@ -218,13 +277,13 @@ sdcmL1_ampere_base
 sdcm_base
 sdcm_ampere_base
 
-# simulator bonus
-sector_l1_CL128
-sector_l2_CL128
-l2_64CL_64S
-l2_64CL_32S
-l2_16A
-l2_64A
+# # simulator bonus
+# sector_l1_CL128
+# sector_l2_CL128
+# l2_64CL_64S
+# l2_64CL_32S
+# l2_16A
+# l2_64A
 )
 
 sequential_settings=(
@@ -240,5 +299,16 @@ ppt_gpu_ampere_base_CL32
 # sdcmL1_ampere_base
 # sdcm_ampere_base
 # ppt_gpu_ampere_base_CL32
+# )
+# sequential_settings=()
+
+
+
+# # ampere search
+# parallel_settings=(
+# ampere_l1_16A
+# ampere_l2_16A
+# ampere_l1_64A
+# ampere_l2_64A
 # )
 # sequential_settings=()
