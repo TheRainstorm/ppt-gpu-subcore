@@ -176,6 +176,12 @@ class LRUCache:
                 node.sectors_dirty[sector_idx] = 1
             else:
                 if self.write_allocate:
+                    if False: # granularity sector
+                        self.read_req += 1 # read from memory
+                        self.inc('read_req')
+                        if self.keep_traffic:
+                            self.traffics.append([0, self.sector_size, addr])
+                
                     self.put_node(cache_line_idx, sector_idx, tag, node, dirty=1)
                 else:
                     # don't allocate cache, write to memory, 

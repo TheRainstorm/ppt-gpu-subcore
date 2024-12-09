@@ -32,7 +32,7 @@ parser.add_argument("-c", "--limit_kernel_num",
                     help="trace tool only trace max 300 kernel, nvprof can't set trace limit(nsight-sys can)." \
                         "so we limit the kernel number when get stat")
 parser.add_argument("--select", default="nvprof",
-                 choices=["nvprof", "ncu", "ncu-cpi", "nvprof-cpi"],
+                 choices=["nvprof", "ncu", "ncu-cpi", "nvprof-cpi", "ncu-full"],
                  help="get which tool's stat")
 parser.add_argument('-l', "--loop-cnt",
                  default=-1,
@@ -49,7 +49,7 @@ app_and_arg_list = get_app_arg_list(apps)
 # args.apps = process_args_apps(args.apps, defined_apps)
 args.apps = filter_app_list(app_and_arg_list, args.app_filter)
 
-def parse_csv_file(profiling_file):
+def parse_csv_file(profiling_file, skip_unit_row=False):
     '''
     将 csv 每一行转换成一个 dict，其中数字被尝试转换成 float，字符串不变
     返回 dict 列表
@@ -86,7 +86,8 @@ def parse_csv_file(profiling_file):
             if row[0].startswith('='):
                 continue
             keys_list = row
-            # next(csvreader)
+            if skip_unit_row:
+                next(csvreader)
             break
         for row in csvreader:
             kernel_data = {}
@@ -105,13 +106,13 @@ def parse_csv_file(profiling_file):
             result.append(kernel_data)
     return result
 
-def get_average_csv(profiling_file_list):
+def get_average_csv(profiling_file_list, skip_unit_row=False):
     '''
     输入若干 csv 文件，返回平均后的字典列表
     '''
     res_list = []
     for profiling_file in profiling_file_list:
-        res_list.append(parse_csv_file(profiling_file))
+        res_list.append(parse_csv_file(profiling_file, skip_unit_row=skip_unit_row))
         
     loop_num = len(res_list)
     
@@ -172,6 +173,10 @@ for app_and_arg in app_and_arg_list:
         for i,kernel_data in enumerate(acc_res):
             acc_res[i]['kernel_name'] = re.search(r'\w+', acc_res[i]['Kernel']).group(0)  # delete function params define
             del acc_res[i]['Kernel']
+    elif 'ncu-full'==args.select:
+        acc_res = get_average_csv(profiling_res[args.select], skip_unit_row=True)
+        for i,kernel_data in enumerate(acc_res):
+            acc_res[i]['kernel_name'] = re.search(r'\w+', acc_res[i]['Kernel Name']).group(0)  # delete function params define
     else:
         acc_res = get_average_csv(profiling_res[args.select])
 

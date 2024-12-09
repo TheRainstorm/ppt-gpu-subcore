@@ -74,6 +74,8 @@ trace_dir_base=${trace_dir_base:-$my_home/hw_trace01}
 ppt_gpu_version=${ppt_gpu_version:-"PPT-GPU"}
 ppt_gpu_dir=$my_home/repo/${ppt_gpu_version}
 
+export NCU='/staff/fyyuan/nsight-compute/target/linux-desktop-glibc_2_11_3-x64/ncu'  # version 2024.3.2.0
+
 # cuda_version_major=`nvcc --version | grep release | sed -re 's/.*release ([0-9]+)\..*/\1/'`;
 export GPUAPPS_ROOT=$my_home/repo/accel-sim-framework/gpu-app-collection
 export UBENCH_ROOT=$my_home/repo/GPU_Microbenchmark
@@ -131,6 +133,7 @@ print_summary(){
     echo "nvcc cuda_version: $curr_cuda_version"
     echo "HW GPU: $gpu [${GPU}]"
     echo "trace_dir: $trace_dir"
+    echo "profiling NCU: $NCU"
     echo ""
 
     echo "[Simulation]:"
