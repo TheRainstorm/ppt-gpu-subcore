@@ -85,6 +85,7 @@ rodinia-3.1-full:
     - lavaMD-rodinia-3.1:
         - args: -boxes1d 10 # 1
           accel-sim-mem: 32G
+          # ignore: 4  # draw write 
       abbr: LMD
     # - leukocyte-rodinia-3.1: # (4)
     #     - args: ./data/testfile.avi 5
@@ -104,6 +105,7 @@ rodinia-3.1-full:
     - nn-rodinia-3.1:
         - args: ./data/filelist_4 -r 5 -lat 30 -lng 90 # 1
           accel-sim-mem: 4G
+          # ignore: 4 # dram write 410.23
       abbr: NN
     - nw-rodinia-3.1:
         - args: 2048 10 # 255
