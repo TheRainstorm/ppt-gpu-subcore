@@ -466,6 +466,28 @@ if __name__ == "__main__":
     print("Done")
 
 if __name__ == "__main__2":
+    # draw cssd
+    l1_dump_trace = os.environ['l2_dump_trace'].replace('.csv', '.json')
+    with open(l1_dump_trace) as f:
+        smi_trace_ = json.load(f)
+    smi_trace = smi_trace_
+    from src.sdcm import get_stack_distance, get_sdd_dict, get_csdd, draw_SD, draw_sdd, draw_csdd
+    SD = get_stack_distance(smi_trace)
+    # sdd_dict = get_sdd_dict(SD, smi_trace)
+    # print(sdd_dict)
+    sdd, csdd = get_csdd(SD)
+    label = l1_dump_trace.replace('.json', '')
+    outptu_dir = 'paper_draw'
+    debug_save = {'SD': SD, 'sdd': sdd, 'csdd': csdd}
+    with open(f"{label}_debug.json", 'w') as f:
+        json.dump(debug_save, f)
+    
+    draw_SD(sdd, os.path.join(outptu_dir, f"{label}_SD.png"))
+    draw_sdd(sdd, os.path.join(outptu_dir, f"{label}_sdd.png"))
+    draw_csdd(csdd,  os.path.join(outptu_dir, f"{label}_csdd.png"))
+    print("Done")
+    
+if __name__ == "__main__2":
     with open('l2_trace.json') as f:
         smi_trace_ = json.load(f)
     smi_trace = smi_trace_
