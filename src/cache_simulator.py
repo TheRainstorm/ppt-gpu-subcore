@@ -293,6 +293,9 @@ def caculate(read_cnt, read_miss, read_tag_miss, write_cnt, write_miss, write_ta
         "write_through": write_through,
         "write_evict": write_evict,
         "write_nonallocate": write_nonallocate,
+        
+        "read_miss": read_miss,
+        "write_miss": write_miss
     }
             
 from src.sdcm import get_cache_line_access_from_raw_trace
@@ -357,7 +360,12 @@ def cache_simulate(cache_line_access, cache_parameter, dump_trace='', keep_traff
     if cache.write_evict > 0:
         print(f"Info: write evict {cache.write_evict} before flush")
     if not no_flush:
+        if fix_l2:
+            print(f"write_flush: {cache.write_flush}")
         cache.flush_dirty()
+        if fix_l2:
+            print(cache.write_through, cache.write_evict, cache.write_nonallocate, cache.write_flush)
+            print(f"write_flush after flush dirty: {cache.write_flush}")
     
     if dump_trace:
         debug_file.close()
@@ -386,6 +394,8 @@ def cache_simulate(cache_line_access, cache_parameter, dump_trace='', keep_traff
     hit_rate_dict['sectors_st'] = cache_info['write_cnt']
     hit_rate_dict['sectors_ld_nextlv'] = cache_info['read_req']
     hit_rate_dict['sectors_st_nextlv'] = cache_info['write_req']
+    hit_rate_dict['read_miss'] = cache_info['read_miss']
+    hit_rate_dict['write_miss'] = cache_info['write_miss']
     hit_rate_dict['line_read'] = len(warp_read)
     hit_rate_dict['line_write'] = len(warp_write)
     

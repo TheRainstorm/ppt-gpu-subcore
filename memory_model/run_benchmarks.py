@@ -50,7 +50,7 @@ for app_and_arg in app_and_arg_list:
     app_res, gpu_config = memory_model_warpper(args.config, app_trace_dir, args.model, granularity=args.granularity, use_approx=args.use_approx,
                         filter_L2=args.filter_l2, block_mapping=args.block_mapping,
                         l1_dump_trace=False, l2_dump_trace='', overwrite_cache_params=args.overwrite_cache_params,
-                        no_adaptive_cache=args.no_adaptive_cache, no_flush=args.no_flush_l2, fix_l2=args.fix_l2)
+                        no_adaptive_cache=args.no_adaptive_cache, no_flush=args.no_flush_l2, fix_l2=args.fix_l2, no_write_policy=args.no_write_policy)
     avg_l1_hit_rate = sum([res['l1_hit_rate'] for res in app_res]) / len(app_res)
     avg_l2_hit_rate = sum([res['l2_hit_rate'] for res in app_res]) / len(app_res)
     sim_res[app_and_arg] = app_res

@@ -143,6 +143,7 @@ def run_L1(smi, trace_dir, kernel_id, grid_size, num_SMs, max_blocks_per_sm, gpu
     
     return flag_active, sm_stats, smi_trace
 
+print_table_toggle = True
 def sdcm_model_warpper_parallel(kernel_id, trace_dir,
                 launch_params,
                 max_blocks_per_sm, 
@@ -152,8 +153,9 @@ def sdcm_model_warpper_parallel(kernel_id, trace_dir,
                 use_approx=True,
                 granularity=2,
                 filter_L2=False,
-                no_flush=False,
-                fix_l2=True,
+                no_flush=False, # l2 no flush dirty when kernel finish
+                fix_l2=True,    # L2 write always hit
+                no_write_policy=False,  # no write policy, req when miss
                 block_mapping=BlockMapping.mod_block_mapping,
                 l1_dump_trace=False,l2_dump_trace=''):
     grid_size = launch_params['grid_size']
@@ -284,13 +286,19 @@ def sdcm_model_warpper_parallel(kernel_id, trace_dir,
         K["dram_ld_trans"] = K["l2_ld_trans"] * (1 - K["l2_hit_rate_ld"])
         K["dram_st_trans"] = K["l2_st_trans"] * (1 - K["l2_hit_rate_st"])
     else:
-        K['dram_ld_trans'] = l2_hit_rate_dict['sectors_ld_nextlv'] * scale
-        K['dram_st_trans'] = l2_hit_rate_dict['sectors_st_nextlv'] * scale
+        if no_write_policy:
+            K['dram_ld_trans'] = l2_hit_rate_dict['read_miss'] * scale
+            K['dram_st_trans'] = l2_hit_rate_dict['write_miss'] * scale
+        else:
+            K['dram_ld_trans'] = l2_hit_rate_dict['sectors_ld_nextlv'] * scale
+            K['dram_st_trans'] = l2_hit_rate_dict['sectors_st_nextlv'] * scale
         K['dram_tot_trans'] = K['dram_ld_trans'] + K['dram_st_trans']
     K['scale'] = scale
 
     # debug print
-    if kernel_id==1:
+    global print_table_toggle
+    if kernel_id==1 or print_table_toggle:
+        print_table_toggle = False
         print("L1/TEX Cache")
         tb = pt.PrettyTable()
         tb.field_names = ["Type", "Instr/Requests", "Sectors", "Sectors/Req", "Hit Rate", "Bytes", "Sector Misses to L2"]
@@ -318,7 +326,8 @@ def sdcm_model_warpper_parallel(kernel_id, trace_dir,
 def memory_model_warpper(gpu_model, app_path, model, kernel_id=-1, granularity=2,
                          use_approx=True, filter_L2=False, no_flush=False, fix_l2=True, block_mapping=BlockMapping.mod_block_mapping,
                          l1_dump_trace=False, l2_dump_trace='',
-                         overwrite_cache_params='', no_adaptive_cache=False):
+                         overwrite_cache_params='', no_adaptive_cache=False, print_table=False,
+                         no_write_policy=False):
     '''
     no_flush: L2 simulator not flush dirty
     '''
@@ -370,7 +379,7 @@ def memory_model_warpper(gpu_model, app_path, model, kernel_id=-1, granularity=2
         elif model == 'sdcmL1':
             kernel_res = sdcm_model_warpper_parallel(kernel_param['kernel_id'], app_path, kernel_param, occupancy_res['max_active_block_per_sm'], gpu_config,
                                         l1_is_sdcm=True, l2_is_sdcm=False, granularity=granularity, block_mapping=block_mapping, use_approx=use_approx, filter_L2=filter_L2,
-                                        l1_dump_trace=l1_dump_trace, l2_dump_trace=l2_dump_trace, no_flush=no_flush, fix_l2=fix_l2)
+                                        l1_dump_trace=l1_dump_trace, l2_dump_trace=l2_dump_trace, no_flush=no_flush, fix_l2=fix_l2, no_write_policy=no_write_policy)
         elif model == 'simulatorL1':
             kernel_res = sdcm_model_warpper_parallel(kernel_param['kernel_id'], app_path, kernel_param, occupancy_res['max_active_block_per_sm'], gpu_config,
                                         l1_is_sdcm=False, l2_is_sdcm=True, granularity=granularity, block_mapping=block_mapping, use_approx=use_approx, filter_L2=filter_L2,
@@ -378,7 +387,7 @@ def memory_model_warpper(gpu_model, app_path, model, kernel_id=-1, granularity=2
         elif model == 'simulator':
             kernel_res = sdcm_model_warpper_parallel(kernel_param['kernel_id'], app_path, kernel_param, occupancy_res['max_active_block_per_sm'], gpu_config,
                                         l1_is_sdcm=False, l2_is_sdcm=False, granularity=granularity, block_mapping=block_mapping, filter_L2=filter_L2,
-                                        l1_dump_trace=l1_dump_trace, l2_dump_trace=l2_dump_trace, no_flush=no_flush, fix_l2=fix_l2)
+                                        l1_dump_trace=l1_dump_trace, l2_dump_trace=l2_dump_trace, no_flush=no_flush, fix_l2=fix_l2, no_write_policy=no_write_policy)
         else:
             raise ValueError(f"model {model} is not supported")
         
@@ -448,6 +457,9 @@ def get_parser(single_app=False):
     parser.add_argument('--no-fix-l2', dest='fix_l2',
                         action='store_false',
                         help='l2 cache write always hit')
+    parser.add_argument('--no-write-policy', 
+                        action='store_true',
+                        help='use read/write miss as req to dram, simulate no write policy')
     return parser
 
 if __name__ == "__main__":
@@ -457,11 +469,12 @@ if __name__ == "__main__":
         args.block_mapping = BlockMapping.sm_block_mapping
     
     l1_dump_trace, l2_dump_trace = False, ''
-    l1_dump_trace, l2_dump_trace = True, 'l2_trace.csv'
+    # l1_dump_trace, l2_dump_trace = False, 'l2_trace.csv'
+    # l2_dump_trace = os.environ['l2_dump_trace']
     app_res, _ = memory_model_warpper(args.config, args.app_path, args.model, kernel_id=args.kernel_id, granularity=args.granularity, use_approx=args.use_approx,
                         filter_L2=args.filter_l2, block_mapping=args.block_mapping,
                         l1_dump_trace=l1_dump_trace, l2_dump_trace=l2_dump_trace, overwrite_cache_params=args.overwrite_cache_params,
-                        no_adaptive_cache=args.no_adaptive_cache, no_flush=args.no_flush_l2, fix_l2=args.fix_l2)
+                        no_adaptive_cache=args.no_adaptive_cache, no_flush=args.no_flush_l2, fix_l2=args.fix_l2, no_write_policy=args.no_write_policy)
     print(app_res)
     print("Done")
 

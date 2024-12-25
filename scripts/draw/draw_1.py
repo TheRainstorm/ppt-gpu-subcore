@@ -90,7 +90,7 @@ key_map = {
 draw_list = ["l1_hit_rate", "l1_hit_rate_g", "l1_hit_rate_ldg", "l1_hit_rate_stg", "l2_hit_rate", "l2_hit_rate_ld", "l2_hit_rate_st",
             "l2_ld_trans","l2_st_trans","l2_tot_trans","dram_ld_trans","dram_st_trans","dram_tot_trans",
             "gmem_tot_reqs", "gmem_ld_sectors", "gmem_st_sectors", "gmem_tot_sectors", "gmem_ld_diverg"]
-
+draw_list = ["l2_ld_trans","l2_st_trans","l2_tot_trans", "dram_ld_trans","dram_st_trans","dram_tot_trans"]
 # 定义操作符的优先级
 precedence = {
     '+': 1,

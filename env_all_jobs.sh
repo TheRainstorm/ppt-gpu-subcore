@@ -75,6 +75,17 @@ filter_l2=" "
 extra_params=" --no-adaptive-cache"
 }
 
+no_write_policy(){
+default
+memory_suffix="_no_write_policy"
+extra_params=" --no-write-policy"
+}
+
+no_write_policy_base(){
+default
+memory_suffix="_no_write_policy_base"
+}
+
 # sector lab
 sector_l1_CL32(){
 default
