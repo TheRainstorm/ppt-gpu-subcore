@@ -260,6 +260,10 @@ def sdcm_model_warpper_parallel(kernel_id, trace_dir,
         K['l2_hit_rate_st'] = l2_hit_rate_dict['st']
         K['l2_ld_reqs'] = 0
         K['l2_st_reqs'] = 0
+        # debug
+        K['write_evict'] = l2_hit_rate_dict['write_evict']
+        K['write_evict_st'] = l2_hit_rate_dict['write_evict_st']
+        K['write_flush'] = l2_hit_rate_dict['write_flush']
     
     # L1/TEX
     K['gmem_tot_reqs'] = K['gmem_ld_reqs'] + K['gmem_st_reqs']

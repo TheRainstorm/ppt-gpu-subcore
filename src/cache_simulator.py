@@ -192,6 +192,7 @@ class LRUCache:
         return hit, self.traffics
         
     def access(self, mem_width, write, addr):
+        self.is_write = write  # used in put node write evict
         if write:
             return self.write(mem_width, addr)
         else:
@@ -237,6 +238,8 @@ class LRUCache:
             for i in range(self.sectors):
                 if node.sectors_valid[i] == 1 and node.sectors_dirty[i] == 1:
                     self.write_evict += 1
+                    if self.is_write:
+                        self.write_evict_st += 1
                     if self.keep_traffic:
                         self.traffics.append([1, self.sector_size, node.key * self.cache_line_size + i * self.sector_size])
             del self.cache_set_list[cache_line_idx][node.key]
@@ -257,6 +260,7 @@ class LRUCache:
         self.read_cnt, self.read_miss, self.read_tag_miss, self.write_cnt, self.write_miss, self.write_tag_miss, = 0, 0, 0, 0, 0, 0
         self.read_req = 0
         self.write_through, self.write_evict, self.write_nonallocate, self.write_flush = 0, 0, 0, 0
+        self.write_evict_st = 0  # evict when write
         
     def get_cache_info(self):
         return caculate(self.read_cnt, self.read_miss, self.read_tag_miss, self.write_cnt, self.write_miss, self.write_tag_miss,
@@ -325,6 +329,7 @@ def run(trace_files, ):
 # @timeit
 def cache_simulate(cache_line_access, cache_parameter, dump_trace='', keep_traffic=False, use_prime=False, use_hash=True, no_flush=False, fix_l2=False):
     cache = LRUCache(cache_parameter, keep_traffic=keep_traffic, use_prime=use_prime, use_hash=use_hash, fix_l2=fix_l2)
+    is_l2 = fix_l2
     
     req_nextlv = []
     
@@ -358,14 +363,11 @@ def cache_simulate(cache_line_access, cache_parameter, dump_trace='', keep_traff
             req_nextlv.append([traffic[0], is_local, warp_id, traffic[2]])
     
     if cache.write_evict > 0:
-        print(f"Info: write evict {cache.write_evict} before flush")
+        print(f"Info: write evict {cache.write_evict}, st {cache.write_evict_st}")
     if not no_flush:
-        if fix_l2:
-            print(f"write_flush: {cache.write_flush}")
         cache.flush_dirty()
-        if fix_l2:
-            print(cache.write_through, cache.write_evict, cache.write_nonallocate, cache.write_flush)
-            print(f"write_flush after flush dirty: {cache.write_flush}")
+    if is_l2:
+        print(cache.write_through, cache.write_evict, cache.write_nonallocate, cache.write_flush)
     
     if dump_trace:
         debug_file.close()
@@ -398,6 +400,10 @@ def cache_simulate(cache_line_access, cache_parameter, dump_trace='', keep_traff
     hit_rate_dict['write_miss'] = cache_info['write_miss']
     hit_rate_dict['line_read'] = len(warp_read)
     hit_rate_dict['line_write'] = len(warp_write)
+    # debug
+    hit_rate_dict['write_evict'] = cache.write_evict
+    hit_rate_dict['write_evict_st'] = cache.write_evict_st
+    hit_rate_dict['write_flush'] = cache.write_flush
     
     return hit_rate_dict, req_nextlv
     

@@ -81,9 +81,21 @@ memory_suffix="_no_write_policy"
 extra_params=" --no-write-policy"
 }
 
+no_write_policy2(){
+default
+memory_suffix="_no_write_policy2"
+extra_params=" --no-write-policy --no-fix-l2"
+}
+
 no_write_policy_base(){
 default
 memory_suffix="_no_write_policy_base"
+}
+
+no_write_policy_base2(){
+default
+memory_suffix="_no_write_policy_base2"
+extra_params="--no-fix-l2"
 }
 
 # sector lab
@@ -265,6 +277,13 @@ memory_extra_params="-C l1::::,l2:::64:"
 extra_params=${memory_extra_params}
 }
 
+
+# simulatorL1
+simulatorL1_base(){
+default
+memory_model="simulatorL1"
+memory_suffix="_base"
+}
 
 # # 遍历并执行每个设置
 # for setting in "${settings[@]}"; do
