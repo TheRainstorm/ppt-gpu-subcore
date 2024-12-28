@@ -48,15 +48,18 @@ fi
 run_sim(){
 cd ${ppt_gpu_dir}
 # run sim
-python ${ppt_gpu_dir}/scripts/run_simulation.py -M "mpiexec -n 2" -F ${filter_app} -B ${benchmarks} -T ${trace_dir} -H ${GPU_PROFILE} --granularity 2 -R ${report_dir} -l run_sim_${sim_identifier}.log --time-out ${time_out} > /dev/null
+python ${ppt_gpu_dir}/scripts/run_simulation.py -M "mpiexec -n 2" -F ${filter_app} -B ${benchmarks} -T ${trace_dir} -H ${GPU_PROFILE} --granularity 2 -R ${report_dir} -l run_sim_${sim_identifier}.log --time-out ${time_out} --ppt-src ${ppt_src} > /dev/null
 
-# get stat
 python ${ppt_gpu_dir}/scripts/get_stat_sim.py -B ${benchmarks} -F ${filter_app} -T ${report_dir} -o ${res_sim_json}
-python ${ppt_gpu_dir}/scripts/get_stat_sim.py -B ${benchmarks} -F ${filter_app} -T ${report_dir} --not-full -o ${res_sim_lite_json}
+# # 获得更少信息的 json，避免过大，不太方便查看
+# python ${ppt_gpu_dir}/scripts/get_stat_sim.py -B ${benchmarks} -F ${filter_app} -T ${report_dir} --not-full -o ${res_sim_lite_json}
 
 # convert to cpi stack
 python ${ppt_gpu_dir}/scripts/draw/convert_cpi_stack.py -i ${res_sim_json} -I "ppt_gpu" -o ${res_sim_cpi_json}
 # python ${ppt_gpu_dir}/scripts/draw/convert_cpi_stack.py -i ${res_sim_json} -I "ppt_gpu_sched"  -o ${res_sim_sched_cpi_json}
+
+# 模拟结果保存在 csv 中
+python ${ppt_gpu_dir}/scripts/analysis_result.py -B ${benchmarks} -F ${filter_app} -S ${res_sim_json} -H ${res_hw_sim_json} -o res_${gpu}_${cuda_version}_${GPU_PROFILE}_${run_name}.xlsx
 }
 
 draw(){

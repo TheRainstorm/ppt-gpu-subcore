@@ -50,6 +50,7 @@ parser.add_argument("-t", "--time-out",
                     type=int,
                     default=3*60*60, # 3h
                     help="Set time out seconds, if app run longer than this, kill it")
+parser.add_argument("--ppt-src", default="ppt.py", help="ppt.py src path")
 args = parser.parse_args()
 
 from common import *
@@ -90,9 +91,9 @@ for app_and_arg in app_and_arg_list:
     logging(f"{app_and_arg} start")
     hw_res_option_str = f"--hw-res {args.hw_res}" if args.hw_res else ""
     if args.mpi_run != "":
-        cmd = f"{args.mpi_run} python ppt.py --mpi --app {app_trace_dir} --sass --config {args.hw_config} --granularity {args.granularity} {hw_res_option_str} --report-output-dir {args.report_output_dir}"
+        cmd = f"{args.mpi_run} python {args.ppt_src} --mpi --app {app_trace_dir} --sass --config {args.hw_config} --granularity {args.granularity} {hw_res_option_str} --report-output-dir {args.report_output_dir}"
     else:
-        cmd = f"python ppt.py --app {app_trace_dir} --sass --config {args.hw_config} --granularity {args.granularity} {hw_res_option_str} --report-output-dir {args.report_output_dir}"
+        cmd = f"python {args.ppt_src} --app {app_trace_dir} --sass --config {args.hw_config} --granularity {args.granularity} {hw_res_option_str} --report-output-dir {args.report_output_dir}"
 
     try:
         p = subprocess.Popen(shlex.split(cmd), start_new_session=True)

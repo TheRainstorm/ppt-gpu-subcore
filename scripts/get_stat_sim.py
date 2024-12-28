@@ -114,6 +114,9 @@ def parse_kernel_log(file_path):
     return kernel_res
 
 def parse_kernel_json(file_path, full=True):
+    '''
+    定义了模型至少需要输出哪些数据
+    '''
     with open(file_path, 'r') as f:
         data_json = json.load(f)
     
@@ -122,18 +125,24 @@ def parse_kernel_json(file_path, full=True):
     else:
         data_json_new = {}
     
-    # rename
-    # data_json_new["achieved_occupancy"] = data_json["placeholder"]
+    # 基础
     data_json_new['warp_inst_executed'] = data_json['tot_warps_instructions_executed']
-    # data_json_new["gpu_active_cycle_min"] = data_json["placeholder"]
-    # data_json_new["gpu_active_cycle_max"] = data_json["placeholder"]
-    data_json_new["sm_active_cycles_sum"] = data_json["sm_act_cycles.sum"]
-    data_json_new["sm_elapsed_cycles_sum"] = data_json["sm_elp_cycles.sum"]
-    data_json_new["my_gpu_active_cycle_max"] = data_json["my_gpu_act_cycles_max"]
+    data_json_new["achieved_occupancy"] = data_json["achieved_occupancy"]
     
+    # 预测的 cycle，有两个，一个 min 一个 max，默认使用 max 作为最后结果
+    data_json_new["gpu_active_cycle_min"] = data_json["gpu_active_cycle_min"]  # 单个 SM cycle 最小值
+    data_json_new["gpu_active_cycle_max"] = data_json["gpu_active_cycle_max"]  # 单个 SM cycle 最大值
+    data_json_new["gpu_active_cycles"] = data_json["gpu_active_cycle_max"]  # 单个 SM cycle
+    # SM 累加的 cycle，有 active 和 elapse 两个
+    data_json_new["sm_active_cycles_sum"] = data_json["sm_act_cycles.sum"]  # 所有 SM cycle 总和
+    data_json_new["sm_elapsed_cycles_sum"] = data_json["sm_elp_cycles.sum"] # 所有 SM elapsed cycle 总和（和 active 区别：active 排除了非活跃的 SM）
+    # ipc
+    data_json_new["ipc"] = data_json["tot_ipc"]
+    
+    # 针对我的模型，尝试不同选择不同 cycle
     ## select other result
     # result = data_json["result"]
-    kernel_detail = data_json["kernel_detail"]
+    # kernel_detail = data_json["kernel_detail"]
     # kernel_lat = kernel_detail['kernel_lat']
     # data_json_new["my_gpu_active_cycle_max"] = result['ours_smsp_max'] + kernel_lat
     # data_json_new["my_gpu_active_cycle_max"] = result['ours_smsp_avg'] + kernel_lat
@@ -143,10 +152,8 @@ def parse_kernel_json(file_path, full=True):
     # data_json_new["my_gpu_active_cycle_max"] = result['ours_smsp_avg_scale2'] + kernel_lat
     # data_json_new["my_gpu_active_cycle_max"] = result['ours_smsp_avg_tail_scale2'] + kernel_lat
     # data_json_new["my_gpu_active_cycle_max"] = result['ours_smsp_avg_tail_scale2_LI'] + kernel_lat
-    
-    data_json_new["my_sm_active_cycles_sum"] = data_json["my_sm_act_cycles.sum"]
-    data_json_new["my_sm_elapsed_cycles_sum"] = data_json["my_sm_elp_cycles.sum"]
-    data_json_new["ipc"] = data_json["my_tot_ipc"]
+
+    # memory
     data_json_new["l1_hit_rate"] = data_json["memory_stats"]["umem_hit_rate"]*100
     data_json_new["l2_hit_rate"] = data_json["memory_stats"]["hit_rate_l2"]*100
     data_json_new["gmem_read_requests"] = data_json["memory_stats"]["gmem_ld_reqs"]
@@ -156,6 +163,16 @@ def parse_kernel_json(file_path, full=True):
     data_json_new["l2_read_trans"] = data_json["memory_stats"]["l2_ld_trans_gmem"]
     data_json_new["l2_write_trans"] = data_json["memory_stats"]["l2_st_trans_gmem"]
     data_json_new["dram_total_trans"] = data_json["memory_stats"]["dram_tot_trans_gmem"]
+    
+    data_json_new["gmem_tot_reqs"] = data_json["memory_stats"]["gmem_tot_reqs"]
+    data_json_new["gmem_tot_sectors"] = data_json["memory_stats"]["gmem_tot_trans"]
+    data_json_new['l2_tot_trans'] = data_json['memory_stats']['l2_tot_trans_gmem']
+    
+    data_json_new["AMAT"] = data_json["AMAT"]
+    
+    # CPI info
+    # "warp_stats/warp_stats"
+    # scheduler_stats/stall_types
     
     return data_json_new
 

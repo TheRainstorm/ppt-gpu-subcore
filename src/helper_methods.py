@@ -20,7 +20,12 @@ from scipy import special as sp
 import json
 
 def dump_output(pred_out):
-
+    '''
+    模型有三个输出文件
+    1. 输出报告，包含格式化的重要信息
+    2. tasklist，包含每个warp的指令列表
+    3. json文件，包含所有的预测信息，用于之后脚本分析
+    '''
     kernel_prefix = str(pred_out["kernel_id"])+"_"+pred_out["ISA"] +"_g"+pred_out["granularity"]
     outF = open(os.path.join(pred_out["app_report_dir"], "kernel_"+kernel_prefix+".out"), "w+")
     outF2 = open(os.path.join(pred_out["app_report_dir"], f"kernel_{pred_out['kernel_id']}_tasklist.txt"), "w")

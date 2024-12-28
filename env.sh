@@ -3,7 +3,7 @@ benchmarks=${benchmarks:-"rodinia-3.1-full|polybench-full|GPU_Microbenchmark|dee
 filter_app=${filter_app:-$benchmarks}
 
 ### Run model select
-model=ppt-gpu
+model=${model:-"ppt-gpu"}
 cuda_version=${cuda_version:-"11.0"}
 run_name=${run_name:-"dev"}
 
@@ -38,16 +38,22 @@ gpu_detect(){
     esac
     echo $gpu
 }
+# 实际硬件 gpu，用于采集 trace
 gpu=${gpu:-$(gpu_detect)}
 GPU_PROFILE=${GPU_PROFILE:-TITANV}
+# 需要模拟的 gpu，根据 GPU_PROFILE 选择。用于找到对应的硬件数据
 gpu_sim=$(echo $GPU_PROFILE | tr 'A-Z' 'a-z')
 granularity=${granularity:-2}
+
+# memory model
 filter_l2=${filter_l2:-" "}
 use_approx=${use_approx:-" "}
 use_sm_trace=${use_sm_trace:-" "}
 
+# Profiling
 use_ncu=1
 profile_cpi=$(profile_cpi:-1)
+# 1080Ti 需要使用启用缓存版本的程序
 if [ "$gpu" = "gtx1080ti" ]; then
     echo "Warning: gtx1080ti does not support ncu, can't profile cpi for now"
     use_ncu=0
@@ -74,6 +80,7 @@ trace_dir_base=${trace_dir_base:-$my_home/hw_trace01}
 ppt_gpu_version=${ppt_gpu_version:-"PPT-GPU"}
 ppt_gpu_dir=$my_home/repo/${ppt_gpu_version}
 
+# 使用新版 NCU 2024.3.2.0 才可以正确采集 dram write 数据
 export NCU='/staff/fyyuan/nsight-compute/target/linux-desktop-glibc_2_11_3-x64/ncu'  # version 2024.3.2.0
 
 # cuda_version_major=`nvcc --version | grep release | sed -re 's/.*release ([0-9]+)\..*/\1/'`;
@@ -84,18 +91,18 @@ export apps_yaml=${ppt_gpu_dir}/scripts/apps/define-all-apps.yml
 
 ## HW related
 trace_dir=${trace_dir_base}/${model}-${gpu}/${CUDA_VERSION}
-# run hw
+# run hw（最后需要的两个文件）
 res_hw_json=${ppt_gpu_dir}/tmp/res_hw_${gpu}_${CUDA_VERSION}.json
 res_hw_cpi_json=${ppt_gpu_dir}/tmp/res_hw_${gpu}_${CUDA_VERSION}_cpi.json
-# raw profile data
+# raw profile data（原始的性能数据）
 res_hw_nvprof_json=${ppt_gpu_dir}/tmp/res_hw_${gpu}_${CUDA_VERSION}_nvprof.json
 res_hw_ncu_json=${ppt_gpu_dir}/tmp/res_hw_${gpu}_${CUDA_VERSION}_ncu.json
-# raw stall related data
+# raw stall related data（原始的 CPI 性能数据）
 res_hw_nvprof_cpi_json=${ppt_gpu_dir}/tmp/res_hw_${gpu}_${CUDA_VERSION}_nvprof_cpi.json
 res_hw_ncu_cpi_json=${ppt_gpu_dir}/tmp/res_hw_${gpu}_${CUDA_VERSION}_ncu_cpi.json
 
 ## Simulation related
-# e.g volta trace(and profile) to simulate Ampere GPU Profile
+# 需要模拟架构的性能数据
 res_hw_sim_json=${ppt_gpu_dir}/tmp/res_hw_${gpu_sim}_${cuda_version}.json
 res_hw_cpi_sim_json=${ppt_gpu_dir}/tmp/res_hw_${gpu_sim}_${cuda_version}_cpi.json
 
@@ -103,20 +110,23 @@ res_hw_cpi_sim_json=${ppt_gpu_dir}/tmp/res_hw_${gpu_sim}_${cuda_version}_cpi.jso
 report_dir=${ppt_gpu_dir}/tmp_output/${model}_${gpu}_${cuda_version}_${GPU_PROFILE}_${run_name}
 res_sim_json=${ppt_gpu_dir}/tmp/res_${model}_${gpu}_${cuda_version}_${GPU_PROFILE}_${run_name}.json
 res_sim_lite_json=${ppt_gpu_dir}/tmp/res_${model}_${gpu}_${cuda_version}_${GPU_PROFILE}_${run_name}_lite.json
-# from full sim res, get cpi, detail cpi, sched cpi result
+# from full sim res, get cpi（warp stall 分类）, detail cpi（包含二级stall分类）, sched cpi result（warp 调度器的每周期 stall 分类））
 res_sim_cpi_json=${ppt_gpu_dir}/tmp/res_${model}_${gpu}_${cuda_version}_${GPU_PROFILE}_${run_name}_cpi.json
 res_sim_detail_cpi_json=${ppt_gpu_dir}/tmp/res_${model}_${gpu}_${cuda_version}_${GPU_PROFILE}_${run_name}_detail_cpi.json
 res_sim_sched_cpi_json=${ppt_gpu_dir}/tmp/res_${model}_${gpu}_${cuda_version}_${GPU_PROFILE}_${run_name}_sched_cpi.json
 
-# run memory
+ppt_src=${ppt_src:-$ppt_gpu_dir/ppt.py}
+
+## run memory
 memory_model=${memory_model:-"ppt-gpu"} # sdcm, simulator
 memory_suffix=${memory_suffix:-""}  # distinguish different run with the same memory model
 res_memory_json=${ppt_gpu_dir}/tmp/res_memory_${gpu}_${cuda_version}_${GPU_PROFILE}_${run_name}_${memory_model}${memory_suffix}.json
 
-# draw
+### draw
 draw_output=${ppt_gpu_dir}/tmp_draw/draw_${model}_${gpu}_${cuda_version}_${GPU_PROFILE}_${run_name}
 
-## run single app
+
+### run single app
 single_app=${single_app:-"rodinia-3.1:backprop-rodinia-3.1"}
 # keep model report and draw output in the same dir
 single_report_dir=${report_dir}
@@ -150,15 +160,16 @@ print_summary(){
     echo "res_sim_json: $res_sim_json"
     echo "report_dir: $report_dir"
     echo "draw_output: $draw_output"
-    echo "res_memory_json: $res_memory_json"
     echo ""
 
+    # 额外的单独内存测试
     echo "[Memory]:"
     echo "run_name: $run_name"
     echo "memory_model: $memory_model"
     echo "memory_suffix: $memory_suffix"
     echo "granularity: $granularity, filter_l2: $filter_l2, use_approx: $use_approx, use_sm_trace: $use_sm_trace"
     echo "extra_params: $extra_params"
+    echo "res_memory_json: $res_memory_json"
 }
 
 unset_env(){
@@ -170,6 +181,7 @@ unset_env(){
     unset memory_model
     unset GPU_PROFILE
     unset granularity filter_l2 use_approx use_sm_trace memory_suffix
+    unset ppt_src
 }
 
 print_summary

@@ -464,6 +464,7 @@ class Kernel():
         act_cycles_max = pred_out["active_cycles"] + pred_out["comp_cycles"] + last_inst_delay_act_max
         kernel_detail["act_cycles_min"], kernel_detail["act_cycles_max"] = act_cycles_min, act_cycles_max
 
+        # 几种不同计算 scale 的方式
         scale1 = pred_out["allocted_block_per_sm"] / pred_out["block_per_sm_simulate"]
         scale2 = ceil(pred_out["allocted_block_per_sm"] / pred_out["block_per_sm_simulate"], 1)
         num_workloads_left = pred_out["allocted_block_per_sm"] - pred_out["block_per_sm_simulate"]
@@ -526,11 +527,15 @@ class Kernel():
         pred_out["sm_elp_cycles.sum"] = pred_out["gpu_act_cycles_max"] * self.acc.num_SMs
         pred_out["my_sm_act_cycles.sum"] = pred_out["my_gpu_act_cycles_max"] * pred_out["active_SMs"]
         pred_out["my_sm_elp_cycles.sum"] = pred_out["my_gpu_act_cycles_max"] * self.acc.num_SMs
+        
         avg_instructions_executed_per_block = pred_out["warps_instructions_executed"] / len(block_list)
         pred_out["tot_warps_instructions_executed"] = avg_instructions_executed_per_block * pred_out["grid_size"]
-        pred_out["tot_threads_instructions_executed"] = (pred_out["tot_warps_instructions_executed"] * self.kernel_block_size) / pred_out["allocated_active_warps_per_block"]
+        # pred_out["tot_threads_instructions_executed"] = (pred_out["tot_warps_instructions_executed"] * self.kernel_block_size) / pred_out["allocated_active_warps_per_block"]  # 这里 allocated_active_warps_per_block 为 0 了，不知道原本逻辑是什么
+        pred_out["tot_threads_instructions_executed"] = pred_out["tot_warps_instructions_executed"] * 32
+        
         pred_out["tot_ipc"] = pred_out["tot_warps_instructions_executed"] * (1.0/pred_out["sm_act_cycles.sum"])
         pred_out["my_tot_ipc"] = pred_out["tot_warps_instructions_executed"] * (1.0/pred_out["my_sm_act_cycles.sum"])
+        
         pred_out["tot_cpi"] = 1 * (1.0/pred_out["tot_ipc"])
         pred_out["tot_throughput_ips"] = pred_out["tot_ipc"] * self.acc.GPU_clockspeed
         pred_out["execution_time_sec"] = pred_out["sm_elp_cycles.sum"] * (1.0/self.acc.GPU_clockspeed)
@@ -539,6 +544,14 @@ class Kernel():
         pred_out['subcore_instr_executed'] = subcore_instr_executed
         pred_out['subcore_warp_executed_scaled'] = [e * scale for e in subcore_warp_executed]
         pred_out['subcore_instr_executed_scaled'] = [e * scale for e in subcore_instr_executed]
+        
+        # 不再区分原本错误的相关 cycle，输出自己的 cycle 作为最终结果
+        # 对应 get_stat_sim 中使用到的结果
+        pred_out["gpu_act_cycles_min"] = pred_out["my_gpu_act_cycles_min"]
+        pred_out["gpu_act_cycles_max"] = pred_out["my_gpu_act_cycles_max"]
+        pred_out["tot_ipc"] = pred_out["my_tot_ipc"]
+        pred_out["sm_act_cycles.sum"] = pred_out["my_sm_act_cycles.sum"]
+        pred_out["sm_elp_cycles.sum"] = pred_out["my_sm_elp_cycles.sum"]
         
         toc = time.time()
         pred_out["simulation_time"]["compute"] = (toc - tic)
