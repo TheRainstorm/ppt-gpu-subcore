@@ -130,9 +130,9 @@ def parse_kernel_json(file_path, full=True):
     data_json_new["achieved_occupancy"] = data_json["achieved_occupancy"]
     
     # 预测的 cycle，有两个，一个 min 一个 max，默认使用 max 作为最后结果
-    data_json_new["gpu_active_cycle_min"] = data_json["gpu_active_cycle_min"]  # 单个 SM cycle 最小值
-    data_json_new["gpu_active_cycle_max"] = data_json["gpu_active_cycle_max"]  # 单个 SM cycle 最大值
-    data_json_new["gpu_active_cycles"] = data_json["gpu_active_cycle_max"]  # 单个 SM cycle
+    data_json_new["gpu_active_cycle_min"] = data_json["gpu_act_cycles_min"]  # 单个 SM cycle 最小值
+    data_json_new["gpu_active_cycle_max"] = data_json["gpu_act_cycles_max"]  # 单个 SM cycle 最大值
+    data_json_new["gpu_active_cycles"] = data_json["gpu_act_cycles_max"]  # 单个 SM cycle
     # SM 累加的 cycle，有 active 和 elapse 两个
     data_json_new["sm_active_cycles_sum"] = data_json["sm_act_cycles.sum"]  # 所有 SM cycle 总和
     data_json_new["sm_elapsed_cycles_sum"] = data_json["sm_elp_cycles.sum"] # 所有 SM elapsed cycle 总和（和 active 区别：active 排除了非活跃的 SM）
@@ -214,10 +214,11 @@ for app_and_arg in app_and_arg_list:
         for kernel_id, file_path in file_list:
             app_res[kernel_id-1] = parse_kernel_json(file_path, args.full)
     except Exception as e:
-        print(f"Error in {app_and_arg}")
+        print(f"==========\nError in {app_and_arg}")
         print(f"{kernel_id}/{len(file_list)} {file_path}")
         print(e)
-        exit(1)
+        print("==========")
+        continue
     
     print(f"{app_and_arg}: {len(app_res)}")
     collect_data[app_and_arg] = app_res

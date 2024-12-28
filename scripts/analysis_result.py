@@ -18,7 +18,7 @@ def process_sim(sim_res):
             kernel_res['warp_inst_executed'] = kernel_res['warp_inst_executed']
             kernel_res['achieved_occupancy'] = kernel_res['achieved_occupancy'] / 100
             kernel_res['gpu_active_cycles'] = kernel_res['gpu_active_cycles']
-            kernel_res['sm_active_cycles_sum'] = kernel_res['my_sm_active_cycles_sum']
+            kernel_res['sm_active_cycles_sum'] = kernel_res['sm_active_cycles_sum']
             kernel_res['ipc'] = kernel_res['ipc']
 
             kernel_res["l1_hit_rate"] = kernel_res["l1_hit_rate"] / 100

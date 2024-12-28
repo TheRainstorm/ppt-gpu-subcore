@@ -98,7 +98,11 @@ def get_merged_cpi_stack(cpi_stack):
     return cpi_stack_merged
 
 def get_cpi_stack_list(state_dict_list, detail=False):
-    cpi_stack_list = [state_to_cpi(state_dict) for state_dict in state_dict_list]
+    if type(state_dict_list) == dict:
+        # no subcore
+        cpi_stack_list = [state_to_cpi(state_dict_list)]
+    else:
+        cpi_stack_list = [state_to_cpi(state_dict) for state_dict in state_dict_list]
     non_zero_num = len([cpi_stack for cpi_stack in cpi_stack_list if cpi_stack])
     # convert to gsi
     def fill_gsi(cpi_stack, stall_list=gsi_stall_list):

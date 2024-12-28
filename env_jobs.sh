@@ -41,3 +41,8 @@ model='ppt-gpu'
 ppt_src='/staff/fyyuan/repo/PPT-GPU-ori/ppt.py'
 run_name="paper"
 }
+
+ppt2(){
+default
+run_name="paper"
+}

@@ -59,7 +59,7 @@ python ${ppt_gpu_dir}/scripts/draw/convert_cpi_stack.py -i ${res_sim_json} -I "p
 # python ${ppt_gpu_dir}/scripts/draw/convert_cpi_stack.py -i ${res_sim_json} -I "ppt_gpu_sched"  -o ${res_sim_sched_cpi_json}
 
 # 模拟结果保存在 csv 中
-python ${ppt_gpu_dir}/scripts/analysis_result.py -B ${benchmarks} -F ${filter_app} -S ${res_sim_json} -H ${res_hw_sim_json} -o res_${gpu}_${cuda_version}_${GPU_PROFILE}_${run_name}.xlsx
+python ${ppt_gpu_dir}/scripts/analysis_result.py -B ${benchmarks} -F ${filter_app} -S ${res_sim_json} -H ${res_hw_sim_json} -o res_${model}_${gpu}_${cuda_version}_${GPU_PROFILE}_${run_name}.xlsx
 }
 
 draw(){

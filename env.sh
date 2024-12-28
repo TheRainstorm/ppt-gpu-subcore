@@ -90,7 +90,7 @@ export GPGPU_WORKLOADS_ROOT=$my_home/repo/GPGPUs-Workloads
 export apps_yaml=${ppt_gpu_dir}/scripts/apps/define-all-apps.yml
 
 ## HW related
-trace_dir=${trace_dir_base}/${model}-${gpu}/${CUDA_VERSION}
+trace_dir=${trace_dir_base}/ppt-gpu-${gpu}/${CUDA_VERSION}
 # run hw（最后需要的两个文件）
 res_hw_json=${ppt_gpu_dir}/tmp/res_hw_${gpu}_${CUDA_VERSION}.json
 res_hw_cpi_json=${ppt_gpu_dir}/tmp/res_hw_${gpu}_${CUDA_VERSION}_cpi.json
