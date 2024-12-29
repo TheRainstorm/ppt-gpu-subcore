@@ -11,8 +11,8 @@ par_dir = os.path.dirname(curr_dir)
 sys.path.insert(0, os.path.abspath(par_dir))
 
 from src.memory_model import interleave_trace, get_memory_perf
-from src.kernels import get_max_active_block_per_sm
-from ppt import get_gpu_config, get_kernels_launch_params
+from src.utils import get_max_active_block_per_sm
+from src.utils import get_gpu_config, get_kernels_launch_params
 
 from src.sdcm import sdcm_model, process_trace
 from src.cache_simulator import LRUCache, cache_simulate, W
@@ -72,6 +72,11 @@ def ppt_gpu_model_warpper(kernel_id, trace_dir,
     memory_stats['dram_st_trans'] = memory_stats['dram_st_trans_gmem']
     memory_stats['dram_tot_trans'] = memory_stats['dram_tot_trans_gmem']
     # gmem_tot_diverg
+    
+    memory_stats['gmem_tot_sectors_per_sm'] = memory_stats['l1_sm_trans_gmem']
+    memory_stats['atom_tot_reqs'] = memory_stats['atom_tot_reqs']
+    memory_stats['red_tot_reqs'] = memory_stats['red_tot_reqs']
+    memory_stats['atom_red_trans'] = memory_stats['atom_red_tot_trans']
     
     return memory_stats
 
@@ -272,6 +277,7 @@ def sdcm_model_warpper_parallel(kernel_id, trace_dir,
     K['gmem_ld_diverg'] = K['gmem_ld_sectors'] / K['gmem_ld_reqs'] if K['gmem_ld_reqs'] > 0 else 0
     K['gmem_st_diverg'] = K['gmem_st_sectors'] / K['gmem_st_reqs'] if K['gmem_st_reqs'] > 0 else 0
     K['gmem_tot_diverg'] = K['gmem_tot_sectors'] / K['gmem_tot_reqs'] if K['gmem_tot_reqs'] > 0 else 0
+    K['gmem_tot_sectors_per_sm'] = K['gmem_tot_sectors']/len(sm_stats_list)  # SM 平均的 L1 gmem 请求 sector 数
     
     K['umem_tot_reqs'] = K['umem_ld_reqs'] + K['umem_st_reqs']
     # K['umem_tot_trans'] = K['umem_ld_trans'] + K['umem_st_trans']
@@ -298,6 +304,22 @@ def sdcm_model_warpper_parallel(kernel_id, trace_dir,
             K['dram_st_trans'] = l2_hit_rate_dict['sectors_st_nextlv'] * scale
         K['dram_tot_trans'] = K['dram_ld_trans'] + K['dram_st_trans']
     K['scale'] = scale
+    
+    # Atom Red
+    K['atom_tot_reqs'] = K['atom_reqs']/len(sm_stats_list) # 平均每个 SM
+    K['red_tot_reqs'] = K['red_reqs']/len(sm_stats_list)
+    K['atom_red_tot_trans'] = K['atom_red_trans']/len(sm_stats_list)
+    
+    # compati to ppt-gpu (get_stat_sim)
+    K['umem_hit_rate'] = K['l1_hit_rate']
+    K['hit_rate_l2'] = K['l2_hit_rate']
+    K['gmem_ld_trans'] = K['gmem_ld_sectors']
+    K['gmem_st_trans'] = K['gmem_st_sectors']
+    K['gmem_tot_trans'] = K['gmem_tot_sectors']
+    K['l2_ld_trans_gmem'] = K['l2_ld_trans']
+    K['l2_st_trans_gmem'] = K['l2_st_trans']
+    K['l2_tot_trans_gmem'] = K['l2_tot_trans']
+    K['dram_tot_trans_gmem'] = K['dram_tot_trans']
 
     # debug print
     global print_table_toggle
@@ -326,6 +348,33 @@ def sdcm_model_warpper_parallel(kernel_id, trace_dir,
         print(tb)
     
     return K
+
+def memory_model_warpper_single_kernel(gpu_config, kernel_param, occupancy_res, app_path, model='simulator', granularity=2,
+                         use_approx=True, filter_L2=False, no_flush=False, fix_l2=True, block_mapping=BlockMapping.mod_block_mapping,
+                         l1_dump_trace=False, l2_dump_trace='',
+                         no_write_policy=False):
+    if model == 'ppt-gpu':
+        kernel_res = ppt_gpu_model_warpper(kernel_param['kernel_id'], app_path, kernel_param, occupancy_res['max_active_block_per_sm'], gpu_config,
+                                    granularity=granularity)
+    elif model == 'sdcm':
+        kernel_res = sdcm_model_warpper_parallel(kernel_param['kernel_id'], app_path, kernel_param, occupancy_res['max_active_block_per_sm'], gpu_config,
+                                    l1_is_sdcm=True, l2_is_sdcm=True, granularity=granularity, block_mapping=block_mapping, use_approx=use_approx, filter_L2=filter_L2,
+                                    l1_dump_trace=l1_dump_trace, l2_dump_trace=l2_dump_trace, no_flush=no_flush, fix_l2=fix_l2)
+    elif model == 'sdcmL1':
+        kernel_res = sdcm_model_warpper_parallel(kernel_param['kernel_id'], app_path, kernel_param, occupancy_res['max_active_block_per_sm'], gpu_config,
+                                    l1_is_sdcm=True, l2_is_sdcm=False, granularity=granularity, block_mapping=block_mapping, use_approx=use_approx, filter_L2=filter_L2,
+                                    l1_dump_trace=l1_dump_trace, l2_dump_trace=l2_dump_trace, no_flush=no_flush, fix_l2=fix_l2, no_write_policy=no_write_policy)
+    elif model == 'simulatorL1':
+        kernel_res = sdcm_model_warpper_parallel(kernel_param['kernel_id'], app_path, kernel_param, occupancy_res['max_active_block_per_sm'], gpu_config,
+                                    l1_is_sdcm=False, l2_is_sdcm=True, granularity=granularity, block_mapping=block_mapping, use_approx=use_approx, filter_L2=filter_L2,
+                                    l1_dump_trace=l1_dump_trace, l2_dump_trace=l2_dump_trace, no_flush=no_flush, fix_l2=fix_l2)
+    elif model == 'simulator':
+        kernel_res = sdcm_model_warpper_parallel(kernel_param['kernel_id'], app_path, kernel_param, occupancy_res['max_active_block_per_sm'], gpu_config,
+                                    l1_is_sdcm=False, l2_is_sdcm=False, granularity=granularity, block_mapping=block_mapping, filter_L2=filter_L2,
+                                    l1_dump_trace=l1_dump_trace, l2_dump_trace=l2_dump_trace, no_flush=no_flush, fix_l2=fix_l2, no_write_policy=no_write_policy)
+    else:
+        raise ValueError(f"model {model} is not supported")
+    return kernel_res
 
 def memory_model_warpper(gpu_model, app_path, model, kernel_id=-1, granularity=2,
                          use_approx=True, filter_L2=False, no_flush=False, fix_l2=True, block_mapping=BlockMapping.mod_block_mapping,

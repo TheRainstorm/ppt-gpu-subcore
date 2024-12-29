@@ -21,139 +21,9 @@ import json
 import sys, os, importlib
 # from simian import Simian, Entity
 from src.kernels import Kernel
+from src.utils import get_current_kernel_info, get_gpu_config, get_app_config
 import argparse
 
-def get_launch_params(kernel_id, app_config):
-    kernel_id_name = f"kernel_{kernel_id}"
-    launch_param_ = app_config[kernel_id_name]
-    launch_param = {}
-    launch_param['kernel_id'] = kernel_id
-    launch_param['kernel_name'] = launch_param_["kernel_name"]
-    launch_param['smem_size'] = launch_param_["shared_mem_bytes"]
-    launch_param['grid_size'] = launch_param_["grid_size"]
-    launch_param['block_size'] = launch_param_["block_size"]
-    launch_param['num_regs'] = launch_param_["num_registers"]
-    return launch_param
-
-def get_kernels_launch_params(app_path):
-    app_config = get_app_config(app_path)
-    
-    launch_param_list = []
-    for kernel_id in app_config['app_kernels_id']:
-        launch_param_list.append(get_launch_params(kernel_id, app_config))
-    return launch_param_list
-    
-def get_current_kernel_info(kernel_id, app_name, app_path, app_config, instructions_type, granularity, app_res_ref=None, app_report_dir=None):
-
-    current_kernel_info = {}
-
-    current_kernel_info["app_report_dir"] = app_report_dir if app_report_dir else app_path
-    current_kernel_info["kernel_id"] = str(kernel_id)
-    current_kernel_info["granularity"] = granularity
-
-    kernel_id_name = f"kernel_{kernel_id}"
-    ###########################
-    ## kernel configurations ##
-    ###########################
-    launch_param = get_launch_params(kernel_id, app_config)
-    current_kernel_info.update(launch_param)
-    
-    ##################
-    ## memory trace ##
-    ##################
-    # mem_trace_file = kernel_id_name+".mem"
-    mem_trace_file = "memory_traces"
-    mem_trace_file_path = os.path.join(app_path, mem_trace_file)
-
-    if not os.path.exists(mem_trace_file_path):
-        print(str("\n[Error]\n")+str("<<memory_traces>> directory doesn't exists in ")+app_name+str(" application directory"))
-        sys.exit(1)
-    current_kernel_info["mem_traces_dir_path"] = mem_trace_file_path
-
-    ################
-    ## ISA Parser ##
-    ################
-    current_kernel_info["ptx_file_path"] = ""
-    current_kernel_info["sass_file_path"] = ""
-
-    if instructions_type == "PTX":
-        ptx_file = "ptx_traces/"+kernel_id_name+".ptx"
-        # if "/" in app_name:
-        #     sass_file = app_name.split("/")[-1]+"ptx_traces/"+kernel_id_name+".ptx"
-        ptx_file_path = os.path.join(app_path, ptx_file)
-
-        if not os.path.isfile(ptx_file_path):
-            print(str("\n[Error]\n")+str("ptx instructions trace file: <<")+str(sass_file)+str(">> doesn't exists in ")+app_name +\
-                    str(" application directory"))
-            sys.exit(1)
-        
-        current_kernel_info["ISA"] = 1
-        current_kernel_info["ptx_file_path"] = ptx_file_path
-
-    elif instructions_type == "SASS": 
-        sass_file = "sass_traces/"+kernel_id_name+".sass"
-        # if "/" in app_name:
-        #     sass_file = app_name.split("/")[-1]+"sass_traces/"+kernel_id_name+".sass"
-        sass_file_path = os.path.join(app_path, sass_file)
-
-        if not os.path.isfile(sass_file_path):
-            print(str("\n[Error]\n")+str("sass instructions trace file: <<")+str(sass_file)+str(">> doesn't exists in ")+app_name +\
-                    str(" application directory"))
-            sys.exit(1)
-
-        current_kernel_info["ISA"] = 2
-        current_kernel_info["sass_file_path"] = sass_file_path
-    
-    current_kernel_info['cache_ref_data'] = None
-    if app_res_ref:
-        kernel_res_ref = app_res_ref[int(kernel_id)-1]
-        cache_ref_data = {}
-        cache_ref_data["l1_hit_rate"] = min(1, kernel_res_ref["global_hit_rate"]/100)  # tex_cache_hit_rate
-        cache_ref_data["l2_hit_rate"] = min(1, kernel_res_ref["l2_tex_hit_rate"]/100)
-        current_kernel_info['cache_ref_data'] = cache_ref_data
-    
-    return current_kernel_info
-
-def get_gpu_config(gpu_config):
-    # sys.path.append(repo_path)
-    # get hw configuaration
-    try:
-        gpu_configs = importlib.import_module("hardware."+gpu_config)
-    except:
-        print(str("\n[Error]\nGPU hardware config file provided doesn't exist\n", file=sys.stderr))
-        sys.exit(1)
-    
-    # get Target ISA Latencies
-    try:
-        ISA = importlib.import_module("hardware.ISA."+gpu_configs.uarch["gpu_arch"])
-    except:
-        print("\n[Error]\nISA for <<"+gpu_configs.uarch["gpu_arch"]+">> doesn't exists in hardware/ISA directory", file=sys.stderr)
-        sys.exit(1)
-        
-    # add ISA Latencies to gpu_configs
-    gpu_configs.uarch["ptx_isa"] = ISA.ptx_isa
-    gpu_configs.uarch["sass_isa"] = ISA.sass_isa
-    gpu_configs.uarch["units_latency"] = ISA.units_latency
-    gpu_configs.uarch["initial_interval"] = getattr(ISA, "initial_interval", {})
-    
-    # get cc
-    try:
-        compute_capability = importlib.import_module("hardware.compute_capability."+str(gpu_configs.uarch["compute_capabilty"]))
-    except:
-        print("\n[Error]\ncompute capabilty for <<"+gpu_configs.uarch["compute_capabilty"]+">> doesn't exists in hardware/compute_capabilty directory")
-        sys.exit(1)
-    
-    gpu_configs.uarch["cc_configs"] = compute_capability.cc_configs
-    
-    return gpu_configs
-
-def get_app_config(app_path):
-    app_config_path = os.path.join(app_path, "app_config.py")
-    app_config = {}
-    with open(app_config_path, "r") as file:
-        exec(file.read(), app_config)
-    return app_config
-    
 def main():
     from mpi4py import MPI
 
@@ -192,6 +62,12 @@ def main():
                         help="output to a seprate dir, not in the trace dir")
     parser.add_argument("--hw-res",
                         help="hw res json file. use to fix l2 cache miss rate")
+    parser.add_argument('-C', '--overwrite-cache-params',
+                        default='',
+                        help='l1:capacity:cache_line_size:associativity:sector_size,l2:capacity:cache_line_size:associativity:sector_size')
+    parser.add_argument('--memory-model',
+                        default='simulator',
+                        help='memory model to use')
     args = parser.parse_args()
     granularity = args.granularity
 
@@ -250,7 +126,7 @@ def main():
         if rank == i%size:
             print(f"Kernel {i+1} is running on rank {rank}")
             kernel = Kernel(gpuNode, kernels_info[i])
-            kernel.kernel_call()
+            kernel.kernel_call(memory_model=args.memory_model, overwrite_cache_params=args.overwrite_cache_params)
 
 
 class GPUNode(object):

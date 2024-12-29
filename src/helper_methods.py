@@ -59,12 +59,12 @@ def dump_output(pred_out):
     print("\n- Memory Performance:", file=outF)
     print("\t* AMAT:", pred_out["AMAT"], file=outF)
     print("\t* ACPAO:", pred_out["ACPAO"], file=outF)
-    print("\t* unified L1 cache hit rate:", round((pred_out["memory_stats"]["umem_hit_rate"]*100),2),"%", file=outF)
-    print("\t* unified L1 cache hit rate for read transactions (global memory accesses):", round((pred_out["memory_stats"]["gmem_hit_rate_lds"]*100),2),"%", file=outF)
+    print("\t* unified L1 cache hit rate:", round((pred_out["memory_stats"]["l1_hit_rate"]*100),2),"%", file=outF)
+    print("\t* unified L1 cache hit rate for read transactions (global memory accesses):", round((pred_out["memory_stats"]["l1_hit_rate_ldg"]*100),2),"%", file=outF)
     if pred_out["memory_stats"]["lmem_used"]:
-        print("\t* unified L1 cache hit rate (global memory accesses):", round((pred_out["memory_stats"]["gmem_hit_rate"]*100),2),"%", file=outF)
+        print("\t* unified L1 cache hit rate (global memory accesses):", round((pred_out["memory_stats"]["l1_hit_rate_g"]*100),2),"%", file=outF)
         
-    print("\t* L2 cache hit rate:", round((pred_out["memory_stats"]["hit_rate_l2"]*100),2),"%", file=outF)
+    print("\t* L2 cache hit rate:", round((pred_out["memory_stats"]["l2_hit_rate"]*100),2),"%", file=outF)
     
     print("\n\t* Global Memory Requests:", file=outF)
     print("\t\t** GMEM read requests:", pred_out["memory_stats"]["gmem_ld_reqs"], file=outF)
@@ -72,9 +72,9 @@ def dump_output(pred_out):
     print("\t\t** GMEM total requests:", pred_out["memory_stats"]["gmem_tot_reqs"], file=outF)
 
     print("\n\t* Global Memory Transactions:", file=outF)
-    print("\t\t** GMEM read transactions:", pred_out["memory_stats"]["gmem_ld_trans"], file=outF)
-    print("\t\t** GMEM write transactions:", pred_out["memory_stats"]["gmem_st_trans"], file=outF)
-    print("\t\t** GMEM total transactions:", pred_out["memory_stats"]["gmem_tot_trans"], file=outF)
+    print("\t\t** GMEM read transactions:", pred_out["memory_stats"]["gmem_ld_sectors"], file=outF)
+    print("\t\t** GMEM write transactions:", pred_out["memory_stats"]["gmem_st_sectors"], file=outF)
+    print("\t\t** GMEM total transactions:", pred_out["memory_stats"]["gmem_tot_sectors"], file=outF)
 
     print("\n\t* Global Memory Divergence:", file=outF)
     print("\t\t** number of read transactions per read requests: "+ str(pred_out["memory_stats"]["gmem_ld_diverg"])+\
@@ -83,12 +83,12 @@ def dump_output(pred_out):
         " ("+str(round(((pred_out["memory_stats"]["gmem_st_diverg"]/32)*100),2))+"%)", file=outF)
 
     print("\n\t* L2 Cache Transactions (for global memory accesses):", file=outF)
-    print("\t\t** L2 read transactions:", pred_out["memory_stats"]["l2_ld_trans_gmem"], file=outF)
-    print("\t\t** L2 write transactions:", pred_out["memory_stats"]["l2_st_trans_gmem"], file=outF)
-    print("\t\t** L2 total transactions:", pred_out["memory_stats"]["l2_tot_trans_gmem"], file=outF)
+    print("\t\t** L2 read transactions:", pred_out["memory_stats"]["l2_ld_trans"], file=outF)
+    print("\t\t** L2 write transactions:", pred_out["memory_stats"]["l2_st_trans"], file=outF)
+    print("\t\t** L2 total transactions:", pred_out["memory_stats"]["l2_tot_trans"], file=outF)
 
     print("\n\t* DRAM Transactions (for global memory accesses):", file=outF)
-    print("\t\t** DRAM total transactions:", pred_out["memory_stats"]["dram_tot_trans_gmem"], file=outF)
+    print("\t\t** DRAM total transactions:", pred_out["memory_stats"]["dram_tot_trans"], file=outF)
 
     print("\n\t* Total number of global atomic requests:", pred_out["memory_stats"]["atom_tot_reqs"], file=outF)
     print("\t* Total number of global reduction requests:", pred_out["memory_stats"]["red_tot_reqs"], file=outF)

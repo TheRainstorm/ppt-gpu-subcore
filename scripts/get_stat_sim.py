@@ -154,6 +154,18 @@ def parse_kernel_json(file_path, full=True):
     # data_json_new["my_gpu_active_cycle_max"] = result['ours_smsp_avg_tail_scale2_LI'] + kernel_lat
 
     # memory
+    if 'umem_hit_rate' not in data_json["memory_stats"]:
+        # compati to ppt-gpu (get_stat_sim)
+        data_json["memory_stats"]['umem_hit_rate'] = data_json["memory_stats"]['l1_hit_rate']
+        data_json["memory_stats"]['hit_rate_l2'] = data_json["memory_stats"]['l2_hit_rate']
+        data_json["memory_stats"]['gmem_ld_trans'] = data_json["memory_stats"]['gmem_ld_sectors']
+        data_json["memory_stats"]['gmem_st_trans'] = data_json["memory_stats"]['gmem_st_sectors']
+        data_json["memory_stats"]['gmem_tot_trans'] = data_json["memory_stats"]['gmem_tot_sectors']
+        data_json["memory_stats"]['l2_ld_trans_gmem'] = data_json["memory_stats"]['l2_ld_trans']
+        data_json["memory_stats"]['l2_st_trans_gmem'] = data_json["memory_stats"]['l2_st_trans']
+        data_json["memory_stats"]['l2_tot_trans_gmem'] = data_json["memory_stats"]['l2_tot_trans']
+        data_json["memory_stats"]['dram_tot_trans_gmem'] = data_json["memory_stats"]['dram_tot_trans']
+    
     data_json_new["l1_hit_rate"] = data_json["memory_stats"]["umem_hit_rate"]*100
     data_json_new["l2_hit_rate"] = data_json["memory_stats"]["hit_rate_l2"]*100
     data_json_new["gmem_read_requests"] = data_json["memory_stats"]["gmem_ld_reqs"]
@@ -167,7 +179,7 @@ def parse_kernel_json(file_path, full=True):
     data_json_new["gmem_tot_reqs"] = data_json["memory_stats"]["gmem_tot_reqs"]
     data_json_new["gmem_tot_sectors"] = data_json["memory_stats"]["gmem_tot_trans"]
     data_json_new['l2_tot_trans'] = data_json['memory_stats']['l2_tot_trans_gmem']
-    
+        
     data_json_new["AMAT"] = data_json["AMAT"]
     
     # CPI info

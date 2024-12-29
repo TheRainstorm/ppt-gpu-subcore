@@ -42,7 +42,21 @@ ppt_src='/staff/fyyuan/repo/PPT-GPU-ori/ppt.py'
 run_name="paper"
 }
 
+ppt_ori_cl32(){
+default
+model='ppt-gpu'
+ppt_src='/staff/fyyuan/repo/PPT-GPU-ori/ppt.py'
+run_name="cl32"
+time_out=7200
+}
+
 ppt2(){
 default
 run_name="paper"
+}
+
+ppt2_rodinia(){
+default
+filter_app="rodinia-3.1-full"
+run_name="rodinia"
 }

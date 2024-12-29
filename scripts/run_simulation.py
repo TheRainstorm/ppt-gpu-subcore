@@ -95,6 +95,7 @@ for app_and_arg in app_and_arg_list:
     else:
         cmd = f"python {args.ppt_src} --app {app_trace_dir} --sass --config {args.hw_config} --granularity {args.granularity} {hw_res_option_str} --report-output-dir {args.report_output_dir}"
 
+    # print(cmd)
     try:
         p = subprocess.Popen(shlex.split(cmd), start_new_session=True)
         p.wait(timeout=args.time_out)

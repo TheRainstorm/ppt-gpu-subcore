@@ -23,87 +23,12 @@ from .memory_model import *
 from .blocks import Block
 from .warp_scheduler import Scheduler
 from collections import deque
-from .utils import LinkedList
+from .utils import LinkedList,get_max_active_block_per_sm
+curr_dir = os.path.dirname(__file__)
+par_dir = os.path.dirname(curr_dir)
+sys.path.insert(0, os.path.abspath(par_dir))
+from memory_model.memory_model_warper import memory_model_warpper_single_kernel, ppt_gpu_model_warpper,sdcm_model_warpper_parallel
 
-def get_max_active_block_per_sm(cc, launch_data, num_SMs, shared_memory_per_sm, shared_mem_carveout=None, adaptive=False):
-    # cc = {
-    #     'warp_size': 32,
-    #     'max_active_threads_per_SM': 2048,
-    #     'max_active_blocks_per_SM': 32,
-        
-    #     'max_registers_per_SM': 65536,
-    #     'register_allocation_size': 256,
-        
-    #     'smem_allocation_size': 256,
-    # }
-    
-    # launch_data = {
-    #     'grid_size': 1024,
-    #     'block_size': 256,
-    #     'num_regs': 22,  # reg_per_thread
-    #     'smem_size': 0, # shared_memory_per_block
-    # }
-    
-    warps_per_block = ceil(launch_data['block_size'] / cc['warp_size'])
-    
-    max_warps_per_sm = cc['max_active_threads_per_SM'] // cc['warp_size']
-    block_per_sm_limit_warps = max_warps_per_sm // warps_per_block
-    block_per_sm_limit_blocks = cc['max_active_blocks_per_SM']
-    block_limit_warp_or_block = min(block_per_sm_limit_warps, block_per_sm_limit_blocks)
-    
-    if launch_data['num_regs'] == 0:
-        block_per_sm_limit_regs = cc['max_active_blocks_per_SM']
-    else:
-        regs_per_warp = ceil(launch_data['num_regs'] * cc['warp_size'], cc['register_allocation_size'])
-        regs_per_block = regs_per_warp * warps_per_block
-        block_per_sm_limit_regs = cc['max_registers_per_SM'] // regs_per_block
-    
-    def get_smem_limit(shared_memory_per_sm):
-        if launch_data['smem_size'] == 0:
-            block_per_sm_limit_smem = cc['max_active_blocks_per_SM']
-        else:
-            smem_size = ceil(launch_data['smem_size'], cc['smem_allocation_size'])
-            block_per_sm_limit_smem = shared_memory_per_sm // smem_size
-        return block_per_sm_limit_smem
-    
-    th_max_active_block_per_sm = min(block_limit_warp_or_block, block_per_sm_limit_regs)
-    
-    if adaptive:
-        # minimum smem size that not be a bottleneck
-        # for smem_size in range(0, shared_memory_per_sm - 32*1024, 8*1024):  # l1 at least 32KB
-        for smem_size_KB in shared_mem_carveout[:-1]:
-            smem_size = smem_size_KB * 1024
-            block_per_sm_limit_smem = get_smem_limit(smem_size)
-            if block_per_sm_limit_smem >= th_max_active_block_per_sm:
-                break
-    else:
-        smem_size = shared_memory_per_sm
-        block_per_sm_limit_smem = get_smem_limit(smem_size)
-    th_max_active_block_per_sm = min(th_max_active_block_per_sm, block_per_sm_limit_smem)
-    
-    th_active_warps = th_max_active_block_per_sm * warps_per_block
-    th_occupancy = (th_active_warps / max_warps_per_sm) * 100
-    
-    allocted_block_per_sm = ceil(launch_data['grid_size'] / num_SMs)
-    max_active_block_per_sm = min(th_max_active_block_per_sm, allocted_block_per_sm)
-    
-    occupancy_res = {
-        'block_per_sm_limit_warps': block_per_sm_limit_warps,
-        'block_per_sm_limit_blocks': block_per_sm_limit_blocks,
-        'block_per_sm_limit_regs': block_per_sm_limit_regs,
-        'block_per_sm_limit_smem': block_per_sm_limit_smem,
-        
-        'th_max_active_block_per_sm': th_max_active_block_per_sm,
-        'th_active_warps': th_active_warps,
-        'th_occupancy': th_occupancy,
-        'allocted_block_per_sm': allocted_block_per_sm,
-        'max_active_block_per_sm': max_active_block_per_sm,
-        
-        'adaptive_smem_size': smem_size,
-    }
-    
-    return occupancy_res
-    
 class Kernel():
 
     def __init__(self, gpuNode, kernel_info):
@@ -116,6 +41,7 @@ class Kernel():
         self.acc = self.gpuNode.accelerators[0] 
 
         # get kernel_info
+        self.kernel_info = kernel_info
         self.kernel_name = kernel_info['kernel_name']
         self.kernel_id = int(kernel_info["kernel_id"])
         self.kernel_id_0_base = int(kernel_info["kernel_id"]) - 1
@@ -221,8 +147,34 @@ class Kernel():
 
 
 
-    def kernel_call(self):
+    def kernel_call(self, overwrite_cache_params=None, memory_model='simulator'):
+        # 设置 memory model 需要的变量
+        gpu_config = self.gpuNode.gpu_configs
+        kernel_param = self.kernel_info  # kernel info 信息更多
+        no_adaptive_cache = False
+        if overwrite_cache_params:
+            L = ['', 'cache_size', 'cache_line_size', 'cache_associativity', 'sector_size']
+            for cache_params in overwrite_cache_params.split(','):
+                for i,p in enumerate(cache_params.split(':')):
+                    if i==0:
+                        cur = p  # current cache level
+                        continue
+                    # print(cur, L[i], p)
+                    if p:
+                        gpu_config[f'{cur}_{L[i]}'] = int(p)
+                        print(f"Info: overwrite {cur} {L[i]} to {p}")
+        l1_cache_size_old = gpu_config['l1_cache_size']
+        if gpu_config['adaptive_cache'] and not no_adaptive_cache:
+            occupancy_res = get_max_active_block_per_sm(gpu_config['cc_configs'], kernel_param, gpu_config['num_SMs'], gpu_config['shared_mem_size'],
+                                                        shared_mem_carveout=gpu_config['shared_mem_carveout'], adaptive=gpu_config['adaptive_cache'])
+            gpu_config['l1_cache_size'] = gpu_config['shared_mem_size'] - occupancy_res['adaptive_smem_size']
+            if gpu_config['l1_cache_size'] != l1_cache_size_old:
+                print(f"Info: set adaptive L1 cache size from {l1_cache_size_old} to {gpu_config['l1_cache_size']}")
+        else:
+            occupancy_res = get_max_active_block_per_sm(gpu_config['cc_configs'], kernel_param, gpu_config['num_SMs'], gpu_config['shared_mem_size'],
+                                                        adaptive=False)
         
+                   
         pred_out = self.pred_out
 
         if self.ISA == "PTX":
@@ -237,10 +189,14 @@ class Kernel():
                                                     
         ###### ---- memory performance predictions ---- ######
         tic = time.time()
-        pred_out["memory_stats"] = get_memory_perf(pred_out["kernel_id"], self.mem_traces_dir_path, pred_out["grid_size"], self.acc.num_SMs,\
-                                                    self.acc.l1_cache_size, self.acc.l1_cache_line_size, self.acc.l1_cache_associativity,\
-                                                    self.acc.l2_cache_size, self.acc.l2_cache_line_size, self.acc.l2_cache_associativity,\
-                                                    gmem_reqs, int(pred_out["allocted_block_per_sm"]), int(pred_out["block_per_sm_simulate"]), cache_ref_data=self.cache_ref_data)
+        # pred_out["memory_stats"] = ppt_gpu_model_warpper(kernel_param['kernel_id'], self.kernel_info['trace_dir'], kernel_param, occupancy_res['max_active_block_per_sm'], gpu_config,
+        #                                 granularity=int(self.kernel_info['granularity']))
+        # pred_out["memory_stats"] = get_memory_perf(pred_out["kernel_id"], self.mem_traces_dir_path, pred_out["grid_size"], self.acc.num_SMs,\
+        #                                             self.acc.l1_cache_size, self.acc.l1_cache_line_size, self.acc.l1_cache_associativity,\
+        #                                             self.acc.l2_cache_size, self.acc.l2_cache_line_size, self.acc.l2_cache_associativity,\
+        #                                             gmem_reqs, int(pred_out["allocted_block_per_sm"]), int(pred_out["block_per_sm_simulate"]), cache_ref_data=self.cache_ref_data)
+        pred_out["memory_stats"] = memory_model_warpper_single_kernel(gpu_config, kernel_param, occupancy_res, self.kernel_info['trace_dir'],
+                                  model=memory_model)
         toc = time.time()
         pred_out["simulation_time"]["memory"] = (toc - tic)
 
@@ -265,9 +221,9 @@ class Kernel():
             pred_out["others"]["l2_parallelism"] = l2_parallelism
             pred_out["others"]["dram_parallelism"] = dram_parallelism
 
-            l1_cycles_no_contention = (pred_out["memory_stats"]["l1_sm_trans_gmem"]) * self.acc.l1_cache_access_latency
-            l2_cycles_no_contention = pred_out["memory_stats"]["l2_tot_trans_gmem"] * self.acc.l2_cache_from_l1_access_latency * (1/l2_parallelism)
-            dram_cycles_no_contention = pred_out["memory_stats"]["dram_tot_trans_gmem"] * self.acc.dram_mem_from_l2_access_latency * (1/dram_parallelism)
+            l1_cycles_no_contention = (pred_out["memory_stats"]["gmem_tot_sectors_per_sm"]) * self.acc.l1_cache_access_latency
+            l2_cycles_no_contention = pred_out["memory_stats"]["l2_tot_trans"] * self.acc.l2_cache_from_l1_access_latency * (1/l2_parallelism)
+            dram_cycles_no_contention = pred_out["memory_stats"]["dram_tot_trans"] * self.acc.dram_mem_from_l2_access_latency * (1/dram_parallelism)
             pred_out["others"]["l1_cycles_no_contention"] = l1_cycles_no_contention
             pred_out["others"]["l2_cycles_no_contention"] = l2_cycles_no_contention
             pred_out["others"]["dram_cycles_no_contention"] = dram_cycles_no_contention
@@ -278,14 +234,14 @@ class Kernel():
             mem_cycles_no_contention = ceil(mem_cycles_no_contention, 1)
             
             dram_service_latency = self.acc.dram_clockspeed * (self.acc.l2_cache_line_size / self.acc.dram_bandwidth)
-            dram_queuing_delay_cycles = pred_out["memory_stats"]["dram_tot_trans_gmem"] * dram_service_latency * (1/dram_parallelism)
+            dram_queuing_delay_cycles = pred_out["memory_stats"]["dram_tot_trans"] * dram_service_latency * (1/dram_parallelism)
             pred_out["others"]["dram_service_latency"] = dram_service_latency
             pred_out["others"]["dram_queuing_delay_cycles"] = dram_queuing_delay_cycles
 
             mem_cycles_ovhds = dram_queuing_delay_cycles
         
             noc_service_latency = self.acc.dram_clockspeed * (self.acc.l1_cache_line_size / self.acc.noc_bandwidth)
-            noc_queueing_delay_cycles = pred_out["memory_stats"]["l2_tot_trans_gmem"] * noc_service_latency * (1/l2_parallelism)
+            noc_queueing_delay_cycles = pred_out["memory_stats"]["l2_tot_trans"] * noc_service_latency * (1/l2_parallelism)
             pred_out["others"]["noc_service_latency"] = noc_service_latency
             pred_out["others"]["noc_queueing_delay_cycles"] = noc_queueing_delay_cycles
 
@@ -303,8 +259,8 @@ class Kernel():
             pred_out["AMAT_ori"] = ceil(tot_mem_cycles/pred_out["memory_stats"]["gmem_tot_reqs"], 1)
             pred_out["AMAT_sum"] = ceil(tot_mem_cycles_sum/pred_out["memory_stats"]["gmem_tot_reqs"], 1)
 
-            m1 = 1 - pred_out["memory_stats"]['gmem_hit_rate']
-            m2 = 1 - pred_out["memory_stats"]['hit_rate_l2']
+            m1 = 1 - pred_out["memory_stats"]['l1_hit_rate']
+            m2 = 1 - pred_out["memory_stats"]['l2_hit_rate']
             # m2 = 1 - 0.8
             pred_out["AMAT_foumula"] = ceil(self.acc.l1_cache_access_latency + m1*(self.acc.l2_cache_from_l1_access_latency + m2*self.acc.dram_mem_from_l2_access_latency), 1)
             pred_out["AMAT"] = pred_out["AMAT_ori"]
@@ -364,7 +320,7 @@ class Kernel():
         ## process instructions of the tasklist by the active blocks every cycle
         while self.blockList_has_active_warps(block_list):
             if pred_out['active_cycles']%10000 == 0:
-                print(f"{self.kernel_id}: active cycles {pred_out['active_cycles']}")
+                print(f"kernel {self.kernel_id}: active cycles {pred_out['active_cycles']}")
             
             ## compute the list warps in active blocks
             current_active_block_list = []
