@@ -14,7 +14,7 @@ execute_with_settings() {
     source env.sh
 
     # 模拟
-    run 2
+    run 3
 }
 
 default(){
@@ -35,12 +35,13 @@ GPU_PROFILE="TITANV"
 model='ppt2'
 }
 
-ppt_ori(){
+# manual
+ppt2_single(){
 default
-model='ppt-gpu'
-ppt_src='/staff/fyyuan/repo/PPT-GPU-ori/ppt.py'
-run_name="paper"
+filter_app="rodinia-3.1-full:backprop-rodinia-3.1"
+source env.sh
 }
+
 
 ppt_ori_cl32(){
 default
@@ -55,8 +56,33 @@ default
 run_name="paper"
 }
 
-ppt2_rodinia(){
+ppt2_old_memory(){
 default
-filter_app="rodinia-3.1-full"
-run_name="rodinia"
+run_name="old_memory"
+model_extra_params="-C l1::32::,l2::32:: --memory-model ppt-gpu"
+}
+
+# Ampere
+ppt2_ampere(){
+default
+gpu="ampere"
+cuda_version="11.0"
+run_name="paper"
+}
+
+# Trace/profile manual
+trace_all(){
+benchmarks="rodinia-3.1-full|polybench-full|GPU_Microbenchmark|deepbench|Tango"
+filter_app=$benchmarks
+GPU=1
+trace_dir_base=/staff/fyyuan/hw_trace02
+time_out=7200
+source env.sh
+}
+
+trace(){
+filter_app="rodinia-3.1-full:gaussian-rodinia-3.1:2"
+GPU=1
+time_out=7200
+source env.sh
 }
