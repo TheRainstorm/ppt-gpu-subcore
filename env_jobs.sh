@@ -33,12 +33,13 @@ run_name="paper"
 # change part
 GPU_PROFILE="TITANV"
 model='ppt2'
+time_out=7200
 }
 
 # manual
 ppt2_single(){
 default
-filter_app="rodinia-3.1-full:backprop-rodinia-3.1"
+filter_app="Tango:AN"
 source env.sh
 }
 
@@ -60,6 +61,7 @@ ppt2_old_memory(){
 default
 run_name="old_memory"
 model_extra_params="-C l1::32::,l2::32:: --memory-model ppt-gpu"
+# source env.sh
 }
 
 # Ampere

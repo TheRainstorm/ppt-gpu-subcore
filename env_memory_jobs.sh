@@ -45,6 +45,13 @@ use_sm_trace=" "
 extra_params=""
 }
 
+# manual
+base_single(){
+default
+filter_app="rodinia-3.1-full:backprop-rodinia-3.1"
+source env.sh
+}
+
 base(){
 default
 memory_suffix="_base"

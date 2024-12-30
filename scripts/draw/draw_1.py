@@ -44,9 +44,9 @@ key_map = {
         "sm_active_cycles_sum": "active_cycles", # Number of cycles a multiprocessor has at least one active warp.
         "sm_elapsed_cycles_sum": "elapsed_cycles_sm", # elapsed clocks on SM
         
-        "my_gpu_active_cycle_max": "active_cycles_sys",
+        "gpu_active_cycle_max": "active_cycles_sys",
         "my_sm_active_cycles_sum": "active_cycles",
-        "my_sm_elapsed_cycles_sum": "elapsed_cycles_sm",
+        "sm_elapsed_cycles_sum": "elapsed_cycles_sm",
         
         "ipc": "ipc",
         
@@ -406,7 +406,7 @@ def find_common(sim_res, hw_res):
 
     # found common
     for app in hw_res.copy():
-        if app not in sim_res:
+        if app not in sim_res or len(sim_res[app]) != len(hw_res[app]):
             del hw_res[app]
 
     # keep same key order
@@ -491,9 +491,9 @@ if __name__ == "__main__":
         # draw_error("sm_active_cycles_sum", "error_3_sm_active_cycles_sum.png")
         # draw_error("sm_elapsed_cycles_sum", "error_3_sm_elapsed_cycles_sum.png")
         
-        draw_error("my_gpu_active_cycle_max", "error_4_my_gpu_active_cycle_max.png")
-        draw_error("my_sm_active_cycles_sum", "error_4_my_sm_active_cycles_sum.png")
-        draw_error("my_sm_elapsed_cycles_sum", "error_4_my_sm_elapsed_cycles_sum.png")
+        draw_error("gpu_active_cycle_max", "error_4_gpu_active_cycle_max.png")
+        draw_error("sm_active_cycles_sum", "error_4_my_sm_active_cycles_sum.png")
+        draw_error("sm_elapsed_cycles_sum", "error_4_sm_elapsed_cycles_sum.png")
         
         draw_error("l1_hit_rate",           "error_6_l1_hit_rate.png")
         draw_error("l2_hit_rate",           "error_6_l2_hit_rate.png")
@@ -513,8 +513,8 @@ if __name__ == "__main__":
         
         # draw_side2side("gpu_active_cycle_max",  "bar_3_gpu_active_cycle_max.png")
         # draw_side2side("sm_elapsed_cycles_sum", "bar_3_sm_elapsed_cycles_sum.png")
-        draw_side2side("my_gpu_active_cycle_max",  "bar_4_my_gpu_active_cycle_max.png")
-        draw_side2side("my_sm_elapsed_cycles_sum", "bar_4_my_sm_elapsed_cycles_sum.png")
+        draw_side2side("gpu_active_cycle_max",  "bar_4_gpu_active_cycle_max.png")
+        draw_side2side("sm_elapsed_cycles_sum", "bar_4_sm_elapsed_cycles_sum.png")
         
         draw_side2side("l1_hit_rate", "bar_6_l1_hit_rate.png")
         draw_side2side("l2_hit_rate", "bar_6_l2_hit_rate.png")
@@ -543,8 +543,8 @@ if __name__ == "__main__":
         for bench in benchs:
             app_filter = bench
             draw_error("warp_inst_executed", f"{bench}_error_1_warp_inst_executed.png")
-            draw_error("my_gpu_active_cycle_max", f"{bench}_error_4_my_gpu_active_cycle_max.png")
-            draw_side2side("my_gpu_active_cycle_max", f"{bench}_bar_4_my_gpu_active_cycle_max.png")
+            draw_error("gpu_active_cycle_max", f"{bench}_error_4_gpu_active_cycle_max.png")
+            draw_side2side("gpu_active_cycle_max", f"{bench}_bar_4_gpu_active_cycle_max.png")
             draw_error("l1_hit_rate",           f"{bench}_error_6_l1_hit_rate.png")
             draw_side2side("l1_hit_rate", f"{bench}_bar_6_l1_hit_rate.png")
             draw_error("l2_hit_rate",           f"{bench}_error_6_l2_hit_rate.png")
@@ -557,8 +557,8 @@ if __name__ == "__main__":
         os.chdir(args.dir_name)
         
         app_filter = args.app_filter
-        draw_error("my_gpu_active_cycle_max", "error_4_my_gpu_active_cycle_max.png", draw_kernel=True)
-        draw_side2side("my_gpu_active_cycle_max", f"bar_4_my_gpu_active_cycle_max.png", draw_kernel=True)
+        draw_error("gpu_active_cycle_max", "error_4_gpu_active_cycle_max.png", draw_kernel=True)
+        draw_side2side("gpu_active_cycle_max", f"bar_4_gpu_active_cycle_max.png", draw_kernel=True)
     elif args.command == 'kernel_by_app':
         print(f"\ncommand: {args.command}:")
         args.dir_name = args.dir_name if args.dir_name else args.command
@@ -571,8 +571,8 @@ if __name__ == "__main__":
             app_filter=app_arg  # set global filter to single app
             
             app_name_safe = app_arg.replace('/', '_')
-            draw_error("my_gpu_active_cycle_max", f"error_{app_name_safe}_4_my_gpu_active_cycle_max.png", draw_kernel=True)
-            draw_side2side("my_gpu_active_cycle_max", f"bar_{app_name_safe}_4_my_gpu_active_cycle_max.png", draw_kernel=True)
+            draw_error("gpu_active_cycle_max", f"error_{app_name_safe}_4_gpu_active_cycle_max.png", draw_kernel=True)
+            draw_side2side("gpu_active_cycle_max", f"bar_{app_name_safe}_4_gpu_active_cycle_max.png", draw_kernel=True)
             draw_error("warp_inst_executed", f"error_{app_name_safe}_1_warp_inst_executed.png", draw_kernel=True)
             draw_side2side("warp_inst_executed", f"bar_{app_name_safe}_1_my_warp_inst_executed.png", draw_kernel=True)
     elif args.command == 'single':
@@ -586,8 +586,8 @@ if __name__ == "__main__":
             os.chdir(app_arg)
             
             app_filter=app_arg  # set global filter to single app
-            draw_error("my_gpu_active_cycle_max", f"error_4_my_gpu_active_cycle_max.png", draw_kernel=True)
-            draw_side2side("my_gpu_active_cycle_max", f"bar_4_my_gpu_active_cycle_max.png", draw_kernel=True)
+            draw_error("gpu_active_cycle_max", f"error_4_gpu_active_cycle_max.png", draw_kernel=True)
+            draw_side2side("gpu_active_cycle_max", f"bar_4_gpu_active_cycle_max.png", draw_kernel=True)
             
             draw_error("achieved_occupancy", f"error_2_app_occupancy.png", draw_kernel=True, sim_res_func = lambda x: x/100)
             draw_side2side("achieved_occupancy", f"bar_2_app_occupancy.png", draw_kernel=True, sim_res_func = lambda x: x/100)
