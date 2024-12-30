@@ -511,13 +511,16 @@ deepbench:
         - args: inference half 35 1500 2560 0 0
     - conv_bench-tensor:
         - args: train half 7 7 512 8 512 1 1 0 0 1 1
+          ignore: 4  # ampere trace failed: Error invoking nvbit in ...
         # - args: inference half 700 161 1 1 32 20 5 0 0 2 2
         # - args: inference half 700 161 1 2 32 20 5 0 0 2 2
         - args: inference half 480 48 1 1 16 3 3 1 1 1 1
+          ignore: 4
     - gemm_bench:
         - args: inference half 35 1500 2560 0 0
     - conv_bench:
         - args: inference half 480 48 1 1 16 3 3 1 1 1 1
+          ignore: 4
 
 Tango:
   exec_dir: "$GPGPU_WORKLOADS_ROOT/bin/$CUDA_VERSION/release/"
