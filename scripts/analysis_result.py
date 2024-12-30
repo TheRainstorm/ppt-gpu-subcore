@@ -11,6 +11,7 @@ sys.path.insert(0, os.path.abspath(par_dir))
 
 cmp_list = ['warp_inst_executed', 'achieved_occupancy', 'gpu_active_cycles', 'sm_active_cycles_sum', 'ipc',
             'l1_hit_rate', 'l2_hit_rate', 'gmem_tot_reqs', 'gmem_tot_sectors', 'l2_tot_trans', 'dram_tot_trans']
+extra_list = ['AMAT']
 
 def process_sim(sim_res):
     for app_arg, app_res in sim_res.items():
@@ -27,6 +28,8 @@ def process_sim(sim_res):
             kernel_res['gmem_tot_sectors'] = kernel_res['memory_stats']['gmem_tot_trans']
             kernel_res['l2_tot_trans'] = kernel_res['memory_stats']['l2_tot_trans_gmem']
             kernel_res['dram_tot_trans'] = kernel_res['memory_stats']['dram_tot_trans_gmem']
+            
+            kernel_res['AMAT'] = kernel_res['AMAT']
     return sim_res
 
 def process_hw(hw_res):
@@ -68,32 +71,6 @@ def process_hw(hw_res):
             # kernel_res['dram_st_trans'] = kernel_res['dram_write_transactions']
     return hw_res
 
-def json2df1(json_data):
-    '''学习目的保留
-    使用 dict of list 形式创建 dataframe，需要自己维护不同属性的列表，有点麻烦。
-    '''
-    data = {}
-    data['bench'] = []
-    data['app'] = []
-    data['kernel_id'] = []
-    for key in cmp_list:
-        data[f"{key}"] = []
-    
-    for app_arg, app_res in json_data.items():
-        bench = suite_info['map'][app_arg][0]
-        for i, kernel_res in enumerate(app_res):
-            data['bench'].append(bench)
-            data['app'].append(app_arg)
-            data['kernel_id'].append(kernel_res['kernel_name'])
-            for key in cmp_list:
-                try:
-                    data[f"{key}"].append(kernel_res[key])
-                except:
-                    if 'l2_hit_rate' in key:  # fix ppt-gpu, which has no l2_hit_rate_ld/st
-                        data[f"{key}"].append(kernel_res['l2_hit_rate'])
-    df = pd.DataFrame(data)
-    return df
-
 def json2df(json_data):
     '''
     list of dict 形式
@@ -107,6 +84,17 @@ def json2df(json_data):
             kernel_res['kernel_id'] = kernel_res['kernel_name']
             data.append(kernel_res)
     return pd.DataFrame(data, columns=["bench", "app", "kernel_id"] + cmp_list)
+
+def json2df_extra(json_data):
+    data = []
+    for app_arg, app_res in json_data.items():
+        bench = suite_info['map'][app_arg][0]
+        for i, kernel_res in enumerate(app_res):
+            kernel_res['bench'] = bench
+            kernel_res['app'] = app_arg
+            kernel_res['kernel_id'] = kernel_res['kernel_name']
+            data.append(kernel_res)
+    return pd.DataFrame(data, columns=["bench", "app", "kernel_id"] + extra_list)
 
 def interleave(df_sim, df_hw):
     df_sim.rename(columns={f"{key}": f"{key}_sim" for key in cmp_list}, inplace=True)
@@ -171,6 +159,7 @@ if __name__ == "__main__":
     hw_res = process_hw(hw_res)
     
     df_sim = json2df(sim_res)
+    df_sim_ex = json2df_extra(sim_res)
     df_hw = json2df(hw_res)
     df_kernels = interleave(df_sim, df_hw)
     
@@ -205,10 +194,13 @@ if __name__ == "__main__":
         
     df_apps = df_kernels.groupby(["bench", "app"], sort=False, as_index=False).mean(numeric_only=True)
     df_apps.insert(2, "kernel_id", df_apps['app'])  # 补充空位
+    df_apps_ex = df_sim_ex.groupby(["bench", "app"], sort=False, as_index=False).mean(numeric_only=True)
     
     with pd.ExcelWriter(args.output_file, engine='xlsxwriter') as writer:
         write_df_and_bench_summary(writer, df_apps, 'apps')
         write_df_and_bench_summary(writer, df_kernels, 'kernels')
+        df_apps_ex.to_excel(writer, sheet_name='apps_extra', index=False)
+        df_sim_ex.to_excel(writer, sheet_name='kernels_extra', index=False)
     
     print(f"Results saved to {args.output_file}")
     print("Done!")
