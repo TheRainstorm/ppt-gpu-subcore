@@ -350,7 +350,7 @@ def sdcm_model_warpper_parallel(kernel_id, trace_dir,
     return K
 
 def memory_model_warpper_single_kernel(gpu_config, kernel_param, occupancy_res, app_path, model='simulator', granularity=2,
-                         use_approx=True, filter_L2=False, no_flush=False, fix_l2=True, block_mapping=BlockMapping.mod_block_mapping,
+                         use_approx=True, filter_L2=True, no_flush=False, fix_l2=True, block_mapping=BlockMapping.mod_block_mapping,
                          l1_dump_trace=False, l2_dump_trace='',
                          no_write_policy=False):
     if model == 'ppt-gpu':
@@ -377,7 +377,7 @@ def memory_model_warpper_single_kernel(gpu_config, kernel_param, occupancy_res, 
     return kernel_res
 
 def memory_model_warpper(gpu_model, app_path, model, kernel_id=-1, granularity=2,
-                         use_approx=True, filter_L2=False, no_flush=False, fix_l2=True, block_mapping=BlockMapping.mod_block_mapping,
+                         use_approx=True, filter_L2=True, no_flush=False, fix_l2=True, block_mapping=BlockMapping.mod_block_mapping,
                          l1_dump_trace=False, l2_dump_trace='',
                          overwrite_cache_params='', no_adaptive_cache=False, print_table=False,
                          no_write_policy=False):
