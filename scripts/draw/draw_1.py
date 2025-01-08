@@ -51,7 +51,8 @@ key_map = {
         "ipc": "ipc",
         
         # umem
-        "l1_hit_rate": ["tex_cache_hit_rate", '/', '100'],
+        "l1_hit_rate": "tex_cache_hit_rate",
+        # "l1_hit_rate": ["tex_cache_hit_rate", '/', '100'],
         # "l1_hit_rate_ld": ["global_hit_rate_ld", '/', '100'],
         # "l1_hit_rate_st": ["global_hit_rate_st", '/', '100'],
         # global
@@ -59,7 +60,8 @@ key_map = {
         "l1_hit_rate_ldg": ["global_hit_rate_ld", '/', '100'],
         "l1_hit_rate_stg": ["global_hit_rate_st", '/', '100'],
         
-        "l2_hit_rate": ["l2_tex_hit_rate", '/', '100'],
+        "l2_hit_rate": "l2_tex_hit_rate",
+        # "l2_hit_rate": ["l2_tex_hit_rate", '/', '100'],
         "l2_hit_rate_ld": ["l2_tex_read_hit_rate", '/', '100'],
         "l2_hit_rate_st": ["l2_tex_write_hit_rate", '/', '100'],
         

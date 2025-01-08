@@ -450,36 +450,46 @@ GPU_Microbenchmark:
     - l1_bw_32f:
         - args:
           accel-sim-mem: 1G
+      abbr: L1BW
     - l1_bw_64f:
         - args:
           accel-sim-mem: 1G
+      abbr: L1BW64
     - l1_bw_128:
         - args:
           accel-sim-mem: 2G
           ignore: 3
+      abbr: L1BW128
     - l1_lat:
         - args:
           accel-sim-mem: 1G
+      abbr: L1LAT
     - l2_bw_32f:
         - args:
           accel-sim-mem: 6G
+      abbr: L2BW
     - l2_bw_64f:
         - args:
           accel-sim-mem: 6G
           ignore: 3
+      abbr: L2BW64
     - l2_bw_128:
         - args:
           accel-sim-mem: 1G
           ignore: 3
+      abbr: L2BW128
     - l2_lat:
         - args:
           accel-sim-mem: 1G
+      abbr: L2LAT
     - mem_bw:
         - args:
           accel-sim-mem: 2G
+      abbr: MEMBW
     - mem_lat:
         - args:
           accel-sim-mem: 1G
+      abbr: MEMLAT
     # ppt-gpu sim failed
     # - shared_bw:
     #     - args:
@@ -487,21 +497,26 @@ GPU_Microbenchmark:
     - shared_lat:
         - args:
           accel-sim-mem: 1G
+      abbr: SMEMLAT
     - MaxFlops:
         - args:
           accel-sim-mem: 1G
+      abbr: FLOP
     - l1_shared_bw:
         - args:
           accel-sim-mem: 1G
           ignore: 3
+      abbr: L1SBW
     - l1_bw_32f_unroll:
         - args:
           accel-sim-mem: 1G
           ignore: 3
+      abbr: L1BWU
     - l1_bw_32f_unroll_large:
         - args:
           accel-sim-mem: 1G
           ignore: 3
+      abbr: L1BWUL
 
 deepbench:
   exec_dir: "$GPGPU_WORKLOADS_ROOT/bin/$CUDA_VERSION/release/"
@@ -509,6 +524,7 @@ deepbench:
   execs:
     - gemm_bench-tensor:
         - args: inference half 35 1500 2560 0 0
+      abbr: DBGEMMTC
     - conv_bench-tensor:
         - args: train half 7 7 512 8 512 1 1 0 0 1 1
           ignore: 4  # ampere trace failed: Error invoking nvbit in ...
@@ -516,11 +532,14 @@ deepbench:
         # - args: inference half 700 161 1 2 32 20 5 0 0 2 2
         - args: inference half 480 48 1 1 16 3 3 1 1 1 1
           ignore: 4
+      abbr: DBCONVTC
     - gemm_bench:
         - args: inference half 35 1500 2560 0 0
+      abbr: DBGEMM
     - conv_bench:
         - args: inference half 480 48 1 1 16 3 3 1 1 1 1
           ignore: 4
+      abbr: DBCONV
 
 Tango:
   exec_dir: "$GPGPU_WORKLOADS_ROOT/bin/$CUDA_VERSION/release/"
@@ -563,29 +582,36 @@ pannotia:
         - args: ./data/ecology1.graph 1
         - args: ./data/G3_circuit.graph 1
       data_subdir: color
+      abbr: COLOR
     - pannotia-color_maxmin:
         - args: ./data/ecology1.graph 1
         - args: ./data/G3_circuit.graph 1
       data_subdir: color
+      abbr: COLOR
     - pannotia-fw:
         - args: ./data/256_16384.gr
           # This input is taking more thatn 17 hours to reach 2B insn
           #            - args: ./data/512_65536.gr
       data_subdir: fw
+      abbr: FW
     - pannotia-fw_block:
         - args: ./data/256_16384.gr
         - args: ./data/512_65536.gr
       data_subdir: fw
+      abbr: FW
     - pannotia-mis:
         - args: ./data/ecology1.graph 1
         - args: ./data/G3_circuit.graph 1
       data_subdir: mis
+      abbr: MIS
     - pannotia-pagerank:
         - args: ./data/coAuthorsDBLP.graph 1
       data_subdir: pagerank
+      abbr: PRK
     - pannotia-pagerank_spmv:
         - args: ./data/coAuthorsDBLP.graph 1
       data_subdir: pagerank
+      abbr: PRK
     # - pannotia-sssp:
     #     # - args: ./data/USA-road-d.NW.gr 0
     #     - args: ./data/USA-road-d.NY.gr 0  # (1.4) 1200*3

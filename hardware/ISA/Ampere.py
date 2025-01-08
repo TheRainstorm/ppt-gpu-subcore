@@ -36,8 +36,9 @@ units_latency = {
     "l2_cache_access"   :   200,
     "local_mem_access"  :   290,
     "const_mem_access"  :   290,
-    "shared_mem_ld"     :   23,
-    "shared_mem_st"     :   19,# ld 23 st 19
+    # "shared_mem_ld"     :   23,
+    # "shared_mem_st"     :   19,# ld 23 st 19
+    "shared_mem_access" :   23,
     "tex_mem_access"    :   290,
     "tex_cache_access"  :   86,
     "atomic_operation"  :   245,
