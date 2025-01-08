@@ -153,6 +153,8 @@ print_summary(){
     echo "apps_yaml: $apps_yaml"
     echo "benchmarks: $benchmarks"
     echo "filter_app: $filter_app"
+    echo "model_extra_params: $model_extra_params"
+    echo "ppt_src" $ppt_src
     echo ""
 
     echo "[Files]:"
@@ -182,7 +184,7 @@ unset_env(){
     unset memory_model
     unset GPU_PROFILE
     unset granularity filter_l2 use_approx use_sm_trace memory_suffix
-    unset ppt_src
+    unset ppt_src model_extra_params
 }
 
 print_summary

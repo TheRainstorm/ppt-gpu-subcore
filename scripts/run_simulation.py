@@ -54,6 +54,10 @@ parser.add_argument("--ppt-src", default="ppt.py", help="ppt.py src path")
 parser.add_argument("--extra-params", default="", help="ppt.py extra param")
 args = parser.parse_args()
 
+if args.extra_params.startswith("<"):
+    args.extra_params = args.extra_params[1:-1]
+    print(f"extra_params: {args.extra_params}")
+    
 from common import *
 
 # defined_apps = {}
