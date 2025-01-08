@@ -32,7 +32,7 @@ parser.add_argument("-c", "--limit_kernel_num",
                     help="trace tool only trace max 300 kernel, nvprof can't set trace limit(nsight-sys can)." \
                         "so we limit the kernel number when get stat")
 parser.add_argument("--select", default="nvprof",
-                 choices=["nvprof", "ncu", "ncu-cpi", "nvprof-cpi", "ncu-full"],
+                #  choices=["nvprof", "ncu", "ncu-cpi", "nvprof-cpi", "ncu-full"],
                  help="get which tool's stat")
 parser.add_argument('-l', "--loop-cnt",
                  default=-1,
@@ -136,11 +136,14 @@ def get_average_csv(profiling_file_list, skip_unit_row=False):
 collect_data = {}
 
 print("Start get hw result")
-# when get single app, load old data
-if args.apps:
-    if os.path.exists(args.output):
-        with open(args.output, 'r') as f:
-            collect_data = json.load(f)
+# # when get single app, load old data
+# if args.apps:
+#     if os.path.exists(args.output):
+#         with open(args.output, 'r') as f:
+#             collect_data = json.load(f)
+# backup old
+if os.path.exists(args.output):
+    os.rename(args.output, args.output + '.bak')
 
 for app_and_arg in app_and_arg_list:
     app = app_and_arg.split('/')[0]
@@ -159,10 +162,13 @@ for app_and_arg in app_and_arg_list:
             profiling_res[select].append(os.path.join(app_trace_dir, file))
     
     # sort and only use pre loop cnt result
+    profiling_res_new = {}
     for select, profiling_file_list in profiling_res.items():
         profiling_file_list.sort()
         if args.loop_cnt != -1:
             profiling_file_list = profiling_file_list[:args.loop_cnt]
+        profiling_res_new[select] = profiling_file_list
+    profiling_res = profiling_res_new
     
     if 'nvprof' in args.select:
         acc_res = get_average_csv(profiling_res[args.select])

@@ -119,6 +119,9 @@ for app_and_arg in app_and_arg_list:
         os.killpg(os.getpgid(p.pid), signal.SIGTERM)
         log_file.close()
         exit(-1)
+    except Exception as e:
+        logging(f"Exception in {app_and_arg}: {e}")
+        failed_list.append(app_and_arg)
     
 logging(f"failed list: {failed_list}")
 logging(f"End")
