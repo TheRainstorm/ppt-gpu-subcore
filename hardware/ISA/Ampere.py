@@ -47,27 +47,6 @@ units_latency = {
     "TB_launch_ovhd"    :   700   
 }
 
-initial_interval = {
-
-    # Initiation interval (II) = threadsPerWarp // #FULanes
-    "iALU"              :   32 // 16,
-    "fALU"              :   32 // 32,
-    "hALU"              :   32 // 32,
-    "dALU"              :   32 // 0.5,
-
-    "SFU"               :   32 // 1,
-    "dSFU"              :   32 // 1,
-
-    "LDST"              :   32 // 4,
-    
-    # "bTCU"              :   64,
-    "iTCU"              :   32 // 1,
-    "hTCU"              :   32 // 2,
-    "fTCU"              :   32 // 1,
-    "dTCU"              :   32 // 1,
-    "BRA"               :   32 // 1,
-    "EXIT"              :   32 // 16,
-}
 sass_isa = {
 
     # Integer Instructions

@@ -38,26 +38,26 @@ units_latency = {
 
 }
 
-initial_interval = {
-    # Initiation interval (II) = threadsPerWarp / #FULanes
-    "iALU"              :   32 // 16,
-    "fALU"              :   32 // 16,
-    "hALU"              :   32 // 16,
-    "dALU"              :   32 // 8,
+# initial_interval = {
+#     # Initiation interval (II) = threadsPerWarp / #FULanes
+#     "iALU"              :   32 // 16,
+#     "fALU"              :   32 // 16,
+#     "hALU"              :   32 // 16,
+#     "dALU"              :   32 // 8,
 
-    "SFU"               :   32 // 4,
-    "dSFU"              :   32 // 4,
+#     "SFU"               :   32 // 4,
+#     "dSFU"              :   32 // 4,
 
-    "LDST"              :   32 // 8,   # load store unit
+#     "LDST"              :   32 // 8,   # load store unit
     
-    # "bTCU"              :   64,
-    "iTCU"              :   32 // 2,
-    "hTCU"              :   32 // 2,
-    # "fTCU"              :   32 // 2,
-    # "dTCU"              :   32 // 2,
-    "BRA"               :   32 // 32,
-    "EXIT"              :   32 // 16,
-}
+#     # "bTCU"              :   64,
+#     "iTCU"              :   32 // 2,
+#     "hTCU"              :   32 // 2,
+#     # "fTCU"              :   32 // 2,
+#     # "dTCU"              :   32 // 2,
+#     "BRA"               :   32 // 32,
+#     "EXIT"              :   32 // 16,
+# }
 
 sass_isa = {
 
