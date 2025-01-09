@@ -419,14 +419,6 @@ def filter_hw_kernel(sim_res, hw_res):
             
     return hw_res
 def find_common(sim_res, hw_res):
-    # proc hw_res
-    # try:
-    #     for app, kernels_res in hw_res.items():
-    #         for kernel_res in kernels_res:
-    #             kernel_res["dram_total_transactions"] = kernel_res["dram_read_transactions"] + kernel_res["dram_write_transactions"]
-    # except:
-    #     pass
-
     # found common
     for app in hw_res.copy():
         if app not in sim_res or len(sim_res[app]) != len(hw_res[app]):
@@ -437,6 +429,14 @@ def find_common(sim_res, hw_res):
     sim_res = {app: sim_res[app] for app in common_apps}
     return sim_res, hw_res
 
+def process_hw(hw_res):
+    # proc hw_res
+    try:
+        for app, kernels_res in hw_res.items():
+            for kernel_res in kernels_res:
+                kernel_res["dram_total_transactions"] = kernel_res["dram_read_transactions"] + kernel_res["dram_write_transactions"]
+    except:
+        pass
 def filter_res(res, app_arg_filtered_list):
     for app in res.copy():
         if app not in app_arg_filtered_list:
@@ -494,7 +494,8 @@ if __name__ == "__main__":
     sim_res = truncate_kernel(sim_res, args.limit_kernel_num)
     hw_res = filter_hw_kernel(sim_res, hw_res)
     sim_res, hw_res = find_common(sim_res, hw_res)
-
+    hw_res = process_hw(hw_res)
+    
     run_dir = os.getcwd()
     os.chdir(args.output_dir)
     

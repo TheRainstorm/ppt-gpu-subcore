@@ -154,7 +154,7 @@ for loop in range(args.loop_cnt):
                 sh_contents += f'export CUDA_VISIBLE_DEVICES="{args.device_num}";\n' \
                         f'{NCU} {args.replay_control} --set full -o profiling.{loop} -f --launch-count {args.kernel_number}'\
                         f' {exec_path} {argstr}\n' \
-                        f'cp profiling.{loop}.ncu-rep {copy_dir}'
+                        f'cp profiling.{loop}.ncu-rep {copy_dir}/{exe_name}.{loop}.ncu-rep'
             else:
                 sh_contents += f'export CUDA_VISIBLE_DEVICES="{args.device_num}";\n' \
                         f'nvprof --print-gpu-trace --concurrent-kernels off --csv --log-file {profiling_output} ' \
