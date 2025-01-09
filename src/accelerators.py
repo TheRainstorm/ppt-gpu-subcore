@@ -20,7 +20,7 @@ from copy import deepcopy
 class Accelerator(object):
 
     # Accelerator is replicated for each kernel
-    def __init__(self, node, id, gpu_configs, gpu_configs_cc, num_kernels):
+    def __init__(self, node, id, gpu_configs, gpu_configs_cc, kernels):
         
         self.node =	 node # GPUNode
         self.id = id
@@ -250,7 +250,10 @@ class Accelerator(object):
         sm_hw_units = [deepcopy(subcore_hw_units) for i in range(self.num_warp_schedulers_per_SM)]
 
         # copy for each kernel
-        self.hw_units = [deepcopy(sm_hw_units) for i in range(num_kernels)]
+        # self.hw_units = [deepcopy(sm_hw_units) for i in range(kernels)]
+        self.hw_units = {}
+        for kernel_id in kernels:
+            self.hw_units[kernel_id-1] = deepcopy(sm_hw_units)  # 使用时，使用了 0-based index，因此这里减1
         
     def request_unit(self, kernel_id, subcore_id, cycles, unit):
         '''

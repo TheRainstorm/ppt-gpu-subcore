@@ -130,7 +130,16 @@ run_name="KL"
 ppt2_KL_deepbench(){
 default
 filter_app="deepbench"
-run_name="KL_db"
+run_name="KL_db2"
+}
+
+ppt_ori_db(){
+default
+filter_app="deepbench"
+model='ppt-gpu'
+ppt_src='/staff/fyyuan/repo/PPT-GPU-ori/ppt.py'
+run_name="cl32"
+time_out=7200
 }
 
 # Trace/profile manual

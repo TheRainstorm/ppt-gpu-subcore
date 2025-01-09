@@ -47,9 +47,10 @@ def main():
                     default="2",
                     choices=["1", "2", "3"],
                     help='1=One Thread Block per SM or 2=Active Thread Blocks per SM or 3=All Thread Blocks per SM')
-    parser.add_argument("--kernel", dest="kernel_id",
+    parser.add_argument("--kernel", dest="kernel_ids",
                     type=int,
-                    default=-1,
+                    nargs='*',
+                    default=[],
                     help='(1 based index) To choose a specific kernel, add the kernel id')
     parser.add_argument("--mpi",
                     action="store_true",
@@ -100,17 +101,19 @@ def main():
     
     kernels_info = []
     instructions_type = "SASS" if args.sass else "PTX"
-    if args.kernel_id == -1: # sim all kernel
+    if not args.kernel_ids: # sim all kernel
         for kernel_id in app_config['app_kernels_id']:
             kernels_info.append(get_current_kernel_info(int(kernel_id), args.app_path, args.app_path, app_config, instructions_type, args.granularity, app_res_ref=app_res_ref, app_report_dir=app_report_dir))
     else:
-        kernels_info.append(get_current_kernel_info(kernel_id, args.app_path, args.app_path, app_config, instructions_type, args.granularity, app_res_ref=app_res_ref, app_report_dir=app_report_dir))
+        for kernel_id in args.kernel_ids:
+            kernels_info.append(get_current_kernel_info(kernel_id, args.app_path, args.app_path, app_config, instructions_type, args.granularity, app_res_ref=app_res_ref, app_report_dir=app_report_dir))
 
     # ############################
     # # Simian Engine parameters #
     # ############################
     # simianEngine = Simian("PPT-GPU", useMPI=True, opt=False, appPath = app_report_dir, ISA=instructions_type, granularity=granularity, mpiLibName=args.libmpich_path)
-    gpuNode = GPUNode(gpu_configs.uarch, gpu_configs.uarch['cc_configs'], len(kernels_info))
+    kernels = [k['kernel_id'] for k in kernels_info]
+    gpuNode = GPUNode(gpu_configs.uarch, gpu_configs.uarch['cc_configs'], kernels)
         
     # for i in range (len(kernels_info)):
     #     k_id = i 
@@ -124,7 +127,7 @@ def main():
         print(f"Runing: {app_and_arg}")
     for i in range(len(kernels_info)):
         if rank == i%size:
-            print(f"Kernel {i+1} is running on rank {rank}")
+            print(f"Kernel {kernels_info[i]['kernel_id']} is running on rank {rank}")
             kernel = Kernel(gpuNode, kernels_info[i])
             kernel.kernel_call(memory_model=args.memory_model, overwrite_cache_params=args.overwrite_cache_params)
 
@@ -133,19 +136,19 @@ class GPUNode(object):
 	"""
 	Class that represents a node that has a GPU
 	"""
-	def __init__(self, gpu_configs, gpu_configs_cc, num_kernels):
+	def __init__(self, gpu_configs, gpu_configs_cc, kernels):
 		self.num_accelerators = 1 # modeling a node that has 1 GPU for now
 		self.accelerators = []
 		self.gpu_configs = gpu_configs
 		self.gpu_configs_cc = gpu_configs_cc
 		#print("GPU node generated")
-		self.generate_target_accelerators(num_kernels)
+		self.generate_target_accelerators(kernels)
 
 	#generate GPU accelerators inside the node
-	def generate_target_accelerators(self, num_kernels):
+	def generate_target_accelerators(self, kernels):
 		accelerators = importlib.import_module("src.accelerators")
 		for i in range(self.num_accelerators):
-			self.accelerators.append(accelerators.Accelerator(self, i, self.gpu_configs, self.gpu_configs_cc, num_kernels))
+			self.accelerators.append(accelerators.Accelerator(self, i, self.gpu_configs, self.gpu_configs_cc, kernels))
 
 if __name__ == "__main__":
 	main()

@@ -92,13 +92,16 @@ for app_and_arg in app_and_arg_list:
     if already_simulated:
         logging(f"{app_and_arg} already simulated")
         continue
+    
+    kernels = suite_info['kernels'].get(app_and_arg, [])
+    kernel_ids = ' '.join([str(k) for k in kernels])
 
     logging(f"{app_and_arg} start")
     hw_res_option_str = f"--hw-res {args.hw_res}" if args.hw_res else ""
     if args.mpi_run != "":
-        cmd = f"{args.mpi_run} python {args.ppt_src} {args.extra_params} --mpi --app {app_trace_dir} --sass --config {args.hw_config} --granularity {args.granularity} {hw_res_option_str} --report-output-dir {args.report_output_dir}"
+        cmd = f"{args.mpi_run} python {args.ppt_src} {args.extra_params} --mpi --app {app_trace_dir} --sass --config {args.hw_config} --granularity {args.granularity} {hw_res_option_str} --report-output-dir {args.report_output_dir} --kernel {kernel_ids}"
     else:
-        cmd = f"python {args.ppt_src} {args.extra_params} --app {app_trace_dir} --sass --config {args.hw_config} --granularity {args.granularity} {hw_res_option_str} --report-output-dir {args.report_output_dir}"
+        cmd = f"python {args.ppt_src} {args.extra_params} --app {app_trace_dir} --sass --config {args.hw_config} --granularity {args.granularity} {hw_res_option_str} --report-output-dir {args.report_output_dir} --kernel {kernel_ids}"
 
     # print(cmd)
     try:

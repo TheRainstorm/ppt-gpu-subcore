@@ -217,11 +217,15 @@ for app_and_arg in app_and_arg_list:
         m = re.search(r'kernel\_(?P<kernel_id>\d+)\_pred_out.json', file)
         if m:
             file_list.append( (int(m.group('kernel_id')), os.path.join(app_trace_dir, file)) ) 
-
-    app_res = [ {} for i in range(len(file_list)) ]
+    file_list.sort(key=lambda x: x[0])
+    
+    # app_res = [ {} for i in range(len(file_list)) ]
+    app_res = []
     try:
         for kernel_id, file_path in file_list:
-            app_res[kernel_id-1] = parse_kernel_json(file_path, args.full)
+            k_res = parse_kernel_json(file_path, args.full)
+            k_res['kernel_id'] = kernel_id  # must keep kernel_id(1-based)
+            app_res.append(k_res)
     except Exception as e:
         print(f"==========\nError in {app_and_arg}")
         print(f"{kernel_id}/{len(file_list)} {file_path}")

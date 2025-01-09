@@ -86,6 +86,7 @@ def get_suite_info(def_yml):
     info = {}
     info['suites'] = []
     info['map'] = {}
+    info['kernels'] = {}
     
     for suite in benchmark_yaml:
         info['suites'].append(suite)
@@ -97,6 +98,9 @@ def get_suite_info(def_yml):
             for runparms in args_list:
                 args = runparms["args"]
                 app_and_arg = os.path.join( exe_name, get_argfoldername( args ) )
+                
+                if 'kernels' in runparms:
+                    info['kernels'][app_and_arg] = runparms['kernels']
                 
                 true_suite = benchmark_yaml[suite].get('suite', suite)
                 if app_and_arg not in info['map']:

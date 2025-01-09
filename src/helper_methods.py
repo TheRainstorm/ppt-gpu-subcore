@@ -16,7 +16,6 @@
 
 
 import os, sys, math, time
-from scipy import special as sp
 import json
 
 def dump_output(pred_out):

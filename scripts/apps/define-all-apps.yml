@@ -524,6 +524,11 @@ deepbench:
   execs:
     - gemm_bench-tensor:
         - args: inference half 35 1500 2560 0 0
+          # kernels: [7, 14, 55]  # volta_h884gemm_256x64_ldg8_nn + volta_h884gemm_64x64_ldg8_nn volta_h884gemm_256x128_ldg8_nn
+          # all tensor
+          # 71: void cutlass::Kernel<cutlass_70_tensorop_h884gemm_64x64_nn_align8> (360x128)
+          # 139: cutlass_70_tensorop_h884gemm_128x64_nn_align8 (960x128)
+          kernels: [7, 14, 55, 71,73,94,96,103,105,112,114,139,141,182,183,189,190,196,197,203,204,217,218,224,225,231,232,238,239,245,246,252,253,259,260,266,267,273,274,296,298]
           # ignore: 3  # 2h time out for ampere
       abbr: DBGEMMTC
     - conv_bench-tensor:
@@ -536,6 +541,8 @@ deepbench:
       abbr: DBCONVTC
     - gemm_bench:
         - args: inference half 35 1500 2560 0 0
+          # all tensor
+          kernels: [7,8,14,16,23,24,30,32,39,40,46,48,55,56,62,64,71,73,94,96,103,105,112,114,139,141,182,183,189,190,196,197,203,204,217,218,224,225,231,232,238,239,245,246,252,253,259,260,266,267,273,274,296,298]
       abbr: DBGEMM
     - conv_bench:
         - args: inference half 480 48 1 1 16 3 3 1 1 1 1

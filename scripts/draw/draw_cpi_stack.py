@@ -228,8 +228,6 @@ def check_app_kernel_num(res, print_num=False):
         if print_num:
             print(f"{app}: {len(app_res)}")
 
-from draw_1 import truncate_kernel,get_kernel_stat,find_common,filter_res
-
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(
         description='This script draw CPI stack image, it support: 1) draw single or, side by side campare with second result'
@@ -268,6 +266,7 @@ if __name__ == "__main__":
     print("=====================")
     
     from common import *
+    from draw_1 import truncate_kernel,get_kernel_stat,filter_hw_kernel_with_suit_info,find_common,filter_res
     apps = gen_apps_from_suite_list(args.benchmark_list)
     app_and_arg_list = get_app_arg_list(apps)
     app_arg_filtered_list = filter_app_list(app_and_arg_list, args.app_filter)
@@ -286,11 +285,14 @@ if __name__ == "__main__":
         with open(args.sim_res2, 'r') as f:
             sim_res2 = json.load(f)
         sim_res2 = truncate_kernel(sim_res2, args.limit_kernel_num)
+        
         print("\nsim res2 info:")
         check_app_kernel_num(sim_res2, print_num=False)
     
     sim_res = filter_res(sim_res, app_arg_filtered_list)
     sim_res2 = filter_res(sim_res2, app_arg_filtered_list)
+    sim_res2 = filter_hw_kernel_with_suit_info(sim_res, sim_res2, suite_info)
+    sim_res, sim_res2 = find_common(sim_res, sim_res2)
     
     print("\nDraw:")
     run_dir = os.getcwd()

@@ -397,14 +397,35 @@ def truncate_kernel(sim_res, num):
         sim_res_new[app] = kernels_res[:num]
     return sim_res_new
 
+def filter_hw_kernel_with_suit_info(sim_res, hw_res, suit_info):
+    for app in hw_res.copy():
+        if app in sim_res and len(sim_res[app]) != len(hw_res[app]):
+            k_res_new = []
+            # filter kernel in sim_res
+            for kernel_id in suit_info['kernels'][app]:
+                k_res_new.append(hw_res[app][kernel_id-1])
+            hw_res[app] = k_res_new
+            
+    return hw_res
+def filter_hw_kernel(sim_res, hw_res):
+    for app in hw_res.copy():
+        if app in sim_res and len(sim_res[app]) != len(hw_res[app]):
+            k_res_new = []
+            # filter kernel in sim_res
+            for k_res in sim_res[app]:
+                kernel_id = int(k_res['kernel_id'])
+                k_res_new.append(hw_res[app][kernel_id-1])
+            hw_res[app] = k_res_new
+            
+    return hw_res
 def find_common(sim_res, hw_res):
     # proc hw_res
-    try:
-        for app, kernels_res in hw_res.items():
-            for kernel_res in kernels_res:
-                kernel_res["dram_total_transactions"] = kernel_res["dram_read_transactions"] + kernel_res["dram_write_transactions"]
-    except:
-        pass
+    # try:
+    #     for app, kernels_res in hw_res.items():
+    #         for kernel_res in kernels_res:
+    #             kernel_res["dram_total_transactions"] = kernel_res["dram_read_transactions"] + kernel_res["dram_write_transactions"]
+    # except:
+    #     pass
 
     # found common
     for app in hw_res.copy():
@@ -471,6 +492,7 @@ if __name__ == "__main__":
     sim_res = filter_res(sim_res, app_arg_filtered_list)
     hw_res = filter_res(hw_res, app_arg_filtered_list)
     sim_res = truncate_kernel(sim_res, args.limit_kernel_num)
+    hw_res = filter_hw_kernel(sim_res, hw_res)
     sim_res, hw_res = find_common(sim_res, hw_res)
 
     run_dir = os.getcwd()

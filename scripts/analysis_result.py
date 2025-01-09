@@ -140,7 +140,7 @@ if __name__ == "__main__":
 
 
     from scripts.common import *
-    from scripts.draw.draw_1 import filter_res,truncate_kernel,find_common
+    from scripts.draw.draw_1 import filter_res,filter_hw_kernel,find_common
 
     apps = gen_apps_from_suite_list(args.benchmark_list)
     app_and_arg_list = get_app_arg_list(apps)
@@ -154,6 +154,7 @@ if __name__ == "__main__":
 
     sim_res = filter_res(sim_res, app_arg_filtered_list)
     hw_res = filter_res(hw_res, app_arg_filtered_list)
+    hw_res = filter_hw_kernel(sim_res, hw_res)
     sim_res, hw_res = find_common(sim_res, hw_res)
     sim_res = process_sim(sim_res)
     hw_res = process_hw(hw_res)
