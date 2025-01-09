@@ -84,24 +84,16 @@ for app_and_arg in app_and_arg_list:
     if args.apps and app_and_arg not in args.apps:
         continue
     
-    already_simulated = False
-    for file in os.listdir(app_trace_dir):
-        if file.endswith(".out") and not args.overwrite:
-            already_simulated = True
-            break
-    if already_simulated:
-        logging(f"{app_and_arg} already simulated")
-        continue
-    
     kernels = suite_info['kernels'].get(app_and_arg, [])
     kernel_ids = ' '.join([str(k) for k in kernels])
 
     logging(f"{app_and_arg} start")
     hw_res_option_str = f"--hw-res {args.hw_res}" if args.hw_res else ""
+    no_overwrite_str = "--no-overwrite" if not args.overwrite else ""
     if args.mpi_run != "":
-        cmd = f"{args.mpi_run} python {args.ppt_src} {args.extra_params} --mpi --app {app_trace_dir} --sass --config {args.hw_config} --granularity {args.granularity} {hw_res_option_str} --report-output-dir {args.report_output_dir} --kernel {kernel_ids}"
+        cmd = f"{args.mpi_run} python {args.ppt_src} {args.extra_params} --mpi --app {app_trace_dir} --sass --config {args.hw_config} --granularity {args.granularity} {hw_res_option_str} --report-output-dir {args.report_output_dir} --kernel {kernel_ids} {no_overwrite_str}"
     else:
-        cmd = f"python {args.ppt_src} {args.extra_params} --app {app_trace_dir} --sass --config {args.hw_config} --granularity {args.granularity} {hw_res_option_str} --report-output-dir {args.report_output_dir} --kernel {kernel_ids}"
+        cmd = f"python {args.ppt_src} {args.extra_params} --app {app_trace_dir} --sass --config {args.hw_config} --granularity {args.granularity} {hw_res_option_str} --report-output-dir {args.report_output_dir} --kernel {kernel_ids} {no_overwrite_str}"
 
     # print(cmd)
     try:

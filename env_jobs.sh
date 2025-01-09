@@ -25,6 +25,7 @@ execute_with_settings() {
 default(){
 # unset_env
 benchmarks="rodinia-3.1-full|polybench-full|pannotia|Tango|GPU_Microbenchmark|deepbench"
+benchmarks="rodinia-3.1-full|polybench-full|pannotia|Tango|GPU_Microbenchmark"
 #filter_app="rodinia-3.1-full|polybench-full|Tango|pannotia"
 filter_app=$benchmarks
 
@@ -132,14 +133,30 @@ default
 filter_app="deepbench"
 run_name="KL_db2"
 }
+ppt2_ampere_KL_db(){
+default
+filter_app="deepbench"
+GPU_PROFILE="A100-40G"
+run_name="KL_db"
+}
 
 ppt_ori_db(){
 default
 filter_app="deepbench"
 model='ppt-gpu'
 ppt_src='/staff/fyyuan/repo/PPT-GPU-ori/ppt.py'
+run_name="cl32_db"
+time_out=7200
+model_extra_params='<--no-overwrite>'
+}
+ppt_ori_single(){
+default
+filter_app="rodinia-3.1-full:b+tree-rodinia-3.1"
+model='ppt-gpu'
+ppt_src='/staff/fyyuan/repo/PPT-GPU-ori/ppt.py'
 run_name="cl32"
 time_out=7200
+model_extra_params='<--no-overwrite>'
 }
 
 # Trace/profile manual

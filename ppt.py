@@ -69,6 +69,9 @@ def main():
     parser.add_argument('--memory-model',
                         default='simulator',
                         help='memory model to use')
+    parser.add_argument("--no-overwrite",
+                 action="store_true",
+                 help="not overwrite already simulated kernels")
     args = parser.parse_args()
     granularity = args.granularity
 
@@ -108,6 +111,18 @@ def main():
         for kernel_id in args.kernel_ids:
             kernels_info.append(get_current_kernel_info(kernel_id, args.app_path, args.app_path, app_config, instructions_type, args.granularity, app_res_ref=app_res_ref, app_report_dir=app_report_dir))
 
+    # filter already simulated kernels
+    if args.no_overwrite:
+        kernels_info_new = []
+        for k in kernels_info:
+            kernel_prefix = str(k["kernel_id"])+"_"+instructions_type +"_g"+args.granularity
+            k_report_file = os.path.join(app_report_dir, "kernel_"+kernel_prefix+".out")
+            if os.path.exists(k_report_file):
+                print(f"Skip kernel {k['kernel_id']}, already simulated")
+            else:
+                kernels_info_new.append(k)
+        kernels_info = kernels_info_new
+    
     # ############################
     # # Simian Engine parameters #
     # ############################
