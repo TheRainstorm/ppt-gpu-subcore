@@ -13,7 +13,10 @@ def convert_ncu_to_nvprof(data):
         print(f"{app_arg}: {len(app_res)}")
         for i, k in enumerate(app_res):
             kernel_res = {}
-            kernel_res['kernel_name'] = k['kernel_name']
+            if 'Kernel Name' in k:
+                kernel_res['kernel_name'] = k['Kernel Name']
+            else:
+                kernel_res['kernel_name'] = k['kernel_name']
             
             kernel_res['inst_executed'] = k['smsp__inst_executed.sum']
             kernel_res['inst_issued'] = k['smsp__inst_executed.sum']

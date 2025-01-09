@@ -122,7 +122,7 @@ def get_average_csv(profiling_file_list, skip_unit_row=False):
     for res in res_list[1:]:
         for i,kernel_data in enumerate(res):  # 第 i 个 kernel
             for key, value in kernel_data.items():
-                if type(value) == str:
+                if type(value) == str or type(acc_res[i][key])==str:
                     continue
                 acc_res[i][key] += value
     # average
@@ -141,8 +141,9 @@ NCU = os.environ.get("NCU", "ncu")
 print("Start get hw result")
 if os.path.exists(args.output):
     if args.app_filter != args.benchmark_list: # 只有少数 app 时，读取旧数据
-        with open(args.output, 'r') as f: # merge old data
+        with open(args.output, 'r', encoding='utf-8') as f: # merge old data
             collect_data = json.load(f)
+            print(f"load old data: {args.output}")
     shutil.move(args.output, args.output + '.bak')
     
 
@@ -155,12 +156,16 @@ for app_and_arg in app_and_arg_list:
     
     # get all profling file
     profiling_res = {}
+    profiling_res['ncu-full'] = []
+    profiling_res['ncu-rep-raw'] = []
     for file in os.listdir(app_trace_dir):
         if file.startswith('profiling.') and file.endswith('.csv'):
             _, select , cnt, _ = file.split('.')
             if select not in profiling_res:
                 profiling_res[select] = []
             profiling_res[select].append(os.path.join(app_trace_dir, file))
+        elif file.endswith('.ncu-rep'):
+            profiling_res['ncu-rep-raw'].append(os.path.join(app_trace_dir, file))
     
     # sort and only use pre loop cnt result
     profiling_res_new = {}
@@ -185,15 +190,21 @@ for app_and_arg in app_and_arg_list:
         for i,kernel_data in enumerate(acc_res):
             acc_res[i]['kernel_name'] = re.search(r'\w+', acc_res[i]['Kernel Name']).group(0)  # delete function params define
     elif 'ncu-rep'==args.select:
+        ncu_full_files = profiling_res['ncu-full']
         dump_file_list = []
-        for i,file in enumerate(profiling_res[args.select]):
+        for i,file in enumerate(profiling_res['ncu-rep-raw']):
+            base_file = os.path.basename(file)
             # /staff/fyyuan/nsight-compute/target/linux-desktop-glibc_2_11_3-x64/ncu -i profiling.0.ncu-rep --csv --page raw > profiling.ncu-rep-dump.0.csv
-            dump_file = f"{file}.csv"
+            _, loop, _ = base_file.split('.')
+            dump_file = os.path.join(app_trace_dir, f'profiling.ncu-rep.{loop}.csv')
             if not os.path.exists(dump_file):
-                cmd = f"{NCU} -i {file} --csv --page raw > {dump_file}"
-                subprocess.run(shlex.split(cmd))
+                cmd = f"{NCU} -i {file} --csv --page raw"
+                with open(dump_file, 'w') as f:
+                    subprocess.run(cmd, shell=True, stdout=f, text=True)
             dump_file_list.append(dump_file)
-        acc_res = get_average_csv(dump_file_list)
+        print(f"{app_and_arg}: {len(ncu_full_files)}(ncu-full) + {len(dump_file_list)}(ncu-rep)")
+        dump_file_list = ncu_full_files + dump_file_list
+        acc_res = get_average_csv(dump_file_list, skip_unit_row=True)
     else:
         acc_res = get_average_csv(profiling_res[args.select])
 
@@ -217,7 +228,8 @@ for app_and_arg in app_and_arg_list:
     # limit kernel number
     acc_res = acc_res[:args.limit_kernel_num]
     
-    print(f"{app_and_arg}: {len(acc_res)}")
+    cnt = len(profiling_res.get(args.select, []))
+    print(f"{app_and_arg}: {len(acc_res)} ({cnt})")
     collect_data[app_and_arg] = acc_res
     
     with open(args.output, 'w') as f:

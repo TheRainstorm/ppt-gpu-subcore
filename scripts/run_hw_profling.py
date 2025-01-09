@@ -144,7 +144,8 @@ for loop in range(args.loop_cnt):
             elif args.select == "ncu-rep":
                 if args.ncu_rep_dir == '':
                     print(f"ncu rep dir not specific or not exist")
-                    exit(1)
+                    # exit(1)
+                    continue
                 if not os.path.exists(args.ncu_rep_dir):
                     os.makedirs(args.ncu_rep_dir, exist_ok=True)
                 copy_dir = os.path.join(args.ncu_rep_dir, app_and_arg)
