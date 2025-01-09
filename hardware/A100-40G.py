@@ -98,5 +98,7 @@ uarch = {
     #   - TL: Two Level -- currently not available, TO BE IMPLEMEMNTED --
     "warp_scheduling"                   :  "LRR",
     
+    "cycle_gs_coef_1": 2446.57,
+    "slop_bs_coef": [4.57e-07, 0.00031, 0.91],
 }
 

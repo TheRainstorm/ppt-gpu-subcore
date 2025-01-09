@@ -454,7 +454,13 @@ class Kernel():
         result["ours_smsp_avg_tail_scale2_LI"] = smsp_act_cycles_avg * scale2 + tail + last_inst
 
         # kernel lat compensation
-        kernel_lat = 2.16*(pred_out['grid_size'] if pred_out['grid_size'] >= 128 else 128) + 1656
+        # kernel_lat = 2.16*(pred_out['grid_size'] if pred_out['grid_size'] >= 128 else 128) + 1656
+        gs = pred_out['grid_size']
+        bs = pred_out['block_size']
+        c0 = gpu_config['cycle_gs_coef_1']
+        c1 = gpu_config['slop_bs_coef']
+        slop = c1[0]*bs**2 + c1[1]*bs + c1[2]
+        kernel_lat = slop*gs + c0
         kernel_detail['kernel_lat'] = kernel_lat
 
         pred_out['result'] = result
