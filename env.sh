@@ -53,7 +53,7 @@ use_sm_trace=${use_sm_trace:-" "}
 
 # Profiling
 use_ncu=1
-profile_cpi=$(profile_cpi:-1)
+profile_cpi=${profile_cpi:-0}
 # 1080Ti 需要使用启用缓存版本的程序
 if [ "$gpu" = "gtx1080ti" ]; then
     echo "Warning: gtx1080ti does not support ncu, can't profile cpi for now"
@@ -139,6 +139,11 @@ log_file=run_helper.log
 print_summary(){
     date '+%Y-%m-%d %H:%M:%S'
     echo "Summary:\n"
+    echo "[COMMON]:"
+    echo "timeout: $time_out"
+    echo "run_name: $run_name"
+    echo ""
+
     echo "[Tracing]:"
     echo "app cuda_version: $CUDA_VERSION"
     echo "nvcc cuda_version: $curr_cuda_version"

@@ -524,6 +524,7 @@ deepbench:
   execs:
     - gemm_bench-tensor:
         - args: inference half 35 1500 2560 0 0
+          # ignore: 3  # 2h time out for ampere
       abbr: DBGEMMTC
     - conv_bench-tensor:
         - args: train half 7 7 512 8 512 1 1 0 0 1 1

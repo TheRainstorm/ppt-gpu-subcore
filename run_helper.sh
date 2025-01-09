@@ -30,6 +30,7 @@ python ${ppt_gpu_dir}/scripts/run_hw_profling.py -B ${benchmarks} -F ${filter_ap
 python ${ppt_gpu_dir}/scripts/get_stat_hw.py -B ${benchmarks} -F ${filter_app} -T ${trace_dir} --select ncu-full -o ${res_hw_ncu_json} --loop-cnt ${loop}
 python ${ppt_gpu_dir}/scripts/convert_hw_metrics.py -i ${res_hw_ncu_json} -o ${res_hw_json}
 fi
+python ${ppt_gpu_dir}/scripts/draw/convert_cpi_stack.py -i ${res_hw_ncu_json} -I "ncu" -o ${res_hw_cpi_json} # convert to cpi stack
 }
 
 run_hw_cpi(){
@@ -41,7 +42,7 @@ else
 python ${ppt_gpu_dir}/scripts/run_hw_profling.py -B ${benchmarks} -F ${filter_app} -T ${trace_dir} -D ${GPU} -l run_hw_profiling_${hw_identifier}.log --select ncu-cpi --loop-cnt ${loop} --time-out ${time_out} > /dev/null
 
 python ${ppt_gpu_dir}/scripts/get_stat_hw.py -B ${benchmarks} -F ${filter_app} -T ${trace_dir} --select ncu-cpi -o ${res_hw_ncu_cpi_json} --loop-cnt ${loop}
-python ${ppt_gpu_dir}/scripts/draw/convert_cpi_stack.py -i ${res_hw_ncu_cpi_json} -I "ncu" -o ${res_hw_cpi_json} # convert to cpi stack
+python ${ppt_gpu_dir}/scripts/draw/convert_cpi_stack.py -i ${res_hw_ncu_json} -I "ncu" -o ${res_hw_cpi_json} # convert to cpi stack
 fi
 }
 
@@ -58,6 +59,7 @@ python ${ppt_gpu_dir}/scripts/get_stat_sim.py -B ${benchmarks} -F ${filter_app} 
 # convert to cpi stack
 python ${ppt_gpu_dir}/scripts/draw/convert_cpi_stack.py -i ${res_sim_json} -I "ppt_gpu" -o ${res_sim_cpi_json}
 # python ${ppt_gpu_dir}/scripts/draw/convert_cpi_stack.py -i ${res_sim_json} -I "ppt_gpu_sched"  -o ${res_sim_sched_cpi_json}
+python ${ppt_gpu_dir}/scripts/draw/convert_cpi_stack.py -i ${res_sim_json} -I "ppt_gpu" -O "gsi-detail" -o ${res_sim_detail_cpi_json}
 
 # 模拟结果保存在 csv 中
 python ${ppt_gpu_dir}/scripts/analysis_result.py -B ${benchmarks} -F ${filter_app} -S ${res_sim_json} -H ${res_hw_sim_json} -o res_${model}_${gpu}_${cuda_version}_${GPU_PROFILE}_${run_name}.xlsx
@@ -71,14 +73,14 @@ python ${ppt_gpu_dir}/scripts/draw/draw_1.py -F ${filter_app} -B ${benchmarks} -
 # python ${ppt_gpu_dir}/scripts/draw/draw_1.py -F ${filter_app} -B ${benchmarks} -S ${res_sim_json} -H ${res_hw_json} -o ${draw_output} kernel_by_app
 # python ${ppt_gpu_dir}/scripts/draw/draw_1.py -F ${filter_app} -B ${benchmarks} -S ${res_sim_json} -H ${res_hw_json} -o ${draw_output} -d kernel_${filter_app} kernel
 
+if [ -e ${res_hw_cpi_sim_json} ]; then
+python ${ppt_gpu_dir}/scripts/draw/draw_cpi_stack.py -F ${filter_app} -B ${benchmarks} -S ${res_sim_cpi_json} -R ${res_hw_cpi_sim_json} -o ${draw_output} --s2s
+fi
 
-if [ $profile_cpi -eq 1 ]; then
-python ${ppt_gpu_dir}/scripts/draw/draw_cpi_stack.py -F ${filter_app} -B ${benchmarks} -S ${res_sim_cpi_json} -R ${res_hw_cpi_json} -o ${draw_output} --s2s
 # draw only sim cpi, no hw cpi
 # python ${ppt_gpu_dir}/scripts/draw/draw_cpi_stack.py -S ${res_sim_cpi_json} -o ${draw_output} --subdir cpi_warp
 # draw subcore cpi in one figure
 # python ${ppt_gpu_dir}/scripts/draw/draw_cpi_stack.py -F ${filter_app} -S ${res_sim_cpi_json} -R ${res_hw_cpi_json} -o ${draw_output} --s2s --draw-subcore
-fi
 
 cp ${res_hw_sim_json} ${draw_output}
 cp ${res_hw_cpi_sim_json} ${draw_output}

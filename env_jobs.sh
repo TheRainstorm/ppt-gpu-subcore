@@ -14,12 +14,17 @@ execute_with_settings() {
     source env.sh
 
     # 模拟
-    run 3
+    if [ $2 -eq 0 ]; then
+        echo "no run"
+    else
+        echo "run"
+        run 3
+    fi
 }
 
 default(){
-unset_env
-benchmarks="rodinia-3.1-full|polybench-full|GPU_Microbenchmark|deepbench|Tango|pannotia"
+# unset_env
+benchmarks="rodinia-3.1-full|polybench-full|pannotia|GPU_Microbenchmark|Tango|deepbench"
 #filter_app="rodinia-3.1-full|polybench-full|Tango|pannotia"
 filter_app=$benchmarks
 
@@ -29,6 +34,8 @@ cuda_version="11.0"
 GPU=1
 trace_dir_base=/staff/fyyuan/hw_trace02
 ppt_gpu_version="PPT-GPU"
+use_ncu=1
+profile_cpi=0
 
 run_name="paper"
 
@@ -41,20 +48,21 @@ ppt_src='/staff/fyyuan/repo/PPT-GPU/ppt.py'
 model_extra_params=''
 }
 
-# manual
-ppt2_single(){
-default
-filter_app="Tango:AN"
-source env.sh
-}
-
-
 ppt_ori_cl32(){
 default
 model='ppt-gpu'
 ppt_src='/staff/fyyuan/repo/PPT-GPU-ori/ppt.py'
 run_name="cl32"
 time_out=7200
+}
+
+ppt_ori_fix_cycle(){
+default
+model='ppt-gpu'
+ppt_src='/staff/fyyuan/repo/PPT-GPU-ori/ppt.py'
+run_name="fix_cycle"
+time_out=7200
+model_extra_params="<--fix-cycle>"
 }
 
 ppt_ori_ampere(){
@@ -73,15 +81,6 @@ ppt_src='/staff/fyyuan/repo/PPT-GPU-ori/ppt.py'
 run_name="fix_cycle"
 time_out=7200
 GPU_PROFILE="A100-40G"
-model_extra_params="<--fix-cycle>"
-}
-
-ppt_ori_fix_cycle(){
-default
-model='ppt-gpu'
-ppt_src='/staff/fyyuan/repo/PPT-GPU-ori/ppt.py'
-run_name="fix_cycle"
-time_out=7200
 model_extra_params="<--fix-cycle>"
 }
 
@@ -106,37 +105,69 @@ run_name="paper"
 }
 
 ppt2_ampere2(){
-	default
-	trace_dir_base=/staff/fyyuan/hw_trace02
-	gpu="a100-40g"
-	GPU_PROFILE="A100-40G"
-	cuda_version="11.0"
-	run_name="paper"
-	source env.sh
+default
+gpu="a100-40g"
+GPU_PROFILE="A100-40G"
+cuda_version="11.0"
+run_name="paper"
 }
+
+# expriment
+ppt2_KL(){
+default
+run_name="KL"
+}
+ppt2_ampere_KL(){
+default
+GPU_PROFILE="A100-40G"
+run_name="KL"
+}
+
+# cache associaty
+
 
 # Trace/profile manual
 trace_all(){
+default
 benchmarks="rodinia-3.1-full|polybench-full|GPU_Microbenchmark|deepbench|Tango|pannotia"
-filter_app=pannotia
+# filter_app="GPU_Microbenchmark:LGThrottle|GPU_Microbenchmark:longScoreboard"
+filter_app=$benchmarks
 GPU=1
 trace_dir_base=/staff/fyyuan/hw_trace02
 time_out=7200
 source env.sh
 }
 
-trace(){
-filter_app="rodinia-3.1-full:gaussian-rodinia-3.1:2"
+trace_ampere(){
+default
+benchmarks="rodinia-3.1-full|polybench-full|GPU_Microbenchmark|deepbench|Tango|pannotia"
+# filter_app="GPU_Microbenchmark:LGThrottle|GPU_Microbenchmark:longScoreboard"
+filter_app=$benchmarks
+gpu=a100-40g
+GPU_PROFILE="A100-40G"
 GPU=1
+trace_dir_base=/staff/fyyuan/hw_trace02
 time_out=7200
 source env.sh
 }
 
+sim(){
+benchmarks="rodinia-3.1-full|polybench-full|GPU_Microbenchmark|deepbench|Tango|pannotia"
+filter_app="GPU_Microbenchmark:LGThrottle|GPU_Microbenchmark:longScoreboard"
+# filter_app=$benchmarks
+time_out=900
+source env.sh
+}
+
+# parallel_settings=(
+# ppt2
+# ppt2_old_memory
+# ppt2_ampere
+# ppt2_ampere2
+# )
 parallel_settings=(
-ppt2
-ppt2_old_memory
-ppt2_ampere
-ppt2_ampere2
+ppt2_KL
+ppt2_ampere_KL
 )
 sequential_settings=(
 ppt_ori_cl32
