@@ -3,99 +3,243 @@ ubench:
   exec_dir: $UBENCH_ROOT/bin/
   execs:
   - kernel_lat:
+    - args: 1 1
+    - args: 1 2
+    - args: 1 4
+    - args: 1 8
+    - args: 1 16
     - args: 1 32
     - args: 1 64
     - args: 1 128
     - args: 1 256
+    - args: 1 384
     - args: 1 512
+    - args: 1 640
+    - args: 1 768
+    - args: 1 896
     - args: 1 1024
+    - args: 2 1
+    - args: 2 2
+    - args: 2 4
+    - args: 2 8
+    - args: 2 16
     - args: 2 32
     - args: 2 64
     - args: 2 128
     - args: 2 256
+    - args: 2 384
     - args: 2 512
+    - args: 2 640
+    - args: 2 768
+    - args: 2 896
     - args: 2 1024
+    - args: 4 1
+    - args: 4 2
+    - args: 4 4
+    - args: 4 8
+    - args: 4 16
     - args: 4 32
     - args: 4 64
     - args: 4 128
     - args: 4 256
+    - args: 4 384
     - args: 4 512
+    - args: 4 640
+    - args: 4 768
+    - args: 4 896
     - args: 4 1024
+    - args: 8 1
+    - args: 8 2
+    - args: 8 4
+    - args: 8 8
+    - args: 8 16
     - args: 8 32
     - args: 8 64
     - args: 8 128
     - args: 8 256
+    - args: 8 384
     - args: 8 512
+    - args: 8 640
+    - args: 8 768
+    - args: 8 896
     - args: 8 1024
+    - args: 16 1
+    - args: 16 2
+    - args: 16 4
+    - args: 16 8
+    - args: 16 16
     - args: 16 32
     - args: 16 64
     - args: 16 128
     - args: 16 256
+    - args: 16 384
     - args: 16 512
+    - args: 16 640
+    - args: 16 768
+    - args: 16 896
     - args: 16 1024
+    - args: 32 1
+    - args: 32 2
+    - args: 32 4
+    - args: 32 8
+    - args: 32 16
     - args: 32 32
     - args: 32 64
     - args: 32 128
     - args: 32 256
+    - args: 32 384
     - args: 32 512
+    - args: 32 640
+    - args: 32 768
+    - args: 32 896
     - args: 32 1024
+    - args: 64 1
+    - args: 64 2
+    - args: 64 4
+    - args: 64 8
+    - args: 64 16
     - args: 64 32
     - args: 64 64
     - args: 64 128
     - args: 64 256
+    - args: 64 384
     - args: 64 512
+    - args: 64 640
+    - args: 64 768
+    - args: 64 896
     - args: 64 1024
+    - args: 96 1
+    - args: 96 2
+    - args: 96 4
+    - args: 96 8
+    - args: 96 16
     - args: 96 32
     - args: 96 64
     - args: 96 128
     - args: 96 256
+    - args: 96 384
     - args: 96 512
+    - args: 96 640
+    - args: 96 768
+    - args: 96 896
     - args: 96 1024
+    - args: 128 1
+    - args: 128 2
+    - args: 128 4
+    - args: 128 8
+    - args: 128 16
     - args: 128 32
     - args: 128 64
     - args: 128 128
     - args: 128 256
+    - args: 128 384
     - args: 128 512
+    - args: 128 640
+    - args: 128 768
+    - args: 128 896
     - args: 128 1024
+    - args: 160 1
+    - args: 160 2
+    - args: 160 4
+    - args: 160 8
+    - args: 160 16
     - args: 160 32
     - args: 160 64
     - args: 160 128
     - args: 160 256
+    - args: 160 384
     - args: 160 512
+    - args: 160 640
+    - args: 160 768
+    - args: 160 896
     - args: 160 1024
+    - args: 192 1
+    - args: 192 2
+    - args: 192 4
+    - args: 192 8
+    - args: 192 16
     - args: 192 32
     - args: 192 64
     - args: 192 128
     - args: 192 256
+    - args: 192 384
     - args: 192 512
+    - args: 192 640
+    - args: 192 768
+    - args: 192 896
     - args: 192 1024
+    - args: 224 1
+    - args: 224 2
+    - args: 224 4
+    - args: 224 8
+    - args: 224 16
     - args: 224 32
     - args: 224 64
     - args: 224 128
     - args: 224 256
+    - args: 224 384
     - args: 224 512
+    - args: 224 640
+    - args: 224 768
+    - args: 224 896
     - args: 224 1024
+    - args: 256 1
+    - args: 256 2
+    - args: 256 4
+    - args: 256 8
+    - args: 256 16
     - args: 256 32
     - args: 256 64
     - args: 256 128
     - args: 256 256
+    - args: 256 384
     - args: 256 512
+    - args: 256 640
+    - args: 256 768
+    - args: 256 896
     - args: 256 1024
+    - args: 512 1
+    - args: 512 2
+    - args: 512 4
+    - args: 512 8
+    - args: 512 16
     - args: 512 32
     - args: 512 64
     - args: 512 128
     - args: 512 256
+    - args: 512 384
     - args: 512 512
+    - args: 512 640
+    - args: 512 768
+    - args: 512 896
     - args: 512 1024
+    - args: 1024 1
+    - args: 1024 2
+    - args: 1024 4
+    - args: 1024 8
+    - args: 1024 16
     - args: 1024 32
     - args: 1024 64
     - args: 1024 128
     - args: 1024 256
+    - args: 1024 384
     - args: 1024 512
+    - args: 1024 640
+    - args: 1024 768
+    - args: 1024 896
     - args: 1024 1024
+    - args: 2048 1
+    - args: 2048 2
+    - args: 2048 4
+    - args: 2048 8
+    - args: 2048 16
     - args: 2048 32
     - args: 2048 64
     - args: 2048 128
     - args: 2048 256
+    - args: 2048 384
     - args: 2048 512
+    - args: 2048 640
+    - args: 2048 768
+    - args: 2048 896
     - args: 2048 1024
