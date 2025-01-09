@@ -24,7 +24,7 @@ execute_with_settings() {
 
 default(){
 # unset_env
-benchmarks="rodinia-3.1-full|polybench-full|pannotia|GPU_Microbenchmark|Tango|deepbench"
+benchmarks="rodinia-3.1-full|polybench-full|pannotia|Tango|GPU_Microbenchmark|deepbench"
 #filter_app="rodinia-3.1-full|polybench-full|Tango|pannotia"
 filter_app=$benchmarks
 
@@ -36,6 +36,8 @@ trace_dir_base=/staff/fyyuan/hw_trace02
 ppt_gpu_version="PPT-GPU"
 use_ncu=1
 profile_cpi=0
+hw_prof_type=ncu-full
+loop=1
 
 run_name="paper"
 
@@ -46,6 +48,7 @@ time_out=7200
 
 ppt_src='/staff/fyyuan/repo/PPT-GPU/ppt.py'
 model_extra_params=''
+profling_extra_params=""
 }
 
 ppt_ori_cl32(){
@@ -124,17 +127,25 @@ run_name="KL"
 }
 
 # cache associaty
-
+ppt2_KL_deepbench(){
+default
+filter_app="deepbench"
+run_name="KL_db"
+}
 
 # Trace/profile manual
 trace_all(){
 default
-benchmarks="rodinia-3.1-full|polybench-full|GPU_Microbenchmark|deepbench|Tango|pannotia"
+benchmarks="rodinia-3.1-full|polybench-full|GPU_Microbenchmark|pannotia|Tango|deepbench"
 # filter_app="GPU_Microbenchmark:LGThrottle|GPU_Microbenchmark:longScoreboard"
+# filter_app="pannotia"
 filter_app=$benchmarks
 GPU=1
 trace_dir_base=/staff/fyyuan/hw_trace02
 time_out=7200
+hw_prof_type=ncu-full
+loop=3
+profling_extra_params="--no-overwrite"
 source env.sh
 }
 

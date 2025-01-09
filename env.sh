@@ -50,6 +50,7 @@ granularity=${granularity:-2}
 filter_l2=${filter_l2:-" "}
 use_approx=${use_approx:-" "}
 use_sm_trace=${use_sm_trace:-" "}
+hw_prof_type=${hw_prof_type:-"ncu-full"}
 
 # Profiling
 use_ncu=1
@@ -150,6 +151,8 @@ print_summary(){
     echo "HW GPU: $gpu [${GPU}]"
     echo "trace_dir: $trace_dir"
     echo "profiling NCU: $NCU"
+    echo "hw_prof_type: $hw_prof_type"
+    echo "profling_extra_params: $profling_extra_params"
     echo ""
 
     echo "[Simulation]:"
@@ -189,7 +192,7 @@ unset_env(){
     unset memory_model
     unset GPU_PROFILE
     unset granularity filter_l2 use_approx use_sm_trace memory_suffix
-    unset ppt_src model_extra_params
+    unset ppt_src model_extra_params hw_prof_type profling_extra_params
 }
 
 print_summary

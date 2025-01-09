@@ -136,6 +136,8 @@ def get_average_csv(profiling_file_list, skip_unit_row=False):
 
 collect_data = {}
 
+NCU = os.environ.get("NCU", "ncu")
+
 print("Start get hw result")
 if os.path.exists(args.output):
     if args.app_filter != args.benchmark_list: # 只有少数 app 时，读取旧数据
@@ -182,6 +184,16 @@ for app_and_arg in app_and_arg_list:
         acc_res = get_average_csv(profiling_res[args.select], skip_unit_row=True)
         for i,kernel_data in enumerate(acc_res):
             acc_res[i]['kernel_name'] = re.search(r'\w+', acc_res[i]['Kernel Name']).group(0)  # delete function params define
+    elif 'ncu-rep'==args.select:
+        dump_file_list = []
+        for i,file in enumerate(profiling_res[args.select]):
+            # /staff/fyyuan/nsight-compute/target/linux-desktop-glibc_2_11_3-x64/ncu -i profiling.0.ncu-rep --csv --page raw > profiling.ncu-rep-dump.0.csv
+            dump_file = f"{file}.csv"
+            if not os.path.exists(dump_file):
+                cmd = f"{NCU} -i {file} --csv --page raw > {dump_file}"
+                subprocess.run(shlex.split(cmd))
+            dump_file_list.append(dump_file)
+        acc_res = get_average_csv(dump_file_list)
     else:
         acc_res = get_average_csv(profiling_res[args.select])
 
