@@ -76,7 +76,7 @@ sass_isa = {
     "SHR"               : "iALU",
     "VABSDIFF"          : "iALU",
     "VABSDIFF4"         : "iALU",
-    # "CCTL"              : "iALU",
+    "CCTL"              : "iALU",
     # Single-Precision Floating Instructions
     "FADD"              : "fALU",
     "FADD32I"           : "fALU",

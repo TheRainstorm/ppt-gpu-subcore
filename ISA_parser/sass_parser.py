@@ -76,7 +76,7 @@ def parse(units_latency, sass_instructions, sass_path, num_warps):
         # elif "BAR" in opcode:
         #     inst_list.append("BarrierSYNC")
         #     inst_list.append(0)
-        elif "MEMBAR" in opcode:
+        elif "MEMBAR" in opcode or 'ERRBAR' in opcode:
             inst_list.append("MEMBAR")
             inst_list.append(0)
         else:
