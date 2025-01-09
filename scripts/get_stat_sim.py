@@ -190,17 +190,10 @@ def parse_kernel_json(file_path, full=True):
 
 print("Start get sim result")
 collect_data = {}
-# when get single app, load old data
-# if args.apps:
-#     if os.path.exists(args.output):
-#         with open(args.output, 'r') as f:
-#             try:
-#                 collect_data = json.load(f)
-#             except:
-#                 pass
-
-# backup old
 if os.path.exists(args.output):
+    if args.app_filter != args.benchmark_list: # 只有少数 app 时，读取旧数据
+        with open(args.output, 'r') as f: # merge old data
+            collect_data = json.load(f)
     os.rename(args.output, args.output + '.bak')
 
 for app_and_arg in app_and_arg_list:

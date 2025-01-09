@@ -1,6 +1,7 @@
 import argparse
 
 import json
+import shutil
 import subprocess
 import shlex
 import re
@@ -136,14 +137,12 @@ def get_average_csv(profiling_file_list, skip_unit_row=False):
 collect_data = {}
 
 print("Start get hw result")
-# # when get single app, load old data
-# if args.apps:
-#     if os.path.exists(args.output):
-#         with open(args.output, 'r') as f:
-#             collect_data = json.load(f)
-# backup old
 if os.path.exists(args.output):
-    os.rename(args.output, args.output + '.bak')
+    if args.app_filter != args.benchmark_list: # 只有少数 app 时，读取旧数据
+        with open(args.output, 'r') as f: # merge old data
+            collect_data = json.load(f)
+    shutil.move(args.output, args.output + '.bak')
+    
 
 for app_and_arg in app_and_arg_list:
     app = app_and_arg.split('/')[0]

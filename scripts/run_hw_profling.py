@@ -46,12 +46,15 @@ parser.add_argument("-t", "--time-out",
                     default=3*60*60, # 3h
                     help="Set time out seconds, if app run longer than this, kill it")
 parser.add_argument("--select", default="nvprof",
-                    choices=["nvprof", "ncu", "ncu-cpi", "nvprof-cpi", "ncu-full"],
+                    # choices=["nvprof", "ncu", "ncu-cpi", "nvprof-cpi", "ncu-full", "ncu-rep"],
                     help="select which metrics to profile")
 parser.add_argument('--replay-control',
                     # default=" --replay-mode application --cache-control all ",
                     default=" ",
                     help="ncu replay control")
+parser.add_argument('--ncu-rep-dir',
+                    default="",
+                    help="copy ncu rep to dst dir")
 args = parser.parse_args()
 
 from common import *
@@ -133,6 +136,24 @@ for loop in range(args.loop_cnt):
                         f'nvprof --print-gpu-trace --concurrent-kernels off --csv --log-file {profiling_output} ' \
                         f'-m stall_constant_memory_dependency,stall_exec_dependency,stall_inst_fetch,stall_memory_dependency,stall_memory_throttle,stall_not_selected,stall_other,stall_pipe_busy,stall_sleeping,stall_sync,stall_texture ' \
                         f' {exec_path} {argstr}\n'
+            elif args.select == "ncu-cycle":
+                sh_contents += f'export CUDA_VISIBLE_DEVICES="{args.device_num}";\n' \
+                        f'{NCU} {args.replay_control} --csv --log-file {profiling_output} --launch-count {args.kernel_number} --metric='\
+                        f'gpc__cycles_elapsed.max'\
+                        f' {exec_path} {argstr}\n'
+            elif args.select == "ncu-rep":
+                if args.ncu_rep_dir == '':
+                    print(f"ncu rep dir not specific or not exist")
+                    exit(1)
+                if not os.path.exists(args.ncu_rep_dir):
+                    os.makedirs(args.ncu_rep_dir, exist_ok=True)
+                copy_dir = os.path.join(args.ncu_rep_dir, app_and_arg)
+                os.makedirs(copy_dir, exist_ok=True)
+                
+                sh_contents += f'export CUDA_VISIBLE_DEVICES="{args.device_num}";\n' \
+                        f'{NCU} {args.replay_control} --set full -o profiling.{loop} -f --launch-count {args.kernel_number}'\
+                        f' {exec_path} {argstr}\n' \
+                        f'cp profiling.{loop}.ncu-rep {copy_dir}'
             else:
                 sh_contents += f'export CUDA_VISIBLE_DEVICES="{args.device_num}";\n' \
                         f'nvprof --print-gpu-trace --concurrent-kernels off --csv --log-file {profiling_output} ' \
