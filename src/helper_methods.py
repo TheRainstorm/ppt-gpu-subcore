@@ -16,6 +16,7 @@
 
 
 import os, sys, math, time
+from scipy import special as sp
 import json
 
 def dump_output(pred_out):
@@ -125,6 +126,14 @@ def dump_output(pred_out):
     print(f"CPI: {1/avg3}", file=outF)
     no_eligible_pct = count_eq_zero_pct(pred_out["scheduler_stats"]["issued_warps"][0])
     print(f"No Eligible(subcore 0, no issued): {no_eligible_pct}", file=outF)
+    
+    pred_out['active_block_per_cycle'] = active_block_per_cycle
+    pred_out['active_warp_per_cycle'] = avg1
+    pred_out['issued_warp_per_cycle'] = avg3
+    pred_out['active_warp_per_cycle_smsp'] = active_warp_per_cycle_list
+    pred_out['issued_warp_per_cycle_smsp'] = issued_warp_per_cycle_list
+    pred_out['smsp_ipc'] = avg3 * pred_out['num_subcore']
+    pred_out['smsp_cpi'] = 1 / pred_out['smsp_ipc']
     
     print("\n- Warp Stat:", file=outF)
     warp_cpi_list = get_warp_cpi(pred_out['warp_stats']['stall_types'])

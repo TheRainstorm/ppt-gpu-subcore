@@ -1,13 +1,13 @@
 import json
 import argparse
 
-gsi_stall_list = ['MemData', 'MemStruct', 'CompData', 'CompStruct', 'NotSelect', 'NoStall', 'Sync', 'Misc', 'Idle']
+gsi_stall_list = ['MemData', 'MemStruct', 'CompData', 'CompStruct', 'NotSelect', 'NoStall', 'Sync', 'Misc', 'Idle', 'IMC']
 gsi_stall_list_detail = [
     'MemData',
     'MemStruct',
     'CompData',
     'CompStruct', 'CompStruct.iALU', 'CompStruct.fALU', 'CompStruct.hALU', 'CompStruct.dALU', 'CompStruct.SFU', 'CompStruct.dSFU', 'CompStruct.iTCU', 'CompStruct.hTCU', 'CompStruct.BRA', 'CompStruct.EXIT',
-    'NotSelect', 'NoStall', 'Sync', 'Misc', 'Idle'
+    'NotSelect', 'NoStall', 'Sync', 'Misc', 'Idle', 'IMC'
 ]
 def convert_ncu_to_gsi(data):
     res_json = {}
@@ -17,14 +17,14 @@ def convert_ncu_to_gsi(data):
         for i, k in enumerate(app_res):
             # print(f"{i}: {k['kernel_name']}")
             kernel_cpi_res = {}
-            kernel_cpi_res['MemData'] = k['smsp__average_warps_issue_stalled_imc_miss_per_issue_active.ratio'] + k['smsp__average_warps_issue_stalled_long_scoreboard_per_issue_active.ratio']
-            kernel_cpi_res['MemStruct'] = k['smsp__average_warps_issue_stalled_drain_per_issue_active.ratio'] + k['smsp__average_warps_issue_stalled_lg_throttle_per_issue_active.ratio'] + k['smsp__average_warps_issue_stalled_tex_throttle_per_issue_active.ratio']
-            kernel_cpi_res['CompData'] = k['smsp__average_warps_issue_stalled_short_scoreboard_per_issue_active.ratio'] + k['smsp__average_warps_issue_stalled_wait_per_issue_active.ratio']
-            kernel_cpi_res['CompStruct'] = k['smsp__average_warps_issue_stalled_math_pipe_throttle_per_issue_active.ratio'] + k['smsp__average_warps_issue_stalled_mio_throttle_per_issue_active.ratio']
+            kernel_cpi_res['MemData'] = k['smsp__average_warps_issue_stalled_short_scoreboard_per_issue_active.ratio'] + k['smsp__average_warps_issue_stalled_long_scoreboard_per_issue_active.ratio']
+            kernel_cpi_res['MemStruct'] = k['smsp__average_warps_issue_stalled_drain_per_issue_active.ratio'] + k['smsp__average_warps_issue_stalled_lg_throttle_per_issue_active.ratio'] + k['smsp__average_warps_issue_stalled_tex_throttle_per_issue_active.ratio'] + k['smsp__average_warps_issue_stalled_mio_throttle_per_issue_active.ratio']
+            kernel_cpi_res['CompData'] = k['smsp__average_warps_issue_stalled_wait_per_issue_active.ratio']
+            kernel_cpi_res['CompStruct'] = k['smsp__average_warps_issue_stalled_math_pipe_throttle_per_issue_active.ratio']
             kernel_cpi_res['NotSelect'] = k['smsp__average_warps_issue_stalled_not_selected_per_issue_active.ratio']
             kernel_cpi_res['NoStall'] = k['smsp__average_warps_issue_stalled_selected_per_issue_active.ratio']
             kernel_cpi_res['Sync'] = k['smsp__average_warps_issue_stalled_barrier_per_issue_active.ratio'] + k['smsp__average_warps_issue_stalled_membar_per_issue_active.ratio']
-            kernel_cpi_res['Misc'] = k['smsp__average_warps_issue_stalled_misc_per_issue_active.ratio'] + k['smsp__average_warps_issue_stalled_dispatch_stall_per_issue_active.ratio'] + k['smsp__average_warps_issue_stalled_sleeping_per_issue_active.ratio'] + k['smsp__average_warps_issue_stalled_branch_resolving_per_issue_active.ratio']
+            kernel_cpi_res['Misc'] = k['smsp__average_warps_issue_stalled_imc_miss_per_issue_active.ratio'] + k['smsp__average_warps_issue_stalled_misc_per_issue_active.ratio'] + k['smsp__average_warps_issue_stalled_dispatch_stall_per_issue_active.ratio'] + k['smsp__average_warps_issue_stalled_sleeping_per_issue_active.ratio'] + k['smsp__average_warps_issue_stalled_branch_resolving_per_issue_active.ratio']
             # warpgroup_arrive
             
             kernel_cpi_res['Idle'] = 0
@@ -68,7 +68,7 @@ def convert_nvprof_to_gsi(data):
             res_json[app_arg].append(kernel_cpi_res)
     return res_json
 
-def state_to_cpi(state_dict, set_debug=False):
+def state_to_cpi(state_dict, set_debug=False, KL_ratio=0):
     cpi_stack = {}
     total_cycle = sum(state_dict.values())
     total_inst = state_dict.get('NoStall', 0)  # avoid zero
@@ -77,6 +77,10 @@ def state_to_cpi(state_dict, set_debug=False):
     
     for state in state_dict:
         cpi_stack[state] = state_dict[state]/total_inst
+    
+    if KL_ratio:
+        other_sum = sum(cpi_stack.values())
+        cpi_stack['IMC'] = KL_ratio*other_sum
     
     if set_debug:
         cpi_stack['debug'] = {}
@@ -97,12 +101,12 @@ def get_merged_cpi_stack(cpi_stack):
             cpi_stack_merged[k] = cpi_stack_merged.get(k, 0) + v
     return cpi_stack_merged
 
-def get_cpi_stack_list(state_dict_list, detail=False):
+def get_cpi_stack_list(state_dict_list, detail=False, KL_ratio=0):
     if type(state_dict_list) == dict:
         # no subcore
-        cpi_stack_list = [state_to_cpi(state_dict_list)]
+        cpi_stack_list = [state_to_cpi(state_dict_list, KL_ratio=KL_ratio)]
     else:
-        cpi_stack_list = [state_to_cpi(state_dict) for state_dict in state_dict_list]
+        cpi_stack_list = [state_to_cpi(state_dict, KL_ratio=KL_ratio) for state_dict in state_dict_list]
     non_zero_num = len([cpi_stack for cpi_stack in cpi_stack_list if cpi_stack])
     # convert to gsi
     def fill_gsi(cpi_stack, stall_list=gsi_stall_list):
@@ -141,10 +145,11 @@ def convert_ppt_gpu_to_gsi(data, select, detail=False):
         print(f"{app_arg}: {len(app_res)}")
         res_json[app_arg] = []
         for i, kernel_res in enumerate(app_res):
+            KL_ratio = kernel_res.get('KL_ratio', 0)
             if select == "warp":
-                cpi_stack_list = get_cpi_stack_list(kernel_res['warp_stats']['stall_types'], detail)
+                cpi_stack_list = get_cpi_stack_list(kernel_res['warp_stats']['stall_types'], detail, KL_ratio=KL_ratio)
             else:
-                cpi_stack_list = get_cpi_stack_list(kernel_res['scheduler_stats']['stall_types'], detail)
+                cpi_stack_list = get_cpi_stack_list(kernel_res['scheduler_stats']['stall_types'], detail, KL_ratio=KL_ratio)
             res_json[app_arg].append(cpi_stack_list)
     return res_json
 

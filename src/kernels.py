@@ -147,7 +147,10 @@ class Kernel():
 
 
 
-    def kernel_call(self, overwrite_cache_params=None, memory_model='simulator'):
+    def kernel_call(self, overwrite_cache_params=None, memory_model='simulator', scale_opt=0, act_cycle_select='', ipc_select=''):
+        '''
+        ipc_select: 三种方法计算结果 tot_ipc, sm_ipc, smsp_ipc(用不了)
+        '''
         # 设置 memory model 需要的变量
         gpu_config = self.gpuNode.gpu_configs
         kernel_param = self.kernel_info  # kernel info 信息更多
@@ -288,6 +291,7 @@ class Kernel():
         pred_out["comp_cycles"] = self.acc.TB_launch_overhead
 
         num_subcore = self.acc.num_warp_schedulers_per_SM
+        pred_out['num_subcore'] = num_subcore
         max_warp_per_subcore = self.acc.max_active_threads_per_SM // self.acc.warp_size // num_subcore
         sm_stats = {}
         sm_stats['active_blocks'] = {}
@@ -406,9 +410,18 @@ class Kernel():
 
         pred_out["achieved_active_warps"] = pred_out["achieved_active_warps"] / pred_out["active_cycles"]
         pred_out["achieved_occupancy"]= (float(pred_out["achieved_active_warps"]) / float(self.acc.max_active_warps_per_SM)) * 100
-
+        
+        # 几种不同计算 scale 的方式
+        scale1 = pred_out["allocted_block_per_sm"] / pred_out["block_per_sm_simulate"]
+        scale2 = ceil(pred_out["allocted_block_per_sm"] / pred_out["block_per_sm_simulate"], 1)
+        num_workloads_left = pred_out["allocted_block_per_sm"] - pred_out["block_per_sm_simulate"]
+        remaining_cycles = ceil((num_workloads_left/pred_out["block_per_sm_simulate"]),1)
+        scale_ori = max(1, remaining_cycles)
+        scale = [scale_ori, scale1, scale2][scale_opt]
+        
+        # 计算 active_cycle_scale
         kernel_detail = {}
-        # origin cycle
+        # PPT-GPU 原本计算方法
         #TODO: has to be done in a more logical way per TB
         last_inst_delay = 0
         for block in block_list:
@@ -420,18 +433,12 @@ class Kernel():
         act_cycles_max = pred_out["active_cycles"] + pred_out["comp_cycles"] + last_inst_delay_act_max
         kernel_detail["act_cycles_min"], kernel_detail["act_cycles_max"] = act_cycles_min, act_cycles_max
 
-        # 几种不同计算 scale 的方式
-        scale1 = pred_out["allocted_block_per_sm"] / pred_out["block_per_sm_simulate"]
-        scale2 = ceil(pred_out["allocted_block_per_sm"] / pred_out["block_per_sm_simulate"], 1)
-        num_workloads_left = pred_out["allocted_block_per_sm"] - pred_out["block_per_sm_simulate"]
-        remaining_cycles = ceil((num_workloads_left/pred_out["block_per_sm_simulate"]),1)
-        scale_ori = max(1, remaining_cycles)
-        
         pred_out["PPT-GPU_min"] = pred_out["gpu_act_cycles_min"] = act_cycles_min * scale_ori
         pred_out["PPT-GPU_max"] = pred_out["gpu_act_cycles_max"] = act_cycles_max * scale_ori
 
         block_actual_end = max([block.actual_end for block in block_list])
-        # my cycle
+        
+        # 修正后的计算方法，按照 subcore 的最大完成时间来计算
         subcore_completed_nzero = [e for e in subcore_completed if e != 0]
         smsp_act_cycles_min = min(subcore_completed_nzero)
         smsp_act_cycles_max = max(subcore_completed_nzero)
@@ -439,8 +446,8 @@ class Kernel():
         last_inst = block_actual_end - smsp_act_cycles_max
         tail = smsp_act_cycles_max - smsp_act_cycles_avg
         
+        # 考虑负载不均衡（avg，tail） + 最后一条指令
         result = {}
-        scale = scale_ori
         result["ours_base"] = pred_out["active_cycles"] * scale
         result["ours_BL"] = (pred_out["active_cycles"] + pred_out['comp_cycles']) * scale
         result["ours_smsp_min"] = smsp_act_cycles_min * scale
@@ -452,8 +459,10 @@ class Kernel():
         result["ours_smsp_avg_scale2"] = smsp_act_cycles_avg * scale2
         result["ours_smsp_avg_tail_scale2"] = smsp_act_cycles_avg * scale2 + tail
         result["ours_smsp_avg_tail_scale2_LI"] = smsp_act_cycles_avg * scale2 + tail + last_inst
-
-        # kernel lat compensation
+        pred_out["active_cycle_scale"] = result["ours_smsp_avg_LI" if act_cycle_select=='' else act_cycle_select]
+        pred_out['result'] = result
+        
+        # 计算 Kernel launch latency
         # kernel_lat = 2.16*(pred_out['grid_size'] if pred_out['grid_size'] >= 128 else 128) + 1656
         gs = pred_out['grid_size']
         bs = pred_out['block_size']
@@ -463,7 +472,7 @@ class Kernel():
         kernel_lat = slop*gs + c0
         kernel_detail['kernel_lat'] = kernel_lat
 
-        pred_out['result'] = result
+        # 记录有用数据 kernel_detail
         kernel_detail['active_cycles'] = pred_out["active_cycles"]
         # kernel_detail['subcore_completed'] = subcore_completed
         kernel_detail['subcore_cycles'] = ','.join([str(e) for e in subcore_completed])
@@ -480,27 +489,47 @@ class Kernel():
         kernel_detail['tail'] = tail
         pred_out['kernel_detail'] = kernel_detail
         
-        # for scripts compability, keep original name
+        # 计算最终 SM cycle
         pred_out["my_gpu_act_cycles_min"] = result["ours_smsp_min"]
-        pred_out["my_gpu_act_cycles_max"] = result["ours_smsp_avg_tail_LI"] + kernel_lat
+        pred_out["my_gpu_act_cycles_max"] = pred_out["active_cycle_scale"] + kernel_lat
         result['my_gpu_act_cycles_max'] = pred_out["my_gpu_act_cycles_max"]
 
-        pred_out["sm_act_cycles.sum"] = pred_out["gpu_act_cycles_max"] * pred_out["active_SMs"]
+        pred_out["sm_act_cycles.sum"] = pred_out["gpu_act_cycles_max"] * pred_out["active_SMs"] # 所有 SM(active) 总周期
         pred_out["sm_elp_cycles.sum"] = pred_out["gpu_act_cycles_max"] * self.acc.num_SMs
         pred_out["my_sm_act_cycles.sum"] = pred_out["my_gpu_act_cycles_max"] * pred_out["active_SMs"]
         pred_out["my_sm_elp_cycles.sum"] = pred_out["my_gpu_act_cycles_max"] * self.acc.num_SMs
         
+        # 指令数相关
+        # warps_instructions_executed 是单个 SM 模拟部分块的指令数
         avg_instructions_executed_per_block = pred_out["warps_instructions_executed"] / len(block_list)
+        # SM 正常应该分配的线程块数（向上取整，代表分配最多的一个）
+        pred_out['sm_warps_instructions_executed'] = avg_instructions_executed_per_block * pred_out["allocted_block_per_sm"]
+        # 整个程序的指令数
         pred_out["tot_warps_instructions_executed"] = avg_instructions_executed_per_block * pred_out["grid_size"]
         # pred_out["tot_threads_instructions_executed"] = (pred_out["tot_warps_instructions_executed"] * self.kernel_block_size) / pred_out["allocated_active_warps_per_block"]  # 这里 allocated_active_warps_per_block 为 0 了，不知道原本逻辑是什么
         pred_out["tot_threads_instructions_executed"] = pred_out["tot_warps_instructions_executed"] * 32
         
-        pred_out["tot_ipc"] = pred_out["tot_warps_instructions_executed"] * (1.0/pred_out["sm_act_cycles.sum"])
+        # ipc 计算
+        # 方法1：程序总指令 / sm 周期之和。（仍然表示 sm 的 ipc）
+        # pred_out["tot_ipc"] = pred_out["tot_warps_instructions_executed"] * (1.0/pred_out["sm_act_cycles.sum"])
         pred_out["my_tot_ipc"] = pred_out["tot_warps_instructions_executed"] * (1.0/pred_out["my_sm_act_cycles.sum"])
-        
+        pred_out['tot_ipc'] = pred_out["my_tot_ipc"]
         pred_out["tot_cpi"] = 1 * (1.0/pred_out["tot_ipc"])
         pred_out["tot_throughput_ips"] = pred_out["tot_ipc"] * self.acc.GPU_clockspeed
         pred_out["execution_time_sec"] = pred_out["sm_elp_cycles.sum"] * (1.0/self.acc.GPU_clockspeed)
+        
+        # 方法2：sm 总指令 / sm 周期
+        pred_out['sm_ipc'] = pred_out['sm_warps_instructions_executed'] / pred_out["my_gpu_act_cycles_max"]
+        pred_out['sm_cpi'] = 1/ pred_out['sm_ipc']
+        
+        # 方法3：在 helper_methods.py。使用 scheduler 数据。结果乘上子核数目
+        # smsp_ipc
+        
+        # 选择 ipc
+        pred_out["tot_ipc"] = pred_out["sm_ipc" if ipc_select=='' else ipc_select]
+        
+        # KL 和剩余部分比值
+        pred_out['KL_ratio'] = kernel_lat / (pred_out["my_gpu_act_cycles_max"] - kernel_lat)
 
         pred_out['subcore_warp_executed'] = subcore_warp_executed
         pred_out['subcore_instr_executed'] = subcore_instr_executed
@@ -511,7 +540,6 @@ class Kernel():
         # 对应 get_stat_sim 中使用到的结果
         pred_out["gpu_act_cycles_min"] = pred_out["my_gpu_act_cycles_min"]
         pred_out["gpu_act_cycles_max"] = pred_out["my_gpu_act_cycles_max"]
-        pred_out["tot_ipc"] = pred_out["my_tot_ipc"]
         pred_out["sm_act_cycles.sum"] = pred_out["my_sm_act_cycles.sum"]
         pred_out["sm_elp_cycles.sum"] = pred_out["my_sm_elp_cycles.sum"]
         
@@ -523,9 +551,7 @@ class Kernel():
         pred_out['warp_inst_len'] = warp_inst_len
         
         ## commit results
-        dump_output(pred_out)
-
-
+        dump_output(pred_out)    
 
     def spawn_blocks(self, gpu, blocks_per_SM, warps_per_block, tasklist, kernel_id, isa, avg_mem_lat, avg_atom_lat):
         '''

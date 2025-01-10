@@ -137,7 +137,7 @@ def parse_kernel_json(file_path, full=True):
     data_json_new["sm_active_cycles_sum"] = data_json["sm_act_cycles.sum"]  # 所有 SM cycle 总和
     data_json_new["sm_elapsed_cycles_sum"] = data_json["sm_elp_cycles.sum"] # 所有 SM elapsed cycle 总和（和 active 区别：active 排除了非活跃的 SM）
     # ipc
-    data_json_new["ipc"] = data_json["tot_ipc"]
+    data_json_new["ipc"] = data_json["tot_ipc"]  # SM 平均 IPC
     
     # 针对我的模型，尝试不同选择不同 cycle
     ## select other result
