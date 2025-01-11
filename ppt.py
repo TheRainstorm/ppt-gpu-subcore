@@ -76,6 +76,8 @@ def main():
     parser.add_argument("--no-overwrite",
                  action="store_true",
                  help="not overwrite already simulated kernels")
+    parser.add_argument('--set-gpu-params', default='',
+                        help='key:value,key:value')
     args = parser.parse_args()
     granularity = args.granularity
 
@@ -84,7 +86,7 @@ def main():
         print(f"app path {args.app_path} doesn't exist")
         sys.exit(1)
     
-    gpu_configs = get_gpu_config(args.config)
+    gpu_configs = get_gpu_config(args.config, set_gpu_params=args.set_gpu_params)
     app_config = get_app_config(args.app_path)
 
     # read cache reference data

@@ -206,7 +206,7 @@ def get_current_kernel_info(kernel_id, app_name, app_path, app_config, instructi
     
     return current_kernel_info
 
-def get_gpu_config(gpu_config):
+def get_gpu_config(gpu_config, set_gpu_params=None):
     # sys.path.append(repo_path)
     # get hw configuaration
     try:
@@ -223,6 +223,16 @@ def get_gpu_config(gpu_config):
         sys.exit(1)
     
     c = gpu_configs.uarch
+    if set_gpu_params:
+        for param in set_gpu_params.split(","):
+            key, value = param.split(":")
+            if key in c:
+                c[key] = int(value)
+                print(f"[Info] {key} set to {value}")
+            else:
+                print(f"[Error] unknown key: {key}", file=sys.stderr)
+                sys.exit(1)
+    
     initial_interval = {
         # Initiation interval (II) = threadsPerWarp // #FULanes
         "iALU"              :   32*4 // c['num_INT_units_per_SM'],
