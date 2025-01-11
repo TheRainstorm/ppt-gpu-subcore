@@ -1,5 +1,6 @@
 import argparse
 from enum import IntEnum
+import io
 import json
 import os
 import random
@@ -323,30 +324,32 @@ def sdcm_model_warpper_parallel(kernel_id, trace_dir,
 
     # debug print
     global print_table_toggle
+    string_io = io.StringIO()
+    print_table_toggle = False
+    print("L1/TEX Cache", file=string_io)
+    tb = pt.PrettyTable()
+    tb.field_names = ["Type", "Instr/Requests", "Sectors", "Sectors/Req", "Hit Rate", "Bytes", "Sector Misses to L2"]
+    tb.add_row(["Global Load", K['gmem_ld_reqs'], K['gmem_ld_sectors'], K['gmem_ld_diverg'], K['l1_hit_rate_ld'], K['gmem_ld_sectors']*gpu_config['l1_sector_size'], 0])
+    tb.add_row(["Global Store", K['gmem_st_reqs'], K['gmem_st_sectors'], K['gmem_st_diverg'], K['l1_hit_rate_st'], K['gmem_st_sectors']*gpu_config['l1_sector_size'], 0])
+    tb.add_row(["Total", K['gmem_tot_reqs'], K['gmem_tot_sectors'], K['gmem_tot_diverg'], K['l1_hit_rate'], K['gmem_tot_sectors']*gpu_config['l1_sector_size'], 0])
+    print(tb, file=string_io)
+    print("L2 Cache", file=string_io)
+    tb = pt.PrettyTable()
+    tb.field_names = ["Type", "Requests", "Sectors", "Sectors/Req", "Hit Rate", "Bytes", "Sector Misses to Device"]
+    tb.add_row(["L1/TEX Load", K['l2_ld_reqs'], K['l2_ld_trans'],  divide_or_zero(K['l2_ld_trans'],K['l2_ld_reqs']), K['l2_hit_rate_ld'], K['l2_ld_trans']*gpu_config['l2_sector_size'], 0])
+    tb.add_row(["L1/TEX Store", K['l2_st_reqs'], K['l2_st_trans'], divide_or_zero(K['l2_st_trans'],K['l2_st_reqs']), K['l2_hit_rate_st'], K['l2_st_trans']*gpu_config['l2_sector_size'], 0])
+    tb.add_row(["L1/TEX Total", K['l2_ld_reqs']+K['l2_st_reqs'], K['l2_tot_trans'], divide_or_zero(K['l2_tot_trans'],K['l2_ld_reqs']+K['l2_st_reqs']), K['l2_hit_rate'], K['l2_tot_trans']*gpu_config['l2_sector_size'], 0])
+    print(tb, file=string_io)
+    print("Device Memory", file=string_io)
+    tb = pt.PrettyTable()
+    tb.field_names = ["Type", "Sectors", "Bytes"]
+    tb.add_row(["Load", K['dram_ld_trans'],  K['dram_ld_trans']*32])
+    tb.add_row(["Store", K['dram_st_trans'], K['dram_st_trans']*32])
+    tb.add_row(["Total", K['dram_tot_trans'],K['dram_tot_trans']*32])
+    print(tb, file=string_io)
     if kernel_id==1 or print_table_toggle:
-        print_table_toggle = False
-        print("L1/TEX Cache")
-        tb = pt.PrettyTable()
-        tb.field_names = ["Type", "Instr/Requests", "Sectors", "Sectors/Req", "Hit Rate", "Bytes", "Sector Misses to L2"]
-        tb.add_row(["Global Load", K['gmem_ld_reqs'], K['gmem_ld_sectors'], K['gmem_ld_diverg'], K['l1_hit_rate_ld'], K['gmem_ld_sectors']*gpu_config['l1_sector_size'], 0])
-        tb.add_row(["Global Store", K['gmem_st_reqs'], K['gmem_st_sectors'], K['gmem_st_diverg'], K['l1_hit_rate_st'], K['gmem_st_sectors']*gpu_config['l1_sector_size'], 0])
-        tb.add_row(["Total", K['gmem_tot_reqs'], K['gmem_tot_sectors'], K['gmem_tot_diverg'], K['l1_hit_rate'], K['gmem_tot_sectors']*gpu_config['l1_sector_size'], 0])
-        print(tb)
-        print("L2 Cache")
-        tb = pt.PrettyTable()
-        tb.field_names = ["Type", "Requests", "Sectors", "Sectors/Req", "Hit Rate", "Bytes", "Sector Misses to Device"]
-        tb.add_row(["L1/TEX Load", K['l2_ld_reqs'], K['l2_ld_trans'],  divide_or_zero(K['l2_ld_trans'],K['l2_ld_reqs']), K['l2_hit_rate_ld'], K['l2_ld_trans']*gpu_config['l2_sector_size'], 0])
-        tb.add_row(["L1/TEX Store", K['l2_st_reqs'], K['l2_st_trans'], divide_or_zero(K['l2_st_trans'],K['l2_st_reqs']), K['l2_hit_rate_st'], K['l2_st_trans']*gpu_config['l2_sector_size'], 0])
-        tb.add_row(["L1/TEX Total", K['l2_ld_reqs']+K['l2_st_reqs'], K['l2_tot_trans'], divide_or_zero(K['l2_tot_trans'],K['l2_ld_reqs']+K['l2_st_reqs']), K['l2_hit_rate'], K['l2_tot_trans']*gpu_config['l2_sector_size'], 0])
-        print(tb)
-        print("Device Memory")
-        tb = pt.PrettyTable()
-        tb.field_names = ["Type", "Sectors", "Bytes"]
-        tb.add_row(["Load", K['dram_ld_trans'],  K['dram_ld_trans']*32])
-        tb.add_row(["Store", K['dram_st_trans'], K['dram_st_trans']*32])
-        tb.add_row(["Total", K['dram_tot_trans'],K['dram_tot_trans']*32])
-        print(tb)
-    
+        print(string_io.getvalue())
+    K['debug_memory_print'] = string_io.getvalue()
     return K
 
 def memory_model_warpper_single_kernel(gpu_config, kernel_param, occupancy_res, app_path, model='simulator', granularity=2,

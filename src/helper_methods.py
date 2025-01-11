@@ -30,7 +30,7 @@ def dump_output(pred_out):
     outF = open(os.path.join(pred_out["app_report_dir"], "kernel_"+kernel_prefix+".out"), "w+")
     outF2 = open(os.path.join(pred_out["app_report_dir"], f"kernel_{pred_out['kernel_id']}_tasklist.txt"), "w")
     outF3 = open(os.path.join(pred_out["app_report_dir"], f"kernel_{pred_out['kernel_id']}_pred_out.json"), "w")
-    
+
     print("kernel name:", pred_out["kernel_name"], file=outF)
     
     print("\n- Total GPU computations is divided into " + str(pred_out["grid_size"])+\
@@ -120,12 +120,16 @@ def dump_output(pred_out):
     issued_warp_per_cycle_list, avg3 = counter_avg_list(pred_out["scheduler_stats"]["issued_warps"])
     print(f"debug: active_cycle: {pred_out['active_cycles']}", file=outF)
     print(f"debug: active_block_per_cycle: {active_block_per_cycle}", file=outF)
-    print(f"Active Warps Per Scheduler: {active_warp_per_cycle_list} {avg1}", file=outF)
+    print(f"Active Warps Per Scheduler: {avg1} {active_warp_per_cycle_list}", file=outF)
     print(f"Eligible Warps Per Scheduler: TODO", file=outF)
-    print(f"Issued Warp Per Scheduler: {issued_warp_per_cycle_list} {avg3}", file=outF)
-    print(f"CPI: {1/avg3}", file=outF)
+    print(f"Issued Warp Per Scheduler: {avg3} {issued_warp_per_cycle_list}", file=outF)
     no_eligible_pct = count_eq_zero_pct(pred_out["scheduler_stats"]["issued_warps"][0])
     print(f"No Eligible(subcore 0, no issued): {no_eligible_pct}", file=outF)
+    
+    warp_cpi_list = get_warp_cpi(pred_out['warp_stats']['stall_types'])
+    sched_cpi_list = get_scheduler_cpi(pred_out['scheduler_stats']['stall_types'])
+    cpi_list = [cpi['debug']['average_warp_cycle_per_inst'] for cpi in warp_cpi_list]
+    avg_cpi = sum(cpi_list)/len(cpi_list)
     
     pred_out['active_block_per_cycle'] = active_block_per_cycle
     pred_out['active_warp_per_cycle'] = avg1
@@ -135,15 +139,39 @@ def dump_output(pred_out):
     pred_out['smsp_ipc'] = avg3 * pred_out['num_subcore']
     pred_out['smsp_cpi'] = 1 / pred_out['smsp_ipc']
     
-    print("\n- Warp Stat:", file=outF)
-    warp_cpi_list = get_warp_cpi(pred_out['warp_stats']['stall_types'])
-    sched_cpi_list = get_scheduler_cpi(pred_out['scheduler_stats']['stall_types'])
-    cpi_list = [cpi['debug']['average_warp_cycle_per_inst'] for cpi in warp_cpi_list]
-    avg_cpi = sum(cpi_list)/len(cpi_list)
-    print(f"Warp Cycle Per Issued Instruction: {cpi_list} {avg_cpi}", file=outF)
-    print(f"CPI stack Warp: {json.dumps(warp_cpi_list, indent=4)}", file=outF)
-    print(f"CPI stack Scheduler: {json.dumps(sched_cpi_list, indent=4)}", file=outF)
+    print("\nDebug:", file=outF)
+    print(f"Grid Size: {pred_out['grid_size']}", file=outF)
+    print(f"Block Size: {pred_out['block_size']}", file=outF)
+    print(f"block_per_sm_simulate: {pred_out['block_per_sm_simulate']}", file=outF)
+    print(f"max_active_block_per_sm: {pred_out['max_active_block_per_sm']}", file=outF)
+    print(f"allocted_block_per_sm: {pred_out['allocted_block_per_sm']}", file=outF)
     
+    print(f"AMAT_ori: {pred_out['AMAT_ori']}", file=outF)
+    print(f"AMAT_sum: {pred_out['AMAT_sum']}", file=outF)
+    print(f"AMAT_foumula: {pred_out['AMAT_foumula']}", file=outF)
+    
+    print(f"achieved_occupancy: {pred_out['achieved_occupancy']}", file=outF)
+    print(f"active_cycle_scale: {pred_out['active_cycle_scale']}", file=outF)
+    print(f"kernel_lat: {pred_out['kernel_detail']['kernel_lat']}", file=outF)
+    print(f"my_gpu_act_cycles_max: {pred_out['my_gpu_act_cycles_max']}", file=outF)
+    
+    print(f"tot_ipc: {pred_out['tot_ipc']}", file=outF)
+    print(f"tot_cpi: {pred_out['tot_cpi']}", file=outF)
+    print(f"sm_ipc: {pred_out['sm_ipc']}", file=outF)
+    print(f"sm_cpi: {pred_out['sm_cpi']}", file=outF)
+    
+    print(f"Active Warps Per Scheduler: {avg1} {active_warp_per_cycle_list}", file=outF)
+    print(f"Issued Warp Per Scheduler: {avg3} {issued_warp_per_cycle_list}", file=outF)
+    print(f"Scheduler (CPI): {1/avg3}", file=outF)
+    print(f"Warp (CPI): {cpi_list} {avg_cpi}", file=outF)
+    
+    print(f"tot_warps_instructions_executed: {pred_out['tot_warps_instructions_executed']}", file=outF)
+    print(f"sm_warps_instructions_executed: {pred_out['sm_warps_instructions_executed']}", file=outF)
+    
+    if 'debug_memory_print' in pred_out['memory_stats']:
+        print("\n- Memory Performance:", file=outF)
+        print(pred_out['memory_stats']['debug_memory_print'], file=outF)
+
     print("\n- Instruction Statistics:", file=outF)
     inst_count_dict = get_inst_count_dict(pred_out["kernel_tasklist"])
     print(f"{json.dumps(inst_count_dict, indent=4)}", file=outF)
@@ -152,6 +180,11 @@ def dump_output(pred_out):
     print("\t* Memory model:", round(pred_out["simulation_time"]["memory"], 3), "sec,", convert_sec(pred_out["simulation_time"]["memory"]), file=outF)
     print("\t* Compute model:", round(pred_out["simulation_time"]["compute"], 3), "sec,", convert_sec(pred_out["simulation_time"]["compute"]), file=outF)
 
+    print("\n- Warp Stat:", file=outF)
+    print(f"Warp Cycle Per Issued Instruction: {cpi_list} {avg_cpi}", file=outF)
+    print(f"CPI stack Warp: {json.dumps(warp_cpi_list, indent=4)}", file=outF)
+    print(f"CPI stack Scheduler: {json.dumps(sched_cpi_list, indent=4)}", file=outF)
+    
     def dump_tasklist(tasklists):
         # summary
         insts_cnt = [(warp_id, len(tasklist)) for warp_id, tasklist in tasklists.items()]
@@ -164,6 +197,10 @@ def dump_output(pred_out):
                 print(task, file=outF2)
     dump_tasklist(pred_out["kernel_tasklist"])
     del pred_out["kernel_tasklist"]
+    
+    if 'debug_memory_print' in pred_out['memory_stats']:
+        del pred_out['memory_stats']['debug_memory_print']
+    
     json.dump(pred_out, outF3, indent=4)
     outF2.close()
     outF3.close()
