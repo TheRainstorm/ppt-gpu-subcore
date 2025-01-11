@@ -9,6 +9,13 @@ import yaml
 import hashlib
 from datetime import datetime
 
+def get_app_config(app_path):
+    app_config_path = os.path.join(app_path, "app_config.py")
+    app_config = {}
+    with open(app_config_path, "r") as file:
+        exec(file.read(), app_config)
+    return app_config
+
 parser = argparse.ArgumentParser(
     description='Simulate all app defined'
 )
@@ -22,11 +29,17 @@ parser.add_argument("-F", "--app-filter", default="", help="filter apps. e.g. re
 parser.add_argument("-T", "--trace_dir",
                     required=True,
                     help="The root of all the trace file")
+parser.add_argument("-R", "--report_dir",
+                    required=True,
+                    help="The root of all the output file")
 parser.add_argument("--not-full", dest="full",
                  action="store_false",
                  help="get full sim result")
 parser.add_argument("-o", "--output",
                  default="sim_res.json")
+parser.add_argument("-C", "--app_config_cache",
+                 default="kernels.json",
+                 help='cache app_config.py database')
 args = parser.parse_args()
 
 from common import *
@@ -193,56 +206,75 @@ collect_data = {}
 if os.path.exists(args.output):
     if args.app_filter != args.benchmark_list: # 只有少数 app 时，读取旧数据
         with open(args.output, 'r') as f: # merge old data
+            print(f"load old data: {args.output}")
             collect_data = json.load(f)
-    os.rename(args.output, args.output + '.bak')
+    # os.rename(args.output, args.output + '.bak')
+
+app_config_cache = {}
+if os.path.exists(args.app_config_cache):
+    with open(args.app_config_cache, 'r') as f:
+        print(f"load app_config_cache: {args.app_config_cache}")
+        app_config_cache = json.load(f)
 
 for app_and_arg in app_and_arg_list:
     app = app_and_arg.split('/')[0]
+    app_report_dir = os.path.join(args.report_dir, app_and_arg)
     app_trace_dir = os.path.join(args.trace_dir, app_and_arg)
     
     if args.apps and app_and_arg not in args.apps:
         continue
     
-    if not os.path.exists(app_trace_dir):
+    if not os.path.exists(app_report_dir):
         print(f"{app_and_arg} not found")
         continue
-    
-    if os.path.exists(os.path.join(app_trace_dir, 'running')):
-        print(f"{app_and_arg} not finished simulation")
-        if app_and_arg in collect_data:
-            print(f"remove {app_and_arg} from collect_data")
-            del collect_data[app_and_arg]
-        continue
-
     # get all sim log file
     # file_list = []
-    # for file in os.listdir(app_trace_dir):
-    #     m = re.search(r'kernel\_(?P<kernel_id>\d+)\_(?P<type>SASS|PTX)\_.*\.out', file)
+    # for file in os.listdir(app_report_dir):
+    #     m = re.search(r'kernel\_(?P<kernel_id>\d+)\_pred_out.json', file)
     #     if m:
-    #         file_list.append( (int(m.group('kernel_id')), os.path.join(app_trace_dir, file)) ) 
-    file_list = []
-    for file in os.listdir(app_trace_dir):
-        m = re.search(r'kernel\_(?P<kernel_id>\d+)\_pred_out.json', file)
-        if m:
-            file_list.append( (int(m.group('kernel_id')), os.path.join(app_trace_dir, file)) ) 
-    file_list.sort(key=lambda x: x[0])
+    #         file_list.append( (int(m.group('kernel_id')), os.path.join(app_report_dir, file)) ) 
+    ## sort by kernel_id
+    # file_list.sort(key=lambda x: x[0])
+
+    # 获得 app config 中的 kernel 数
+    if app_and_arg in app_config_cache:
+        app_kernels_id = app_config_cache[app_and_arg]
+    else:
+        app_config = get_app_config(app_trace_dir)
+        app_kernels_id = app_config['app_kernels_id']
+        app_config_cache[app_and_arg] = app_kernels_id
     
-    # app_res = [ {} for i in range(len(file_list)) ]
     app_res = []
+    success = True
     try:
-        for kernel_id, file_path in file_list:
+        for kernel_id in app_kernels_id:
+            file_path = os.path.join(app_report_dir, f'kernel_{kernel_id}_pred_out.json')
+            if not os.path.exists(file_path):
+                print(f"{app_and_arg} kernel {kernel_id} not found")
+                if app_and_arg in collect_data:
+                    print(f"remove {app_and_arg} from collect_data")
+                    del collect_data[app_and_arg]
+                    # with open(args.output, 'w') as f:
+                    #     json.dump(collect_data, f, indent=4)
+                success = False
+                break
+            # k_res = parse_kernel_log(file_path)
             k_res = parse_kernel_json(file_path, args.full)
             k_res['kernel_id'] = kernel_id  # must keep kernel_id(1-based)
             app_res.append(k_res)
     except Exception as e:
         print(f"==========\nError in {app_and_arg}")
-        print(f"{kernel_id}/{len(file_list)} {file_path}")
+        print(f"{kernel_id} {file_path}")
         print(e)
         print("==========")
         continue
     
     print(f"{app_and_arg}: {len(app_res)}")
-    collect_data[app_and_arg] = app_res
+    if success:
+        collect_data[app_and_arg] = app_res
 
 with open(args.output, 'w') as f:
     json.dump(collect_data, f, indent=4)
+
+with open(args.app_config_cache, 'w') as f:
+    json.dump(app_config_cache, f, indent=4)

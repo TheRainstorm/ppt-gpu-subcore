@@ -52,7 +52,8 @@ cd ${ppt_gpu_dir}
 # python ${ppt_gpu_dir}/scripts/run_simulation.py -M "mpiexec -n 2" -F ${filter_app} -B ${benchmarks} -T ${trace_dir} -H ${GPU_PROFILE} --granularity 2 -R ${report_dir} -l run_sim_${sim_identifier}.log --time-out ${time_out} --ppt-src ${ppt_src} --extra-params "${model_extra_params}"
 python ${ppt_gpu_dir}/scripts/run_simulation.py -M "mpiexec -n 2" -F ${filter_app} -B ${benchmarks} -T ${trace_dir} -H ${GPU_PROFILE} --granularity 2 -R ${report_dir} -l run_sim_${sim_identifier}.log --time-out ${time_out} --ppt-src ${ppt_src} --extra-params "${model_extra_params}" > /dev/null
 
-python ${ppt_gpu_dir}/scripts/get_stat_sim.py -B ${benchmarks} -F ${filter_app} -T ${report_dir} -o ${res_sim_json}
+# python ${ppt_gpu_dir}/scripts/get_stat_sim.py -B ${benchmarks} -F ${filter_app} -T ${report_dir} -o ${res_sim_json}
+python ${ppt_gpu_dir}/scripts/get_stat_sim2.py -B ${benchmarks} -F ${filter_app} -R ${report_dir} -T ${trace_dir} -o ${res_sim_json}
 # # 获得更少信息的 json，避免过大，不太方便查看
 # python ${ppt_gpu_dir}/scripts/get_stat_sim.py -B ${benchmarks} -F ${filter_app} -T ${report_dir} --not-full -o ${res_sim_lite_json}
 

@@ -168,6 +168,7 @@ for loop in range(args.loop_cnt):
             subprocess.call(['chmod', 'u+x', run_script_path])
             
             failed_list = []
+            success = False
             if not args.norun:
                 saved_dir = os.getcwd()
                 os.chdir(run_dir)
@@ -179,6 +180,7 @@ for loop in range(args.loop_cnt):
                         logging(f"{exe_name} failed")
                         failed_list.append(app_and_arg)
                     else:
+                        success = True
                         logging(f"{app_and_arg} finished")
                 except subprocess.TimeoutExpired:
                     logging(f"Timeout in {app_and_arg}")
@@ -190,6 +192,9 @@ for loop in range(args.loop_cnt):
                     os.killpg(os.getpgid(p.pid), signal.SIGTERM)
                     log_file.close()
                     exit(-1)
+                if not success:
+                    logging(f"{app_and_arg} failed")
+                    os.remove(profiling_output)
                 os.chdir(saved_dir)
 logging(f"END")
 logging(f"failed list: {failed_list}")

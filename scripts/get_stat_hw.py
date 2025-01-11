@@ -144,7 +144,7 @@ if os.path.exists(args.output):
         with open(args.output, 'r', encoding='utf-8') as f: # merge old data
             collect_data = json.load(f)
             print(f"load old data: {args.output}")
-    shutil.move(args.output, args.output + '.bak')
+    # shutil.move(args.output, args.output + '.bak')
     
 
 for app_and_arg in app_and_arg_list:
@@ -232,5 +232,5 @@ for app_and_arg in app_and_arg_list:
     print(f"{app_and_arg}: {len(acc_res)} ({cnt})")
     collect_data[app_and_arg] = acc_res
     
-    with open(args.output, 'w') as f:
-        json.dump(collect_data, f, indent=4)
+with open(args.output, 'w') as f:
+    json.dump(collect_data, f, indent=4)

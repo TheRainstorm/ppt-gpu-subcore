@@ -398,6 +398,9 @@ def truncate_kernel(sim_res, num):
     return sim_res_new
 
 def filter_hw_kernel_with_suit_info(sim_res, hw_res, suit_info):
+    '''模拟支持只模拟部分 kernel，而硬件采集了全部 kernel，需要从中筛选出模拟的 kernel
+    suit_info['kernels'] 中存储了当前 app yaml 中使用了模拟部分 kernel 功能的程序
+    '''
     for app in hw_res.copy():
         if app in sim_res and len(sim_res[app]) != len(hw_res[app]):
             k_res_new = []
@@ -408,6 +411,9 @@ def filter_hw_kernel_with_suit_info(sim_res, hw_res, suit_info):
             
     return hw_res
 def filter_hw_kernel(sim_res, hw_res):
+    '''模拟支持只模拟部分 kernel，而硬件采集了全部 kernel，需要从中筛选出模拟的 kernel
+    从 kernel res 中存储的 kernel_id 来筛选（注意 cpi stack 中不存在该信息）
+    '''
     for app in hw_res.copy():
         if app in sim_res and len(sim_res[app]) != len(hw_res[app]):
             k_res_new = []
