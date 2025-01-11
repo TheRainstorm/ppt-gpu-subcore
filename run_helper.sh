@@ -68,7 +68,7 @@ python ${ppt_gpu_dir}/scripts/analysis_result.py -B ${benchmarks} -F ${filter_ap
 draw(){
 # draw
 # rm -rf ${draw_output}
-python ${ppt_gpu_dir}/scripts/draw/draw_1.py -F ${filter_app} -B ${benchmarks} -S ${res_sim_json} -H ${res_hw_sim_json} -o ${draw_output} -d app_${filter_app} app
+# python ${ppt_gpu_dir}/scripts/draw/draw_1.py -F ${filter_app} -B ${benchmarks} -S ${res_sim_json} -H ${res_hw_sim_json} -o ${draw_output} -d app_${filter_app} app
 python ${ppt_gpu_dir}/scripts/draw/draw_1.py -F ${filter_app} -B ${benchmarks} -S ${res_sim_json} -H ${res_hw_sim_json} -o ${draw_output} app_by_bench
 # python ${ppt_gpu_dir}/scripts/draw/draw_1.py -F ${filter_app} -B ${benchmarks} -S ${res_sim_json} -H ${res_hw_json} -o ${draw_output} kernel_by_app
 # python ${ppt_gpu_dir}/scripts/draw/draw_1.py -F ${filter_app} -B ${benchmarks} -S ${res_sim_json} -H ${res_hw_json} -o ${draw_output} -d kernel_${filter_app} kernel

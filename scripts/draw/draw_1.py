@@ -437,6 +437,8 @@ def process_hw(hw_res):
                 kernel_res["dram_total_transactions"] = kernel_res["dram_read_transactions"] + kernel_res["dram_write_transactions"]
     except:
         pass
+    return hw_res
+
 def filter_res(res, app_arg_filtered_list):
     for app in res.copy():
         if app not in app_arg_filtered_list:
@@ -574,6 +576,8 @@ if __name__ == "__main__":
             draw_side2side("l1_hit_rate", f"{bench}_bar_6_l1_hit_rate.png")
             draw_error("l2_hit_rate",           f"{bench}_error_6_l2_hit_rate.png")
             draw_side2side("l2_hit_rate", f"{bench}_bar_6_l2_hit_rate.png")
+            draw_error("dram_total_trans",           f"{bench}_error_6_dram_total_trans.png")
+            draw_side2side("dram_total_trans", f"{bench}_bar_6_dram_total_trans.png")
     
     elif args.command == 'kernel':
         print(f"\ncommand: {args.command}:")
