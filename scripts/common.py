@@ -122,8 +122,10 @@ def filter_app_list_coord(app_arg_list, coord_str):
         else:
             return (parts[0], parts[1], parts[2])
     def contain_in(c1, c2):
-        for i in range(len(c2)):
-            if c2[i] and c1[i] not in c2[i]:
+        if c2[0] and c1[0] not in c2[0]:  # suite 'polybench in polybench-full'
+            return False
+        for i in range(1, len(c2)):
+            if c2[i] and c1[i] != c2[i]:
                 return False
         return True
     
