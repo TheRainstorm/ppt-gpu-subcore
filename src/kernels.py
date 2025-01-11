@@ -147,10 +147,15 @@ class Kernel():
 
 
 
-    def kernel_call(self, overwrite_cache_params=None, memory_model='simulator', scale_opt=0, act_cycle_select='', ipc_select=''):
+    def kernel_call(self, overwrite_cache_params=None, memory_model='simulator', 
+                    AMAT_select='', scale_opt='', act_cycle_select='', ipc_select=''):
         '''
-        ipc_select: 三种方法计算结果 tot_ipc, sm_ipc, smsp_ipc(用不了)
+        AMAT_select: AMAT_ori, AMAT_sum, AMAT_foumula, const_1000
+        scale_opt: ori, float, ceil
+        ipc_select: tot_ipc, sm_ipc, smsp_ipc(用不了)
+        act_cycle_select: 
         '''
+        print(f"AMAT_select={AMAT_select}, scale_opt={scale_opt}, act_cycle_select={act_cycle_select}, ipc_select={ipc_select}")
         # 设置 memory model 需要的变量
         gpu_config = self.gpuNode.gpu_configs
         kernel_param = self.kernel_info  # kernel info 信息更多
@@ -200,6 +205,9 @@ class Kernel():
         #                                             gmem_reqs, int(pred_out["allocted_block_per_sm"]), int(pred_out["block_per_sm_simulate"]), cache_ref_data=self.cache_ref_data)
         pred_out["memory_stats"] = memory_model_warpper_single_kernel(gpu_config, kernel_param, occupancy_res, self.kernel_info['trace_dir'],
                                   model=memory_model)
+        # with open('obj.pkl', 'rb') as f:
+        #     pred_out["memory_stats"] = pickle.load(f)
+        
         toc = time.time()
         pred_out["simulation_time"]["memory"] = (toc - tic)
 
@@ -214,8 +222,8 @@ class Kernel():
             or pred_out["memory_stats"]["gmem_st_diverg"] >= self.acc.num_dram_channels\
             or pred_out["memory_stats"]["gmem_tot_diverg"] >= highly_divergent_degree:
                 pred_out["others"]["diverge_flag"] = 1
-                l2_parallelism = pred_out["memory_stats"]["gmem_tot_diverg"] if pred_out["memory_stats"]["gmem_tot_diverg"] < self.acc.num_dram_channels else self.acc.num_dram_channels
-                dram_parallelism = pred_out["memory_stats"]["gmem_tot_diverg"] if pred_out["memory_stats"]["gmem_tot_diverg"] < self.acc.num_dram_channels else self.acc.num_dram_channels
+                l2_parallelism = min(pred_out["memory_stats"]["gmem_tot_diverg"], self.acc.num_l2_partitions)
+                dram_parallelism = min(pred_out["memory_stats"]["gmem_tot_diverg"], self.acc.num_dram_channels)
                 # l2_parallelism = self.num_dram_channels
                 # dram_parallelism = self.num_dram_channels
                 # l2_parallelism = self.num_l2_partitions
@@ -253,7 +261,7 @@ class Kernel():
 
             mem_cycles_ovhds = ceil(mem_cycles_ovhds, 1)
             pred_out["others"]["mem_cycles_no_contention"] = mem_cycles_no_contention
-            pred_out["others"]["mem_cycles_no_contention_sum"] = mem_cycles_no_contention
+            pred_out["others"]["mem_cycles_no_contention_sum"] = mem_cycles_no_contention_sum
             pred_out["others"]["mem_cycles_ovhds"] = mem_cycles_ovhds
 
             tot_mem_cycles = ceil((mem_cycles_no_contention + mem_cycles_ovhds), 1)
@@ -266,8 +274,16 @@ class Kernel():
             m2 = 1 - pred_out["memory_stats"]['l2_hit_rate']
             # m2 = 1 - 0.8
             pred_out["AMAT_foumula"] = ceil(self.acc.l1_cache_access_latency + m1*(self.acc.l2_cache_from_l1_access_latency + m2*self.acc.dram_mem_from_l2_access_latency), 1)
-            pred_out["AMAT"] = pred_out["AMAT_ori"]
             
+        # AMAT 选择
+        if AMAT_select.startswith('const'): # const_1000
+            amat = int(AMAT_select.split('_')[1])
+        elif AMAT_select=='':
+            amat = pred_out["AMAT_ori"]
+        else:
+            amat = pred_out[AMAT_select]
+        pred_out["AMAT"] = amat
+        
         # ACPAO: Average Cycles Per Atomic Operation
         # ACPAO = atomic operations latency / total atomic requests
         # atomic operations latency= (atomic & redcutions transactions * access latency of atomic & red requests)
@@ -417,7 +433,15 @@ class Kernel():
         num_workloads_left = pred_out["allocted_block_per_sm"] - pred_out["block_per_sm_simulate"]
         remaining_cycles = ceil((num_workloads_left/pred_out["block_per_sm_simulate"]),1)
         scale_ori = max(1, remaining_cycles)
-        scale = [scale_ori, scale1, scale2][scale_opt]
+        if scale_opt=='ori' or scale_opt=='':
+            scale = scale_ori
+        elif scale_opt=='float':
+            scale = scale1
+        elif scale_opt=='ceil':
+            scale = scale2
+        else:
+            print('Error: not support scale_opt', file=sys.stderr)
+            exit(1)
         
         # 计算 active_cycle_scale
         kernel_detail = {}
@@ -508,7 +532,7 @@ class Kernel():
         pred_out["tot_warps_instructions_executed"] = avg_instructions_executed_per_block * pred_out["grid_size"]
         # pred_out["tot_threads_instructions_executed"] = (pred_out["tot_warps_instructions_executed"] * self.kernel_block_size) / pred_out["allocated_active_warps_per_block"]  # 这里 allocated_active_warps_per_block 为 0 了，不知道原本逻辑是什么
         pred_out["tot_threads_instructions_executed"] = pred_out["tot_warps_instructions_executed"] * 32
-        
+        pred_out['warp_insts'] = len(next(iter(self.kernel_tasklist.items())))
         # ipc 计算
         # 方法1：程序总指令 / sm 周期之和。（仍然表示 sm 的 ipc）
         # pred_out["tot_ipc"] = pred_out["tot_warps_instructions_executed"] * (1.0/pred_out["sm_act_cycles.sum"])

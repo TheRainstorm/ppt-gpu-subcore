@@ -69,6 +69,10 @@ def main():
     parser.add_argument('--memory-model',
                         default='simulator',
                         help='memory model to use')
+    parser.add_argument('--AMAT_select', default='')
+    parser.add_argument('--scale-opt', default='')
+    parser.add_argument('--ipc_select', default='')
+    parser.add_argument('--act_cycle_select', default='')
     parser.add_argument("--no-overwrite",
                  action="store_true",
                  help="not overwrite already simulated kernels")
@@ -144,7 +148,9 @@ def main():
         if rank == i%size:
             print(f"Kernel {kernels_info[i]['kernel_id']} is running on rank {rank}")
             kernel = Kernel(gpuNode, kernels_info[i])
-            kernel.kernel_call(memory_model=args.memory_model, overwrite_cache_params=args.overwrite_cache_params)
+            kernel.kernel_call(memory_model=args.memory_model, overwrite_cache_params=args.overwrite_cache_params,
+                                AMAT_select=args.AMAT_select, scale_opt=args.scale_opt, ipc_select=args.ipc_select,
+                                act_cycle_select=args.act_cycle_select)
 
 
 class GPUNode(object):
