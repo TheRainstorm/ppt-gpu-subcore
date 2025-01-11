@@ -32,6 +32,7 @@ def convert_ncu_to_gsi(data):
             kernel_cpi_res['debug']['sum'] = kernel_cpi_res['MemData'] + kernel_cpi_res['CompData'] + kernel_cpi_res['MemStruct'] + kernel_cpi_res['CompStruct'] + kernel_cpi_res['NotSelect'] + kernel_cpi_res['NoStall'] + kernel_cpi_res['Sync'] + kernel_cpi_res['Misc']
             kernel_cpi_res['debug']['smsp__average_warp_latency_per_inst_issued.ratio'] = k['smsp__average_warp_latency_per_inst_issued.ratio']
             
+            kernel_cpi_res = fill_gsi(kernel_cpi_res)
             # sort by gsi stall list
             kernel_cpi_res = {k: kernel_cpi_res[k] for k in gsi_stall_list}
             res_json[app_arg].append(kernel_cpi_res)
@@ -63,6 +64,7 @@ def convert_nvprof_to_gsi(data):
             kernel_cpi_res['debug'] = {}
             kernel_cpi_res['debug']['sum'] = kernel_cpi_res['MemData'] + kernel_cpi_res['CompData'] + kernel_cpi_res['MemStruct'] + kernel_cpi_res['CompStruct'] + kernel_cpi_res['NotSelect'] + kernel_cpi_res['NoStall'] + kernel_cpi_res['Sync'] + kernel_cpi_res['Misc']
             
+            kernel_cpi_res = fill_gsi(kernel_cpi_res)
             # sort by gsi stall list
             kernel_cpi_res = {k: kernel_cpi_res[k] for k in gsi_stall_list}
             res_json[app_arg].append(kernel_cpi_res)
@@ -101,6 +103,12 @@ def get_merged_cpi_stack(cpi_stack):
             cpi_stack_merged[k] = cpi_stack_merged.get(k, 0) + v
     return cpi_stack_merged
 
+def fill_gsi(cpi_stack, stall_list=gsi_stall_list):
+    cpi_stack_new = {}
+    for k in stall_list:
+        cpi_stack_new[k] = cpi_stack.get(k, 0)
+    return cpi_stack_new
+    
 def get_cpi_stack_list(state_dict_list, detail=False, KL_ratio=0):
     if type(state_dict_list) == dict:
         # no subcore
@@ -109,11 +117,6 @@ def get_cpi_stack_list(state_dict_list, detail=False, KL_ratio=0):
         cpi_stack_list = [state_to_cpi(state_dict, KL_ratio=KL_ratio) for state_dict in state_dict_list]
     non_zero_num = len([cpi_stack for cpi_stack in cpi_stack_list if cpi_stack])
     # convert to gsi
-    def fill_gsi(cpi_stack, stall_list=gsi_stall_list):
-        cpi_stack_new = {}
-        for k in stall_list:
-            cpi_stack_new[k] = cpi_stack.get(k, 0)
-        return cpi_stack_new
     
     if not detail:
         cpi_stack_list = [fill_gsi(get_merged_cpi_stack(cpi_stack)) for cpi_stack in cpi_stack_list]
