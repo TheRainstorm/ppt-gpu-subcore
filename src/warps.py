@@ -188,6 +188,10 @@ class Warp(object):
                         self.completions.append(cycles + latency)
                         if self.max_dep < self.completions[-1]:  # No means???
                             self.max_dep = self.completions[-1] 
+                        # if self.stalled_cycles < self.completions[-1]:
+                        #     if 'MEM_ACCESS' in inst[0]:
+                        #         self.stall_type_keeped = f'MemData'
+                        #         self.stalled_cycles = self.completions[-1]  # 不能连续访存
                         self.current_inst += 1
                         if self.current_inst == len(self.tasklist):
                             self.active = False
