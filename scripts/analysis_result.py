@@ -10,10 +10,12 @@ par_dir = os.path.dirname(curr_dir)
 sys.path.insert(0, os.path.abspath(par_dir))
 
 cmp_list = ['warp_inst_executed', 'achieved_occupancy', 'gpu_active_cycles', 'sm_active_cycles_sum', 'ipc',
-            'l1_hit_rate', 'l2_hit_rate', 'gmem_tot_reqs', 'gmem_tot_sectors', 'l2_tot_trans', 'dram_tot_trans']
-extra_list = ['AMAT']
+            'l1_hit_rate', 'l2_hit_rate', 'gmem_tot_reqs', 'gmem_tot_sectors', 'gmem_diverg', 'l2_tot_trans', 'dram_tot_trans']
+extra_list = ['sim_time', 'sim_time_memory', 'sim_time_compute', 'warp_inst_executed', 'gpu_active_cycles', 'AMAT']
 
 def process_sim(sim_res):
+    global extra_list
+    extra_flag = False
     for app_arg, app_res in sim_res.items():
         for i, kernel_res in enumerate(app_res):
             kernel_res['warp_inst_executed'] = kernel_res['warp_inst_executed']
@@ -29,7 +31,34 @@ def process_sim(sim_res):
             kernel_res['l2_tot_trans'] = kernel_res['memory_stats']['l2_tot_trans_gmem']
             kernel_res['dram_tot_trans'] = kernel_res['memory_stats']['dram_tot_trans_gmem']
             
+            kernel_res['gmem_diverg'] = kernel_res['gmem_tot_sectors'] / kernel_res['gmem_tot_reqs'] if kernel_res['gmem_tot_reqs'] != 0 else 0
+            
             kernel_res['AMAT'] = kernel_res['AMAT']
+            kernel_res['sim_time_memory'] = kernel_res["simulation_time"]["memory"]
+            kernel_res['sim_time_compute'] = kernel_res["simulation_time"]["compute"]
+            kernel_res['sim_time'] = kernel_res['sim_time_memory'] + kernel_res['sim_time_compute']
+            try:
+                kernel_res['ACPAO'] = kernel_res['ACPAO']
+                kernel_res['grid_size'] = kernel_res['grid_size']
+                kernel_res['block_size'] = kernel_res['block_size']
+                kernel_res['max_active_block_per_sm'] = kernel_res['max_active_block_per_sm']
+                kernel_res['allocted_block_per_sm'] = kernel_res['allocted_block_per_sm']
+                kernel_res['kernel_lat'] = kernel_res['kernel_detail']['kernel_lat']
+                kernel_res['gpu_active_cycles'] = kernel_res['gpu_active_cycles']
+                kernel_res['tot_ipc'] = kernel_res['tot_ipc']
+                kernel_res['tot_cpi'] = 1/kernel_res['tot_ipc']
+                kernel_res['active_block_per_cycle_sm'] = kernel_res['active_block_per_cycle_sm']
+                kernel_res['active_warp_per_cycle_smsp'] = kernel_res['active_warp_per_cycle_smsp']
+                kernel_res['issue_warp_per_cycle_smsp'] = kernel_res['issue_warp_per_cycle_smsp']
+                kernel_res['warp_cpi'] = kernel_res['warp_cpi']
+                kernel_res['tot_warps_'] = kernel_res['tot_warps_instructions_executed']
+                kernel_res['warp_cpi'] = kernel_res['warp_cpi']
+                kernel_res['sm_warp_inst_executed'] = kernel_res['sm_warps_instructions_executed']
+                extra_flag = True
+            except:
+                pass
+    if extra_flag:
+        extra_list += ['ACPAO', 'grid_size', 'block_size', 'max_active_block_per_sm', 'allocted_block_per_sm', 'kernel_lat', 'tot_ipc', 'tot_cpi', 'active_block_per_cycle_sm', 'active_warp_per_cycle_smsp', 'issue_warp_per_cycle_smsp', 'warp_cpi','sm_warp_inst_executed']
     return sim_res
 
 def process_hw(hw_res):
@@ -57,6 +86,8 @@ def process_hw(hw_res):
             # kernel_res['gmem_ld_reqs'] = kernel_res['global_load_requests']
             # kernel_res['gmem_st_reqs'] = kernel_res['global_store_requests']
             kernel_res['gmem_tot_sectors'] = kernel_res['gld_transactions'] + kernel_res['gst_transactions']
+            
+            kernel_res['gmem_diverg'] = kernel_res['gmem_tot_sectors'] / kernel_res['gmem_tot_reqs'] if kernel_res['gmem_tot_reqs'] != 0 else 0
             # kernel_res['gmem_ld_sectors'] = kernel_res['gld_transactions']
             # kernel_res['gmem_st_sectors'] = kernel_res['gst_transactions']
             # try:

@@ -160,6 +160,9 @@ def dump_output(pred_out):
     print(f"sm_ipc: {pred_out['sm_ipc']}", file=outF)
     print(f"sm_cpi: {pred_out['sm_cpi']}", file=outF)
     
+    pred_out['active_warp_per_cycle_smsp'] = avg1
+    pred_out['issue_warp_per_cycle_smsp'] = avg3
+    pred_out['active_block_per_cycle_sm'] = active_block_per_cycle
     print(f"Active Warps Per Scheduler: {avg1} {active_warp_per_cycle_list}", file=outF)
     print(f"Issued Warp Per Scheduler: {avg3} {issued_warp_per_cycle_list}", file=outF)
     print(f"Scheduler (CPI): {1/avg3}", file=outF)
@@ -181,6 +184,7 @@ def dump_output(pred_out):
     print("\t* Compute model:", round(pred_out["simulation_time"]["compute"], 3), "sec,", convert_sec(pred_out["simulation_time"]["compute"]), file=outF)
 
     print("\n- Warp Stat:", file=outF)
+    pred_out['warp_cpi'] = avg_cpi
     print(f"Warp Cycle Per Issued Instruction: {cpi_list} {avg_cpi}", file=outF)
     print(f"CPI stack Warp: {json.dumps(warp_cpi_list, indent=4)}", file=outF)
     print(f"CPI stack Scheduler: {json.dumps(sched_cpi_list, indent=4)}", file=outF)
