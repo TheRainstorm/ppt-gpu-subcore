@@ -148,7 +148,7 @@ class Kernel():
 
 
     def kernel_call(self, overwrite_cache_params=None, memory_model='simulator', 
-                    AMAT_select='', scale_opt='', act_cycle_select='', ipc_select=''):
+                    AMAT_select='', scale_opt='', act_cycle_select='', ipc_select='', no_adaptive_cache=False):
         '''
         AMAT_select: AMAT_ori, AMAT_sum, AMAT_foumula, const_1000
         scale_opt: ori, float, ceil
@@ -159,7 +159,6 @@ class Kernel():
         # 设置 memory model 需要的变量
         gpu_config = self.gpuNode.gpu_configs
         kernel_param = self.kernel_info  # kernel info 信息更多
-        no_adaptive_cache = False
         if overwrite_cache_params:
             L = ['', 'cache_size', 'cache_line_size', 'cache_associativity', 'sector_size']
             for cache_params in overwrite_cache_params.split(','):
@@ -179,6 +178,7 @@ class Kernel():
             if gpu_config['l1_cache_size'] != l1_cache_size_old:
                 print(f"Info: set adaptive L1 cache size from {l1_cache_size_old} to {gpu_config['l1_cache_size']}")
         else:
+            print("Disable adaptive cache")
             occupancy_res = get_max_active_block_per_sm(gpu_config['cc_configs'], kernel_param, gpu_config['num_SMs'], gpu_config['shared_mem_size'],
                                                         adaptive=False)
         
@@ -204,10 +204,9 @@ class Kernel():
         #                                             self.acc.l2_cache_size, self.acc.l2_cache_line_size, self.acc.l2_cache_associativity,\
         #                                             gmem_reqs, int(pred_out["allocted_block_per_sm"]), int(pred_out["block_per_sm_simulate"]), cache_ref_data=self.cache_ref_data)
         pred_out["memory_stats"] = memory_model_warpper_single_kernel(gpu_config, kernel_param, occupancy_res, self.kernel_info['trace_dir'],
-                                  model=memory_model)
+                                  model=memory_model, granularity=int(self.kernel_info['granularity']))
         # with open('obj.pkl', 'rb') as f:
         #     pred_out["memory_stats"] = pickle.load(f)
-        
         toc = time.time()
         pred_out["simulation_time"]["memory"] = (toc - tic)
 

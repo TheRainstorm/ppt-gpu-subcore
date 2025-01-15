@@ -212,7 +212,7 @@ def sdcm_model_warpper_parallel(kernel_id, trace_dir,
         exit(1)
     # print(sm_map)
     if kernel_id==1:
-        print(f"grid: {launch_params['grid_size']} SMs: {gpu_config['num_SMs']}")
+        print(f"grid: {launch_params['grid_size']} SMs: {gpu_config['num_SMs']} granularity: {granularity}")
         print(f"scale: {scale} simulate: {block_per_sm_simulate} max: {max_blocks_per_sm} allocate: {avg_block_per_sm}")
     
     num_jobs = min(active_sm, multiprocessing.cpu_count())
@@ -356,6 +356,8 @@ def memory_model_warpper_single_kernel(gpu_config, kernel_param, occupancy_res, 
                          use_approx=True, filter_L2=True, no_flush=False, fix_l2=True, block_mapping=BlockMapping.mod_block_mapping,
                          l1_dump_trace=False, l2_dump_trace='',
                          no_write_policy=False):
+    '''没有 no_adaptive_cache 选项,在 kernels.py 重新实现
+    '''
     if model == 'ppt-gpu':
         kernel_res = ppt_gpu_model_warpper(kernel_param['kernel_id'], app_path, kernel_param, occupancy_res['max_active_block_per_sm'], gpu_config,
                                     granularity=granularity)
