@@ -41,7 +41,7 @@ uarch = {
     # tensor core units per SM               
     "num_TC_units_per_SM"               :  8,   # [2]
     # load & store units per SM
-    "num_LDS_units_per_SM"              :  32,
+    "num_LDS_units_per_SM"              :  16,
     # branch units per SM; ** THIS UNIT IS IN VOLTA & TURING ONLY ** 
     # to handle and execute branch instructions             
     "num_BRA_units_per_SM"              :  4,
