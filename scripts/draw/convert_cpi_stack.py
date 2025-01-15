@@ -24,7 +24,8 @@ def convert_ncu_to_gsi(data):
             kernel_cpi_res['NotSelect'] = k['smsp__average_warps_issue_stalled_not_selected_per_issue_active.ratio']
             kernel_cpi_res['NoStall'] = k['smsp__average_warps_issue_stalled_selected_per_issue_active.ratio']
             kernel_cpi_res['Sync'] = k['smsp__average_warps_issue_stalled_barrier_per_issue_active.ratio'] + k['smsp__average_warps_issue_stalled_membar_per_issue_active.ratio']
-            kernel_cpi_res['Misc'] = k['smsp__average_warps_issue_stalled_imc_miss_per_issue_active.ratio'] + k['smsp__average_warps_issue_stalled_misc_per_issue_active.ratio'] + k['smsp__average_warps_issue_stalled_dispatch_stall_per_issue_active.ratio'] + k['smsp__average_warps_issue_stalled_sleeping_per_issue_active.ratio'] + k['smsp__average_warps_issue_stalled_branch_resolving_per_issue_active.ratio']
+            kernel_cpi_res['IMC'] = k['smsp__average_warps_issue_stalled_imc_miss_per_issue_active.ratio'] +k['smsp__average_warps_issue_stalled_no_instruction_per_issue_active.ratio']
+            kernel_cpi_res['Misc'] = k['smsp__average_warps_issue_stalled_misc_per_issue_active.ratio'] + k['smsp__average_warps_issue_stalled_dispatch_stall_per_issue_active.ratio'] + k['smsp__average_warps_issue_stalled_sleeping_per_issue_active.ratio'] + k['smsp__average_warps_issue_stalled_branch_resolving_per_issue_active.ratio']
             # warpgroup_arrive
             
             kernel_cpi_res['Idle'] = 0
