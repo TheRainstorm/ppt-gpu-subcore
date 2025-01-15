@@ -233,23 +233,24 @@ def get_gpu_config(gpu_config, set_gpu_params=None):
                 print(f"[Error] unknown key: {key}", file=sys.stderr)
                 sys.exit(1)
     
+    subcore = c['num_warp_schedulers_per_SM']
     initial_interval = {
         # Initiation interval (II) = threadsPerWarp // #FULanes
-        "iALU"              :   32*4 // c['num_INT_units_per_SM'],
-        "fALU"              :   32*4 // c['num_SP_units_per_SM'],
-        "hALU"              :   32*4 // c['num_SP_units_per_SM'],
-        "dALU"              :   32*4 // c['num_DP_units_per_SM'],
+        "iALU"              :   32*subcore // c['num_INT_units_per_SM'],
+        "fALU"              :   32*subcore // c['num_SP_units_per_SM'],
+        "hALU"              :   32*subcore // c['num_SP_units_per_SM'],
+        "dALU"              :   32*subcore // c['num_DP_units_per_SM'],
 
-        "SFU"               :   32*4 // c['num_SF_units_per_SM'],
-        "dSFU"              :   32*4 // c['num_SF_units_per_SM'],
+        "SFU"               :   32*subcore // c['num_SF_units_per_SM'],
+        "dSFU"              :   32*subcore // c['num_SF_units_per_SM'],
 
-        "LDST"              :   32*4 // c['num_LDS_units_per_SM'],
+        "LDST"              :   32*subcore // c['num_LDS_units_per_SM'],
         
         # "bTCU"              :   64,
-        "iTCU"              :   32*4 // c['num_TC_units_per_SM'],
-        "hTCU"              :   32*4 // c['num_TC_units_per_SM'],
-        "fTCU"              :   32*4 // c['num_TC_units_per_SM'],
-        "dTCU"              :   32*4 // c['num_TC_units_per_SM'],
+        "iTCU"              :   32*subcore // c['num_TC_units_per_SM'],
+        "hTCU"              :   32*subcore // c['num_TC_units_per_SM'],
+        "fTCU"              :   32*subcore // c['num_TC_units_per_SM'],
+        "dTCU"              :   32*subcore // c['num_TC_units_per_SM'],
         
         "BRA"               :   1,
         "EXIT"              :   1,
