@@ -194,6 +194,7 @@ rodinia-3.1-full:
     - lavaMD-rodinia-3.1:
         - args: -boxes1d 10 # 1
           accel-sim-mem: 32G
+          ignore: 3  # ppt-gpu > 20min, cycle bad
       abbr: LMD
     # - leukocyte-rodinia-3.1: # (4)
     #     - args: ./data/testfile.avi 5
@@ -329,6 +330,7 @@ polybench-full:
       abbr: MVT
     - polybench-syrk:
         - args: # 1
+          ignore: 3  # ppt-gpu > 20min, cycle bad
           accel-sim-mem: 8G
       abbr: SYRK
     # - polybench-syr2k: # ()
@@ -442,6 +444,46 @@ sdk-4.2-scaled:
         - args:
           accel-sim-mem: 1G
 
+micro:
+  exec_dir: "$GPGPU_WORKLOADS_ROOT/bin/$CUDA_VERSION/release/"
+  data_dirs: "$GPGPU_WORKLOADS_ROOT/data_dirs/"
+  execs:
+    - ITVAL_F:
+        - args: 32 20
+        - args: 64 20
+        - args: 96 20
+        - args: 128 20
+        - args: 256 20
+    - ITVAL_D:
+        - args:
+    - ITVALX_IF:
+        - args: 32
+        - args: 64
+        # - args: 96
+        - args: 128
+        - args: 256
+    - ITVALX_DF:
+        - args:
+    - ITVAL_dep:
+        - args:
+    - LGThrottle:
+        - args:
+    - LGThrottleM:
+        - args:
+    - longScoreboard:
+        - args:
+    - ShortScoreboard:
+        - args:
+    - GEMM_bench:
+        - args: 8 8 8 1
+        - args: 9 9 9 1
+        # - args: 10 10 10 1
+    - GEMM_bench_simple:
+        # - args: 8 8 8 1
+        - args: 9 9 9 0
+        - args: 9 9 9 1
+        # - args: 10 10 10 1
+
 GPU_Microbenchmark:
   exec_dir: "$GPGPU_WORKLOADS_ROOT/bin/$CUDA_VERSION/release/"
   data_dirs: "$GPGPU_WORKLOADS_ROOT/data_dirs/"
@@ -542,6 +584,7 @@ deepbench:
     - gemm_bench:
         - args: inference half 35 1500 2560 0 0
           # all tensor
+          ignore: 3  # 50m, cycle 误差很高
           kernels: [7,8,14,16,23,24,30,32,39,40,46,48,55,56,62,64,71,73,94,96,103,105,112,114,139,141,182,183,189,190,196,197,203,204,217,218,224,225,231,232,238,239,245,246,252,253,259,260,266,267,273,274,296,298]
       abbr: DBGEMM
     - conv_bench:
@@ -555,6 +598,7 @@ Tango:
   execs:
     - AN:
       - args: 1
+        ignore: 3 # 1h30m
       data_subdir: AlexNet
       abbr: AN
     - CN:
@@ -614,6 +658,7 @@ pannotia:
       abbr: MIS
     - pannotia-pagerank:
         - args: ./data/coAuthorsDBLP.graph 1
+          ignore: 3 # 1h
       data_subdir: pagerank
       abbr: PRK
     - pannotia-pagerank_spmv:

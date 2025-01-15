@@ -575,6 +575,8 @@ if __name__ == "__main__":
         # set each bench as filter
         for bench in benchs:
             app_filter = bench
+            draw_error("achieved_occupancy", f"{bench}_error_2_app_occupancy_error.png", sim_res_func = lambda x: x/100)
+            draw_side2side("achieved_occupancy",    f"{bench}_bar_2_app_occupancy_error.png", sim_res_func = lambda x: x/100)
             draw_error("warp_inst_executed", f"{bench}_error_1_warp_inst_executed.png")
             draw_error("gpu_active_cycle_max", f"{bench}_error_4_gpu_active_cycle_max.png")
             draw_side2side("gpu_active_cycle_max", f"{bench}_bar_4_gpu_active_cycle_max.png")
