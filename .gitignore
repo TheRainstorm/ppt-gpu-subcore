@@ -16,6 +16,10 @@ reuse_distance_tool/parda.x
 .ipynb_checkpoints/
 *.pdf
 test.py
+run_DSE_*.sh
+!run_DSE_L1_size.sh
+!run_DSE_L1_size_bench.sh
+*.pkl
 
 
 # GPU #

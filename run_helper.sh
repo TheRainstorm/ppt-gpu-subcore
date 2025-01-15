@@ -22,10 +22,12 @@ python ${ppt_gpu_dir}/scripts/run_hw_trace.py -B ${benchmarks} -F ${filter_app} 
 run_hw(){
 # hw run
 if [ $use_ncu -eq 0 ]; then
+# nvprof
 python ${ppt_gpu_dir}/scripts/run_hw_profling.py -B ${benchmarks} -F ${filter_app} -T ${trace_dir} -D ${GPU} -l run_hw_profiling_${hw_identifier}.log --loop-cnt ${loop} --time-out ${time_out} > /dev/null
 python ${ppt_gpu_dir}/scripts/get_stat_hw.py -B ${benchmarks} -F ${filter_app} -T ${trace_dir} -o ${res_hw_nvprof_json} --loop-cnt ${loop}
 cp ${res_hw_nvprof_json} ${res_hw_json}
 else
+# ncu
 python ${ppt_gpu_dir}/scripts/run_hw_profling.py -B ${benchmarks} -F ${filter_app} -T ${trace_dir} -D ${GPU} -l run_hw_profiling_${hw_identifier}.log --select ${hw_prof_type} --loop-cnt ${loop} --time-out ${time_out} $(echo ${profling_extra_params}) > /dev/null
 python ${ppt_gpu_dir}/scripts/get_stat_hw.py -B ${benchmarks} -F ${filter_app} -T ${trace_dir} --select ${hw_prof_type} -o ${res_hw_ncu_json} --loop-cnt ${loop}
 python ${ppt_gpu_dir}/scripts/convert_hw_metrics.py -i ${res_hw_ncu_json} -o ${res_hw_json}

@@ -51,13 +51,24 @@ parser.add_argument("-t", "--time-out",
                     default=3*60*60, # 3h
                     help="Set time out seconds, if app run longer than this, kill it")
 parser.add_argument("--ppt-src", default="ppt.py", help="ppt.py src path")
-parser.add_argument("--extra-params", default="", help="ppt.py extra param")
+parser.add_argument("--extra-params", nargs=argparse.REMAINDER, help="ppt.py extra param")
+# parser.add_argument("--extra-params", default='', help="ppt.py extra param")
 args = parser.parse_args()
 
-if args.extra_params.startswith("<"):
-    args.extra_params = args.extra_params[1:-1]
-    print(f"extra_params: {args.extra_params}")
-    
+if type(args.extra_params) == list:
+    args.extra_params = ' '.join(args.extra_params)
+
+# if '|' in args.extra_params:
+#     args.extra_params = args.extra_params.replace('|', ' ')
+
+# if args.extra_params.startswith("<"):
+#     args.extra_params = args.extra_params[1:-1]
+#     print(f"extra_params: {args.extra_params}")
+
+print(f"extra_params: {args.extra_params}")
+
+# exit(0)
+
 from common import *
 
 # defined_apps = {}
