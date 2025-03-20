@@ -79,6 +79,7 @@ def main():
     parser.add_argument('--set-gpu-params', default='',
                         help='key:value,key:value')
     parser.add_argument("--no_adaptive_cache", action="store_true",default=False)
+    parser.add_argument("--no_KLL", action="store_true",default=False)
     
     args = parser.parse_args()
     granularity = args.granularity
@@ -155,7 +156,8 @@ def main():
             kernel.kernel_call(memory_model=args.memory_model, overwrite_cache_params=args.overwrite_cache_params,
                                 AMAT_select=args.AMAT_select, scale_opt=args.scale_opt, ipc_select=args.ipc_select,
                                 act_cycle_select=args.act_cycle_select,
-                                no_adaptive_cache=args.no_adaptive_cache)
+                                no_adaptive_cache=args.no_adaptive_cache,
+                                no_KLL=args.no_KLL)
 
 class GPUNode(object):
 	"""

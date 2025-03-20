@@ -148,7 +148,7 @@ class Kernel():
 
 
     def kernel_call(self, overwrite_cache_params=None, memory_model='simulator', 
-                    AMAT_select='', scale_opt='', act_cycle_select='', ipc_select='', no_adaptive_cache=False):
+                    AMAT_select='', scale_opt='', act_cycle_select='', ipc_select='', no_adaptive_cache=False, no_KLL=False):
         '''
         AMAT_select: AMAT_ori, AMAT_sum, AMAT_foumula, const_1000
         scale_opt: ori, float, ceil
@@ -492,7 +492,10 @@ class Kernel():
         c0 = gpu_config['cycle_gs_coef_1']
         c1 = gpu_config['slop_bs_coef']
         slop = c1[0]*bs**2 + c1[1]*bs + c1[2]
-        kernel_lat = slop*gs + c0
+        if no_KLL:
+            kernel_lat = 0
+        else:
+            kernel_lat = slop*gs + c0
         kernel_detail['kernel_lat'] = kernel_lat
 
         # 记录有用数据 kernel_detail
