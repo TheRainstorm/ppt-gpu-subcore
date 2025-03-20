@@ -10,8 +10,16 @@ par_dir = os.path.dirname(curr_dir)
 sys.path.insert(0, os.path.abspath(par_dir))
 
 cmp_list = ['warp_inst_executed', 'achieved_occupancy', 'gpu_active_cycles', 'sm_active_cycles_sum', 'ipc',
-            'l1_hit_rate', 'l2_hit_rate', 'gmem_tot_reqs', 'gmem_tot_sectors', 'gmem_diverg', 'l2_tot_trans', 'dram_tot_trans']
+            'gmem_diverg', "l1_hit_rate", "l1_hit_rate_g", "l1_hit_rate_ldg", "l1_hit_rate_stg",
+            "l2_hit_rate", "l2_hit_rate_ld", "l2_hit_rate_st",
+            "l2_ld_trans","l2_st_trans","l2_tot_trans",
+            "dram_ld_trans","dram_st_trans","dram_tot_trans",
+            "gmem_tot_reqs", "gmem_ld_sectors", "gmem_st_sectors", "gmem_tot_sectors", "gmem_ld_diverg"]
+            # 'l1_hit_rate', 'l2_hit_rate', 'gmem_tot_reqs', 'gmem_tot_sectors', 'gmem_diverg', 'l2_tot_trans', 'dram_tot_trans']
 extra_list = ['sim_time', 'sim_time_memory', 'sim_time_compute', 'warp_inst_executed', 'gpu_active_cycles', 'AMAT']
+
+def divide_or_zero(a, b):
+    return a/b if b != 0 else 0
 
 def process_sim(sim_res):
     global extra_list
@@ -31,8 +39,67 @@ def process_sim(sim_res):
             kernel_res['l2_tot_trans'] = kernel_res['memory_stats']['l2_tot_trans_gmem']
             kernel_res['dram_tot_trans'] = kernel_res['memory_stats']['dram_tot_trans_gmem']
             
-            kernel_res['gmem_diverg'] = kernel_res['gmem_tot_sectors'] / kernel_res['gmem_tot_reqs'] if kernel_res['gmem_tot_reqs'] != 0 else 0
+            # more memory
+            if 'lmem_hit_rate' in kernel_res['memory_stats']:
+                try:
+                    # ppt-gpu ori
+                    memory_stats = kernel_res['memory_stats']
+                    kernel_res['l1_hit_rate'] = memory_stats['umem_hit_rate']
+                    kernel_res['l1_hit_rate_g'] = memory_stats['gmem_hit_rate']
+                    kernel_res['l1_hit_rate_ldg'] = memory_stats['gmem_hit_rate_lds']
+                    kernel_res['l1_hit_rate_l'] = memory_stats['lmem_hit_rate']
+                    kernel_res['l1_hit_rate_stg'] = divide_or_zero(
+                        kernel_res['l1_hit_rate']*memory_stats['gmem_tot_trans'] - memory_stats['gmem_hit_rate_lds']*memory_stats['gmem_ld_trans'],
+                        memory_stats['gmem_st_trans'])
+                    
+                    kernel_res['l2_hit_rate'] = memory_stats['hit_rate_l2']
+                    kernel_res['l2_hit_rate_ld'] = kernel_res['l2_hit_rate_st'] = memory_stats['hit_rate_l2']
+
+                    kernel_res['gmem_ld_sectors'] = memory_stats['gmem_ld_trans']  # ppt-gpu has no sector level
+                    kernel_res['gmem_st_sectors'] = memory_stats['gmem_st_trans']
+                    kernel_res['gmem_tot_sectors'] = memory_stats['gmem_tot_trans']
+
+                    kernel_res['l2_ld_trans'] = memory_stats['l2_ld_trans_gmem']
+                    kernel_res['l2_st_trans'] = memory_stats['l2_st_trans_gmem']
+                    kernel_res['l2_tot_trans'] = memory_stats['l2_tot_trans_gmem']
+                    
+                    kernel_res['dram_tot_trans'] = memory_stats['dram_tot_trans_gmem']
+                    if kernel_res['dram_tot_trans']==0:
+                        kernel_res['dram_ld_trans'] = kernel_res['dram_st_trans'] = 0
+                    else:
+                        kernel_res['dram_ld_trans'] = memory_stats['dram_ld_trans_gmem']
+                        kernel_res['dram_st_trans'] = memory_stats['dram_st_trans_gmem']
+
+                    kernel_res['gmem_tot_sectors_per_sm'] = memory_stats['l1_sm_trans_gmem']
+                    kernel_res['atom_tot_reqs'] = memory_stats['atom_tot_reqs']
+                    kernel_res['red_tot_reqs'] = memory_stats['red_tot_reqs']
+                    kernel_res['atom_red_trans'] = memory_stats['atom_red_tot_trans']
+                    
+                    kernel_res['gmem_ld_diverg'] = memory_stats['gmem_ld_diverg']
+                    kernel_res['gmem_st_diverg'] = memory_stats['gmem_st_diverg']
+                    kernel_res['gmem_diverg'] = memory_stats['gmem_tot_diverg']
+                except Exception as e:
+                    print(f"{e}: {app_arg} {i}")
+                    exit(1)
+            else:
+                kernel_res["l1_hit_rate_g"] = kernel_res['memory_stats']["l1_hit_rate_g"]
+                kernel_res["l1_hit_rate_ldg"] = kernel_res['memory_stats']["l1_hit_rate_ldg"]
+                kernel_res["l1_hit_rate_stg"] = kernel_res['memory_stats']["l1_hit_rate_stg"]
+                kernel_res["l2_hit_rate_ld"] = kernel_res['memory_stats']["l2_hit_rate_ld"]
+                kernel_res["l2_hit_rate_st"] = kernel_res['memory_stats']["l2_hit_rate_st"]
+                
+                kernel_res['l2_ld_trans'] = kernel_res['memory_stats']['l2_ld_trans_gmem']
+                kernel_res['l2_st_trans'] = kernel_res['memory_stats']['l2_st_trans_gmem']
+                kernel_res['dram_ld_trans'] = kernel_res['memory_stats']['dram_ld_trans']
+                kernel_res['dram_st_trans'] = kernel_res['memory_stats']['dram_st_trans']
+                
+                kernel_res['gmem_ld_sectors'] = kernel_res['memory_stats']['gmem_ld_sectors']
+                kernel_res['gmem_st_sectors'] = kernel_res['memory_stats']['gmem_st_sectors']
+                
+                kernel_res['gmem_diverg'] = kernel_res['gmem_tot_sectors'] / kernel_res['gmem_tot_reqs'] if kernel_res['gmem_tot_reqs'] != 0 else 0
+                kernel_res['gmem_ld_diverg'] = kernel_res['memory_stats']['gmem_ld_diverg']
             
+            # extra
             kernel_res['AMAT'] = kernel_res['AMAT']
             kernel_res['sim_time_memory'] = kernel_res["simulation_time"]["memory"]
             kernel_res['sim_time_compute'] = kernel_res["simulation_time"]["compute"]
@@ -71,35 +138,35 @@ def process_hw(hw_res):
             kernel_res['ipc'] = kernel_res['ipc']
             
             kernel_res['l1_hit_rate'] = kernel_res['tex_cache_hit_rate'] / 100
-            # kernel_res['l1_hit_rate_g'] = kernel_res['global_hit_rate'] / 100
-            # try:
-            #     kernel_res['l1_hit_rate_ldg'] = kernel_res['global_hit_rate_ld'] / 100
-            #     kernel_res['l1_hit_rate_stg'] = kernel_res['global_hit_rate_st'] / 100
-            # except:
-            #     pass
+            kernel_res['l1_hit_rate_g'] = kernel_res['global_hit_rate'] / 100
+            try:
+                kernel_res['l1_hit_rate_ldg'] = kernel_res['global_hit_rate_ld'] / 100
+                kernel_res['l1_hit_rate_stg'] = kernel_res['global_hit_rate_st'] / 100
+            except:
+                pass
             
             kernel_res['l2_hit_rate'] = kernel_res['l2_tex_hit_rate'] / 100
-            # kernel_res['l2_hit_rate_ld'] = kernel_res['l2_tex_read_hit_rate'] / 100
-            # kernel_res['l2_hit_rate_st'] = kernel_res['l2_tex_write_hit_rate'] / 100
+            kernel_res['l2_hit_rate_ld'] = kernel_res['l2_tex_read_hit_rate'] / 100
+            kernel_res['l2_hit_rate_st'] = kernel_res['l2_tex_write_hit_rate'] / 100
         
             kernel_res['gmem_tot_reqs'] = kernel_res['global_load_requests'] + kernel_res['global_store_requests']
-            # kernel_res['gmem_ld_reqs'] = kernel_res['global_load_requests']
-            # kernel_res['gmem_st_reqs'] = kernel_res['global_store_requests']
+            kernel_res['gmem_ld_reqs'] = kernel_res['global_load_requests']
+            kernel_res['gmem_st_reqs'] = kernel_res['global_store_requests']
             kernel_res['gmem_tot_sectors'] = kernel_res['gld_transactions'] + kernel_res['gst_transactions']
             
             kernel_res['gmem_diverg'] = kernel_res['gmem_tot_sectors'] / kernel_res['gmem_tot_reqs'] if kernel_res['gmem_tot_reqs'] != 0 else 0
-            # kernel_res['gmem_ld_sectors'] = kernel_res['gld_transactions']
-            # kernel_res['gmem_st_sectors'] = kernel_res['gst_transactions']
-            # try:
-            #     kernel_res['gmem_ld_diverg'] = kernel_res['gld_transactions_per_request']
-            # except:
-            #     kernel_res['gmem_ld_diverg'] = kernel_res['gld_transactions']/kernel_res['global_load_requests'] if kernel_res['global_load_requests'] != 0 else 0
+            kernel_res['gmem_ld_sectors'] = kernel_res['gld_transactions']
+            kernel_res['gmem_st_sectors'] = kernel_res['gst_transactions']
+            try:
+                kernel_res['gmem_ld_diverg'] = kernel_res['gld_transactions_per_request']
+            except:
+                kernel_res['gmem_ld_diverg'] = kernel_res['gld_transactions']/kernel_res['global_load_requests'] if kernel_res['global_load_requests'] != 0 else 0
             kernel_res['l2_tot_trans'] = kernel_res['l2_read_transactions'] + kernel_res['l2_write_transactions']
-            # kernel_res['l2_ld_trans'] = kernel_res['l2_read_transactions']
-            # kernel_res['l2_st_trans'] = kernel_res['l2_write_transactions']
+            kernel_res['l2_ld_trans'] = kernel_res['l2_read_transactions']
+            kernel_res['l2_st_trans'] = kernel_res['l2_write_transactions']
             kernel_res['dram_tot_trans'] = kernel_res['dram_read_transactions'] + kernel_res['dram_write_transactions']
-            # kernel_res['dram_ld_trans'] = kernel_res['dram_read_transactions']
-            # kernel_res['dram_st_trans'] = kernel_res['dram_write_transactions']
+            kernel_res['dram_ld_trans'] = kernel_res['dram_read_transactions']
+            kernel_res['dram_st_trans'] = kernel_res['dram_write_transactions']
     return hw_res
 
 def json2df(json_data):
