@@ -110,6 +110,24 @@ run_name="old_memory_LDS"
 model_extra_params="-C l1::32::,l2::32:: --memory-model ppt-gpu --set-gpu-params num_LDS_units_per_SM:16"
 }
 
+ppt2_no_subcore(){
+default
+run_name="paper_no_subcore"
+model_extra_params="--set-gpu-params num_LDS_units_per_SM:16,num_inst_dispatch_units_per_SM:4,num_warp_schedulers_per_SM:1"
+}
+
+ppt2_FU_no_limit(){
+default
+run_name="paper_FU_no_limit"
+model_extra_params="--set-gpu-params num_LDS_units_per_SM:128,num_INT_units_per_SM:128,num_SP_units_per_SM:128,num_DP_units_per_SM:128,num_SF_units_per_SM:128,num_TC_units_per_SM:128"
+}
+
+ppt2_no_KLL(){
+default
+run_name="paper_no_KLL"
+model_extra_params="--no_KLL --set-gpu-params num_LDS_units_per_SM:16"
+}
+
 # Ampere
 ppt2_ampere(){
 default

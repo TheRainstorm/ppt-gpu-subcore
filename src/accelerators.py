@@ -226,6 +226,7 @@ class Accelerator(object):
         self.units_latency = gpu_configs["units_latency"]
         self.sass_isa = gpu_configs["sass_isa"]
         self.initial_interval = gpu_configs["initial_interval"]
+        self.unit_number = gpu_configs["unit_number"]
 
         self.l1_cache_access_latency = self.units_latency["l1_cache_access"]
         self.l2_cache_access_latency = self.units_latency["l2_cache_access"]
@@ -244,8 +245,7 @@ class Accelerator(object):
         
         subcore_hw_units = {}
         for unit in self.initial_interval:
-            subcore_hw_units[unit] = {}
-            subcore_hw_units[unit]['stall_cycle'] = 0
+            subcore_hw_units[unit] = [0 for i in range(self.unit_number[unit])]     # 每种 unit 包含一个列表，记录一组（32 个）单元的 当前 stall cycle，初始化为 0
         
         sm_hw_units = [deepcopy(subcore_hw_units) for i in range(self.num_warp_schedulers_per_SM)]
 
@@ -259,7 +259,9 @@ class Accelerator(object):
         '''
         return True if the request hw unit is fulfilled
         '''
-        if cycles >= self.hw_units[kernel_id][subcore_id][unit]['stall_cycle']:
-            self.hw_units[kernel_id][subcore_id][unit]['stall_cycle'] = cycles + self.initial_interval[unit]
-            return True
+        units = self.hw_units[kernel_id][subcore_id][unit]
+        for i in range(self.unit_number[unit]):
+            if units[i] <= cycles:
+                units[i] = cycles + self.initial_interval[unit]
+                return True
         return False

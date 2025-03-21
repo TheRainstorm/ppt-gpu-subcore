@@ -53,6 +53,10 @@ class Warp(object):
             is_issued, stall_type = self.process_inst(cycles, subcore_id)
             if is_issued:
                 inst_issued += 1
+            else:
+                break
+            if not self.is_active():
+                break
 
         stall_type_first = stall_type if inst_issued == 0 else 'NoStall'
         return inst_issued, stall_type_first  # return first inst stall type

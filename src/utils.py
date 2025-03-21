@@ -234,33 +234,39 @@ def get_gpu_config(gpu_config, set_gpu_params=None):
                 sys.exit(1)
     
     subcore = c['num_warp_schedulers_per_SM']
-    initial_interval = {
-        # Initiation interval (II) = threadsPerWarp // #FULanes
-        "iALU"              :   32*subcore // c['num_INT_units_per_SM'],
-        "fALU"              :   32*subcore // c['num_SP_units_per_SM'],
-        "hALU"              :   32*subcore // c['num_SP_units_per_SM'],
-        "dALU"              :   32*subcore // c['num_DP_units_per_SM'],
+    
+    initial_interval_ = {
+        "iALU"              :   32*subcore / c['num_INT_units_per_SM'],
+        "fALU"              :   32*subcore / c['num_SP_units_per_SM'],
+        "hALU"              :   32*subcore / c['num_SP_units_per_SM'],
+        "dALU"              :   32*subcore / c['num_DP_units_per_SM'],
 
-        "SFU"               :   32*subcore // c['num_SF_units_per_SM'],
-        "dSFU"              :   32*subcore // c['num_SF_units_per_SM'],
+        "SFU"               :   32*subcore / c['num_SF_units_per_SM'],
+        "dSFU"              :   32*subcore / c['num_SF_units_per_SM'],
 
-        "LDST"              :   32*subcore // c['num_LDS_units_per_SM'],
+        "LDST"              :   32*subcore / c['num_LDS_units_per_SM'],
         
         # "bTCU"              :   64,
-        "iTCU"              :   32*subcore // c['num_TC_units_per_SM'],
-        "hTCU"              :   32*subcore // c['num_TC_units_per_SM'],
-        "fTCU"              :   32*subcore // c['num_TC_units_per_SM'],
-        "dTCU"              :   32*subcore // c['num_TC_units_per_SM'],
+        "iTCU"              :   32*subcore / c['num_TC_units_per_SM'],
+        "hTCU"              :   32*subcore / c['num_TC_units_per_SM'],
+        "fTCU"              :   32*subcore / c['num_TC_units_per_SM'],
+        "dTCU"              :   32*subcore / c['num_TC_units_per_SM'],
         
         "BRA"               :   1,
         "EXIT"              :   1,
     }
+    unit_number = {}
+    initial_interval = {}
+    for unit in initial_interval_:
+        initial_interval[unit] = ceil(initial_interval_[unit], 1)
+        unit_number[unit] = ceil(1/initial_interval_[unit], 1)
     
     # add ISA Latencies to gpu_configs
     gpu_configs.uarch["ptx_isa"] = ISA.ptx_isa
     gpu_configs.uarch["sass_isa"] = ISA.sass_isa
     gpu_configs.uarch["units_latency"] = ISA.units_latency
     gpu_configs.uarch["initial_interval"] = initial_interval
+    gpu_configs.uarch["unit_number"] = unit_number
     
     # get cc
     try:
