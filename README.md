@@ -1,65 +1,52 @@
 # PPT-GPU: Performance Prediction Toolkit for GPUs
 
+本仓库包含一个 GPU 性能分析模型，从 [PPT-GPU]() 项目修改而来。项目优化了原本的计算模型和访存模型，包括：支持 SM 子核建模、使用自己实现的 Cache 功能模拟器替代原本的 SDCM 分析模型等、并且支持输出应用的 CPI 栈信息等。
 
-PPT-GPU is a scalable and flexible framework to predict the performance of GPUs running general purpose workloads. PPT-GPU can use the virtual (PTX) or the native (SASS) ISAs without sacrificing accuracy, ease of use, or portability. The tool is currently focused on NVIDIA GPUs. We plan to extend our approach to model other vendors' GPUs such as AMD and Intel.
+## 要求
 
+- CUDA 11, 使用 CUDA 12.x 需要迁移 NVBit Trace 代码，详见 https://github.com/NVlabs/NVBit/releases/tag/1.7
+- Volta 架构之后的 GPU，Pascal SM 和 L1 架构均存在差异，建模效果很差
 
-## Papers
+## 使用
 
-- For more information, check out the [SC' 21](https://doi.org/10.1145/3458817.3476221) paper ***(Hybrid, Scalable, Trace-Driven Performance Modeling of GPGPUs)***.
+- `env_jobs.sh, env.sh run_helper.sh` 脚本组合在一起，包含了使用 PPT-GPU 的所有步骤，包括 Trace 采集，硬件性能数据采集，模型预测。
+- 进行 DSE，参考：`run_DSE*.sh` 脚本。
+- memory_model 包含了实现的新内存模型封装，也包含了测试相关 shell 脚本
+- `paper_scripts/paper.ipynb` 包含了论文中数据分析、画图的所有脚本
 
-    If you find this a helpful tool in your research, please consider citing as:
+## References
 
-    ```
-    @inproceedings{Arafa2021PPT-GPU,
-      author = {Y. {Arafa} and A. {Badawy} and A. {ElWazir} and A. {Barai} and A. {Eker} and G. {Chennupati} and N. {Santhi} and S. {Eidenbenz}},
-      title = {Hybrid, Scalable, Trace-Driven Performance Modeling of GPGPUs},
-      year = {2021},
-      booktitle = {Proceedings of the International Conference for High Performance Computing, Networking, Storage and Analysis},
-      series = {SC '21}
-    }
-    ```
+本文实现的内存模型
+```
+Yuan F, Hao X, et al. Modeling GPU Memory Systems Based on Cache Functional Simulation[J]. Journal of Chinese Computer Systems,2025
+```
 
-- The memory model is descibed in the [ICS' 20](https://doi.org/10.1145/3392717.3392761) paper.
-     ```
-    @inproceedings{Arafa2020PPT-GPU-MEM,
-      author = {Y. {Arafa} and A. {Badawy} and G. {Chennupati} and A. {Barai} and N. {Santhi} and S. {Eidenbenz}},
-      title = {Fast, Accurate, and Scalable Memory Modeling of GPGPUs Using Reuse Profiles},
-      year = {2020},
-      booktitle = {Proceedings of the 34th ACM International Conference on Supercomputing},
-      series = {ICS '20}
-    }
-    ```
+对于原本的 PPT-GPU 模型，请参考：[SC' 21](https://doi.org/10.1145/3458817.3476221) paper ***(Hybrid, Scalable, Trace-Driven Performance Modeling of GPGPUs)***.
 
-### See the [wiki](https://github.com/NMSU-PEARL/PPT-GPU/wiki) page for installation and usage of PPT-GPU.
+```
+@inproceedings{Arafa2021PPT-GPU,
+  author = {Y. {Arafa} and A. {Badawy} and A. {ElWazir} and A. {Barai} and A. {Eker} and G. {Chennupati} and N. {Santhi} and S. {Eidenbenz}},
+  title = {Hybrid, Scalable, Trace-Driven Performance Modeling of GPGPUs},
+  year = {2021},
+  booktitle = {Proceedings of the International Conference for High Performance Computing, Networking, Storage and Analysis},
+  series = {SC '21}
+}
+```
 
-***The wiki page includes the following:***
-
-1. Infomation about the [SW & HW dependencies](https://github.com/NMSU-PEARL/PPT-GPU/wiki/SW-&-HW-Dependencies) needed for trace extraction and simualtions
-2. Altenatively if you plan to use our pre-configured docker images, you can find the instructions in the [docker images & usage](https://github.com/NMSU-PEARL/PPT-GPU/wiki/Docker-Images-and-Usage) wiki page
-3. [Steps](https://github.com/NMSU-PEARL/PPT-GPU/wiki/Steps-For-Running-PPT-GPU) for running the simulator 
-
-
-<br />
-
-## GPGPU Benchmarks/Applications
-
-You can find various GPU benchmarks that can be used in your research in the following repo: [GPU Workloads](https://github.com/NMSU-PEARL/GPGPUs-Workloads)
-
-
-
-<br />
-<br />
-
-## Classification
-
-PPT-GPU is part of the original PPT (https://github.com/lanl/PPT) and is Unclassified and contains no Unclassified Controlled Nuclear Information. It abides with the following computer code from Los Alamos National Laboratory
-
-  * Code Name: Performance Prediction Toolkit, C17098
-  * Export Control Review Information: DOC-U.S. Department of Commerce, EAR99
-  * B&R Code: YN0100000
+对于 PPT-GPU 原本的内存模型，请参考：[ICS' 20](https://doi.org/10.1145/3392717.3392761) paper.
+```
+@inproceedings{Arafa2020PPT-GPU-MEM,
+author = {Y. {Arafa} and A. {Badawy} and G. {Chennupati} and A. {Barai} and N. {Santhi} and S. {Eidenbenz}},
+title = {Fast, Accurate, and Scalable Memory Modeling of GPGPUs Using Reuse Profiles},
+year = {2020},
+booktitle = {Proceedings of the 34th ACM International Conference on Supercomputing},
+series = {ICS '20}
+}
+```
 
 ## License
+
+按照 PPT-GPU 的 License 要求，保留原本的 License 信息：
 
 &copy 2017. Triad National Security, LLC. All rights reserved.
 
