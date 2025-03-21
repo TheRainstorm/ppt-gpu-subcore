@@ -103,6 +103,9 @@ res_hw_ncu_json=${ppt_gpu_dir}/tmp/res_hw_${gpu}_${CUDA_VERSION}_ncu.json
 res_hw_nvprof_cpi_json=${ppt_gpu_dir}/tmp/res_hw_${gpu}_${CUDA_VERSION}_nvprof_cpi.json
 res_hw_ncu_cpi_json=${ppt_gpu_dir}/tmp/res_hw_${gpu}_${CUDA_VERSION}_ncu_cpi.json
 
+# gpgpu-sim
+res_gpgpu_sim_json=${ppt_gpu_dir}/tmp/res_${gpu}_${cuda_version}_gpgpu_sim.json
+
 ## Simulation related
 # 需要模拟架构的性能数据
 res_hw_sim_json=${ppt_gpu_dir}/tmp/res_hw_${gpu_sim}_${cuda_version}.json
@@ -181,6 +184,13 @@ print_summary(){
     echo "granularity: $granularity, filter_l2: $filter_l2, use_approx: $use_approx, use_sm_trace: $use_sm_trace"
     echo "extra_params: $extra_params"
     echo "res_memory_json: $res_memory_json"
+
+    echo "[GPGPU-Sim]:"
+    echo "run_name: $run_name"
+    echo "trace_dir_gpgpu_sim: $trace_dir_gpgpu_sim"
+    echo "gpgpu_sim_config_path: $gpgpu_sim_config_path"
+    echo "gpgpu_sim_lib_path: $gpgpu_sim_lib_path"
+    echo "res_gpgpu_sim_json:" $res_gpgpu_sim_json
 }
 
 unset_env(){
@@ -193,6 +203,7 @@ unset_env(){
     unset GPU_PROFILE
     unset granularity filter_l2 use_approx use_sm_trace memory_suffix
     unset ppt_src model_extra_params hw_prof_type profling_extra_params
+    unset gpgpu_sim_config_path gpgpu_sim_lib_path trace_dir_gpgpu_sim res_gpgpu_sim_json
 }
 
 print_summary

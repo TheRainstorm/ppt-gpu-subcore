@@ -48,6 +48,12 @@ python ${ppt_gpu_dir}/scripts/draw/convert_cpi_stack.py -i ${res_hw_ncu_json} -I
 fi
 }
 
+run_gpgpu_sim(){
+python ${ppt_gpu_dir}/scripts/run_gpgpu_sim.py -B ${benchmarks} -F ${filter_app} -T ${trace_dir_gpgpu_sim} -l run_gpgpu_sim_${hw_identifier}.log --loop-cnt 1 --time-out ${time_out} --gpgpu-sim-config-path ${gpgpu_sim_config_path} --gpgpu-sim-lib-path ${gpgpu_sim_lib_path}
+
+python ${ppt_gpu_dir}/scripts/get_stat_gpgpu_sim.py -B ${benchmarks} -F ${filter_app} -T ${trace_dir_gpgpu_sim} -o ${res_gpgpu_sim_json}
+}
+
 run_sim(){
 cd ${ppt_gpu_dir}
 # run sim

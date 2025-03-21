@@ -74,6 +74,7 @@ def logging(*args, **kwargs):
     print(*args, **kwargs, file=log_file, flush=True)
     print(*args, **kwargs, file=sys.stderr)
 
+failed_list = []
 logging(f"run hw profiling {args.select}")
 logging(f"START")
 for loop in range(args.loop_cnt):
@@ -167,7 +168,6 @@ for loop in range(args.loop_cnt):
                 f.write(sh_contents)
             subprocess.call(['chmod', 'u+x', run_script_path])
             
-            failed_list = []
             success = False
             if not args.norun:
                 saved_dir = os.getcwd()
