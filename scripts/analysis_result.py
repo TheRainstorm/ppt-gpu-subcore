@@ -21,6 +21,17 @@ extra_list = ['sim_time', 'sim_time_memory', 'sim_time_compute', 'warp_inst_exec
 def divide_or_zero(a, b):
     return a/b if b != 0 else 0
 
+def process_gpgpu_sim(res):
+    global extra_list
+    for app_arg, app_res in res.items():
+        for i, kernel_res in enumerate(app_res):
+            kernel_res['warp_inst_executed'] = kernel_res['gpu_inst']//32
+            kernel_res['achieved_occupancy'] = kernel_res['gpu_occupancy'] / 100
+            kernel_res['gpu_active_cycles'] = kernel_res['gpu_cycle']
+            kernel_res['ipc'] = kernel_res['gpu_ipc']
+            kernel_res['sim_time'] = kernel_res['gpgpu_simulation_time']
+    return res
+
 def process_sim(sim_res):
     global extra_list
     extra_flag = False
@@ -234,6 +245,7 @@ if __name__ == "__main__":
                         help="a comma seperated list of benchmark suites to run. See apps/define-*.yml for the benchmark suite names.",
                         default="")
     parser.add_argument("-F", "--app-filter", default="", help="filter apps. e.g. regex:.*-rodinia-2.0-ft, [suite]:[exec]:[count]")
+    parser.add_argument("--gpgpu-sim",action="store_true", help="use gpgpu-sim as sim res")
     args = parser.parse_args()
 
 
@@ -254,7 +266,10 @@ if __name__ == "__main__":
     hw_res = filter_res(hw_res, app_arg_filtered_list)
     hw_res = filter_hw_kernel(sim_res, hw_res)
     sim_res, hw_res = find_common(sim_res, hw_res)
-    sim_res = process_sim(sim_res)
+    if args.gpgpu_sim:
+        sim_res = process_gpgpu_sim(sim_res)
+    else:
+        sim_res = process_sim(sim_res)
     hw_res = process_hw(hw_res)
     
     df_sim = json2df(sim_res)

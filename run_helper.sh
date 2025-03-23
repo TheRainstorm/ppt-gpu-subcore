@@ -49,9 +49,11 @@ fi
 }
 
 run_gpgpu_sim(){
-python ${ppt_gpu_dir}/scripts/run_gpgpu_sim.py -B ${benchmarks} -F ${filter_app} -T ${trace_dir_gpgpu_sim} -l run_gpgpu_sim_${hw_identifier}.log --loop-cnt 1 --time-out ${time_out} --gpgpu-sim-config-path ${gpgpu_sim_config_path} --gpgpu-sim-lib-path ${gpgpu_sim_lib_path}
+python ${ppt_gpu_dir}/scripts/run_gpgpu_sim.py -B ${benchmarks} -F ${filter_app} -T ${trace_dir_gpgpu_sim} -l run_gpgpu_sim_${hw_identifier}.log --time-out ${time_out} --gpgpu-sim-config-path ${gpgpu_sim_config_path} --gpgpu-sim-lib-path ${gpgpu_sim_lib_path} -p 64
 
 python ${ppt_gpu_dir}/scripts/get_stat_gpgpu_sim.py -B ${benchmarks} -F ${filter_app} -T ${trace_dir_gpgpu_sim} -o ${res_gpgpu_sim_json}
+
+python ${ppt_gpu_dir}/scripts/analysis_result.py -B ${benchmarks} -F ${filter_app} -S ${res_gpgpu_sim_json} -H ${res_hw_sim_json} -o res_gpgpu_sim_${gpu}_${cuda_version}.xlsx --gpgpu-sim
 }
 
 run_sim(){

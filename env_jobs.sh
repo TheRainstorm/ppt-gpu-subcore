@@ -27,6 +27,7 @@ default(){
 benchmarks="rodinia-3.1-full|polybench-full|pannotia|Tango|micro|GPU_Microbenchmark|deepbench"
 #filter_app="rodinia-3.1-full|polybench-full|Tango|pannotia"
 benchmarks="rodinia-3.1-full|polybench-full|pannotia|Tango|micro"
+benchmarks="rodinia-3.1-full|polybench-full|pannotia|Tango"
 filter_app=$benchmarks
 
 gpu="titanv"
@@ -52,7 +53,12 @@ ppt_src='/staff/fyyuan/repo/PPT-GPU/ppt.py'
 profling_extra_params=""
 model_extra_params=''
 # filter_app="micro"
-# model_extra_params='<--no-overwrite>'
+# model_extra_params='<--no-overwrite>'  # 有点设置会覆盖这个参数，所以设了没用
+# filter_app="micro:ITVAL_F:4|micro:ITVALX_IF:3"
+
+trace_dir_gpgpu_sim=/staff/fyyuan/run_gpgpu_sim
+gpgpu_sim_config_path=/staff/fyyuan/repo/gpgpu-sim_distribution-dev/configs/tested-cfgs/SM7_TITANV/gpgpusim.config
+gpgpu_sim_lib_path=/staff/fyyuan/repo/gpgpu-sim_distribution-dev/lib/gcc-7.5.0/cuda-11000/release/libcudart.so
 }
 
 ppt_ori(){

@@ -418,7 +418,8 @@ def filter_hw_kernel(sim_res, hw_res):
         if app in sim_res and len(sim_res[app]) != len(hw_res[app]):
             k_res_new = []
             # filter kernel in sim_res
-            for k_res in sim_res[app]:
+            max_kernel_num = len(hw_res[app])
+            for k_res in sim_res[app][:max_kernel_num]:
                 kernel_id = int(k_res['kernel_id'])
                 k_res_new.append(hw_res[app][kernel_id-1])
             hw_res[app] = k_res_new

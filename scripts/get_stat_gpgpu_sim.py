@@ -54,21 +54,39 @@ def parse_gpgpu_sim_log_file(profiling_file, skip_unit_row=False):
     with open(profiling_file, 'r') as f:
         log = f.read()
     
-    kernel_name_list = re.findall(r'^kernel_name = (?P<value>.*) $', log, re.MULTILINE)
+    kernel_name_list = re.findall(r'kernel_name = (?P<value>.*) $', log, re.MULTILINE)
     gpu_cycle = list(map(int, re.findall(r'^gpu_sim_cycle = (?P<value>\d+)', log, re.MULTILINE)))
     gpu_inst = list(map(int, re.findall(r'^gpu_sim_insn = (?P<value>\d+)', log, re.MULTILINE)))
-    gpu_ipc = list(map(float, re.findall(r'^gpu_ipc = (?P<value>[\d\.]+)', log, re.MULTILINE)))
+    gpu_ipc = list(map(float, re.findall(r'^gpu_ipc = \s*(?P<value>[\d\.]+)', log, re.MULTILINE)))
     gpu_occupancy = list(map(float, re.findall(r'^gpu_occupancy = (?P<value>[\d\.]+)\%', log, re.MULTILINE)))
-    gpgpu_simulation_time = list(map(int, re.findall(r'^gpgpu_simulation_time = .*\((?P<value>\d+) sec\)', log, re.MULTILINE)))
+    gpgpu_simulation_time_acc = list(map(int, re.findall(r'^gpgpu_simulation_time = .*\((?P<value>\d+) sec\)', log, re.MULTILINE)))
+    gpgpu_simulation_time = [gpgpu_simulation_time_acc[0]] + [gpgpu_simulation_time_acc[i] - gpgpu_simulation_time_acc[i - 1] for i in range(1, len(gpgpu_simulation_time_acc))]
+    L1D_total_cache_miss_rate = 0.2930
+    l1_miss_rate = list(map(float, re.findall(r'L1D_total_cache_miss_rate = \s*(?P<value>[\d\.]+)', log, re.MULTILINE)))
+    l2_miss_rate = list(map(float, re.findall(r'L2_total_cache_miss_rate = \s*(?P<value>[\d\.]+)', log, re.MULTILINE)))
+    l1_hit_rate =[1 - x for x in l1_miss_rate]
+    l2_hit_rate =[1 - x for x in l2_miss_rate]
+    
+    dram_read = list(map(int, re.findall(r'^total dram reads = (?P<value>\d+)', log, re.MULTILINE)))
+    dram_write = list(map(int, re.findall(r'^total dram writes = (?P<value>\d+)', log, re.MULTILINE)))
+    dram_tot = [x + y for x, y in zip(dram_read, dram_write)]
     
     kernel_num = len(gpu_cycle)
     for i in range(kernel_num):
         kernel_data = {
             'kernel_name': kernel_name_list[i],
+            'kernel_id': i + 1,
             'gpu_cycle': gpu_cycle[i],
             'gpu_inst': gpu_inst[i],
             'gpu_ipc': gpu_ipc[i],
             'gpu_occupancy': gpu_occupancy[i],
+            # memory
+            'l1_hit_rate': l1_hit_rate[i],
+            'l2_hit_rate': l2_hit_rate[i],
+            'dram_tot_trans': dram_tot[i],
+            'dram_ld_trans': dram_read[i],
+            'dram_st_trans': dram_write[i],
+            # sim time
             'gpgpu_simulation_time': gpgpu_simulation_time[i],
         }
         result.append(kernel_data)
