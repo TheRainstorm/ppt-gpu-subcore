@@ -1,0 +1,87 @@
+rodinia-3.1-full:
+  suite: rodinia-3.1
+  exec_dir: "$GPGPU_WORKLOADS_ROOT/bin/$CUDA_VERSION/release/"
+  data_dirs: "$GPGPU_WORKLOADS_ROOT/data_dirs/rodinia-3.1/"
+  execs:
+    - b+tree-rodinia-3.1:
+        - args: file ./data/mil.txt command ./data/command.txt # 2
+          accel-sim-mem: 1G
+      abbr: BTREE
+    - backprop-rodinia-3.1:
+        - args: 65536 # 2
+          accel-sim-mem: 1G
+      abbr: BP
+    # - bfs-rodinia-3.1:
+    #     - args: ./data/graph4096.txt # 16
+    #       accel-sim-mem: 1G
+    #     - args: ./data/graph65536.txt # 20
+    #       accel-sim-mem: 1G
+    #     - args: ./data/graph1MW_6.txt # 24
+    #       accel-sim-mem: 1G
+    #   abbr: BFS
+    # - cfd-rodinia-3.1:
+    #     - args: ./data/fvcorr.domn.097K
+    #       accel-sim-mem: 1G
+    #     # - args: ./data/fvcorr.domn.193K
+    #     #   accel-sim-mem: 1G
+    #     # - args: ./data/missile.domn.0.2M
+    #     #   accel-sim-mem: 4G
+    #   abbr: CFD
+    # - dwt2d-rodinia-3.1:
+    #     - args: ./data/192.bmp -d 192x192 -f -5 -l 3 # 10
+    #       accel-sim-mem: 1G
+    #     - args: ./data/rgb.bmp -d 1024x1024 -f -5 -l 3 # 10
+    #       accel-sim-mem: 1G
+    #   abbr: DWT2D
+    # - gaussian-rodinia-3.1:
+    #     - args: -f ./data/matrix4.txt # 6
+    #       accel-sim-mem: 1G
+    #     - args: -s 16 # 30
+    #       accel-sim-mem: 1G
+    #     - args: -f ./data/matrix208.txt #300
+    #       accel-sim-mem: 1G
+    #     - args: -s 64 # 126
+    #       accel-sim-mem: 1G
+    #     - args: -s 256 #300
+    #       accel-sim-mem: 1G
+    #   abbr: GS
+    # - heartwall-rodinia-3.1:
+    #     - args: ./data/test.avi 1 # 1
+    #     # - args: ./data/test.avi 20
+    #   abbr: HW
+    # - hotspot-rodinia-3.1:
+    #     - args: 512 2 2 ./data/temp_512 ./data/power_512 output.out # 1
+    #       accel-sim-mem: 1G
+    #     - args: 1024 2 2 ./data/temp_1024 ./data/power_1024 output.out # 1
+    #       accel-sim-mem: 1G
+    #   abbr: HS
+    # - lavaMD-rodinia-3.1:
+    #     - args: -boxes1d 10 # 1
+    #       accel-sim-mem: 32G
+    #       ignore: 3  # ppt-gpu > 20min
+    #   abbr: LMD
+    # - lud-rodinia-3.1:
+    #     - args: -s 256 -v # 46
+    #       accel-sim-mem: 1G
+    #     - args: -i ./data/512.dat # 94
+    #       accel-sim-mem: 1G
+    #   abbr: LUD
+    # - nn-rodinia-3.1:
+    #     - args: ./data/filelist_4 -r 5 -lat 30 -lng 90 # 1
+    #       accel-sim-mem: 4G
+    #   abbr: NN
+    # - nw-rodinia-3.1:
+    #     - args: 2048 10 # 255
+    #       accel-sim-mem: 1G
+    #   abbr: NW
+    # - pathfinder-rodinia-3.1:
+    #     - args: 100000 100 20 > result.txt # 5
+    #       accel-sim-mem: 1G
+    #   abbr: PF
+    # - srad_v1-rodinia-3.1:
+    #     - args: 100 0.5 502 458 # 400
+    #       accel-sim-mem: 1G
+    #   abbr: SRAD
+    # - streamcluster-rodinia-3.1:
+    #     - args: 3 6 16 65536 65536 1000 none output.txt 1 output.txt # 224
+    #   abbr: SC

@@ -1,4 +1,5 @@
 tracing_tool/nvbit_1.7.3/
+hw_trace_collect/
 
 env-*.sh
 *.png

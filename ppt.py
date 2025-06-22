@@ -25,12 +25,6 @@ from src.utils import get_current_kernel_info, get_gpu_config, get_app_config
 import argparse
 
 def main():
-    from mpi4py import MPI
-
-    comm = MPI.COMM_WORLD
-    rank = comm.Get_rank()
-    size = comm.Get_size()
-    
     parser = argparse.ArgumentParser(
         description='ppt-gpu. [MPI] For scalabilty, add mpirun call before program command:\nmpirun -np <number of processes>'
     )
@@ -83,6 +77,14 @@ def main():
     
     args = parser.parse_args()
     granularity = args.granularity
+    if args.mpi:
+        from mpi4py import MPI
+        comm = MPI.COMM_WORLD
+        rank = comm.Get_rank()
+        size = comm.Get_size()
+    else:
+        rank = 0
+        size = 1
 
     # check
     if not os.path.exists(args.app_path):
@@ -109,7 +111,8 @@ def main():
         if rank==0:
             if not os.path.exists(app_report_dir):
                 os.makedirs(app_report_dir)
-    comm.Barrier()
+    if args.mpi:
+        comm.Barrier()
     
     kernels_info = []
     instructions_type = "SASS" if args.sass else "PTX"

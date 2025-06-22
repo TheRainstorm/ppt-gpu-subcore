@@ -231,6 +231,8 @@ for app_and_arg in app_and_arg_list:
     cnt = len(profiling_res.get(args.select, []))
     print(f"{app_and_arg}: {len(acc_res)} ({cnt})")
     collect_data[app_and_arg] = acc_res
-    
+
+# make dir
+os.makedirs(os.path.dirname(args.output), exist_ok=True)
 with open(args.output, 'w') as f:
     json.dump(collect_data, f, indent=4)
