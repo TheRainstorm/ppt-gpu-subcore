@@ -9,6 +9,8 @@
 
 ## 使用
 
+更多使用信息见 wiki 页面。
+
 - `env_jobs.sh, env.sh run_helper.sh` 脚本组合在一起，包含了使用 PPT-GPU 的所有步骤，包括 Trace 采集，硬件性能数据采集，模型预测。
 - 进行 DSE，参考：`run_DSE*.sh` 脚本。
 - memory_model 包含了实现的新内存模型封装，也包含了测试相关 shell 脚本
